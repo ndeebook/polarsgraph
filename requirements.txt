@@ -1,0 +1,4 @@
+polars==1.13.0
+
+PySide6
+pyyaml
