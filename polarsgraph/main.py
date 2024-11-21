@@ -19,6 +19,7 @@ from polarsgraph.panel import SettingsWidget
 from polarsgraph.display import DisplayWidget
 
 from polarsgraph.nodes.load import LoadNode, LoadSettingsWidget
+from polarsgraph.nodes.sort import SortNode, SortSettingsWidget
 from polarsgraph.nodes.join import JoinNode, JoinSettingsWidget
 from polarsgraph.nodes.group import GroupNode, GroupSettingsWidget
 from polarsgraph.nodes.derive import DeriveNode, DeriveSettingsWidget
@@ -248,9 +249,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
     def build_node_query(self, node_name):
         build_node_query(self.graph, node_name)
-        node = self.graph[node_name]
-        if node.category in (DASHBOARD_CATEGORY, DASHBOARD_CATEGORY):
-            self.display_widget.update_content()
+        self.update_view_widget()
 
     def update_view_widget(self):
         self.display_widget.update_content()
@@ -458,12 +457,11 @@ class PolarsGraph(QtWidgets.QMainWindow):
             return
         display_nodes.sort()  # alphabetical order
         display_node_name = display_nodes[display_index]
-        display_node = self.graph[display_node_name]
         if len(self.node_view.selected_names) == 1:
             selected_node = self.graph[self.node_view.selected_names[0]]
             self.change_plug(
                 dict(side=1, name=selected_node['name'], index=0),
-                dict(side=0, name=display_node['name'], index=0))
+                dict(side=0, name=display_node_name, index=0))
         self.display_widget.set_display_node(display_node_name)
 
 

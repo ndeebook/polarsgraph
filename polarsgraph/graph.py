@@ -204,7 +204,7 @@ def build_node_query(graph: dict, node_name: str):
     """
     node: BaseNode = graph[node_name]
     if not node.dirty:
-        return
+        return True
     nodes_to_build = [
         node_name, *get_all_upstream_node_names(graph, node_name)]
     for upstream_node_name in reversed(nodes_to_build):
@@ -215,7 +215,8 @@ def build_node_query(graph: dict, node_name: str):
             if upstream_node.error:
                 logger.debug(
                     f'Build aborted because of {upstream_node_name}')
-                return
+                return False
+    return True
 
 
 def connect_nodes(graph, source_node, source_index, target_node, target_index):

@@ -43,7 +43,7 @@ class DisplayWidget(QtWidgets.QWidget):
     def update_content(self):
         if not self.node:
             return
-        build_node_query(self.graph, self.node['name'])
+        success = build_node_query(self.graph, self.node['name'])
         if self.node.type == 'dashboard':
             # First, make sur we remove all Widgets, otherwise they will
             # still be visible avec disconnecting them from Dashboard
@@ -52,6 +52,8 @@ class DisplayWidget(QtWidgets.QWidget):
                 widget.setVisible(False)
             # Now, update layout & visible widgets:
             self.node.update_board(self.graph)
+        elif not success:
+            self.node.clear()
 
     def set_display_node(self, node_name: str):
         # Update settings

@@ -87,7 +87,7 @@ class TableDisplay(BaseDisplay):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.table_view)
 
-    def set_table(self, table):
+    def set_table(self, table: pl.LazyFrame):
         if table is None:
             return self.table_model.set_dataframe(pl.DataFrame())
         self.table_model.set_dataframe(table.collect(stream=True))
