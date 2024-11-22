@@ -1,6 +1,7 @@
 import polars as pl
-from PySide6 import QtGui, QtWidgets
+from PySide6 import QtWidgets
 
+from polarsgraph.nodes import PINK as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import (
     BaseNode, BaseSettingsWidget, set_combo_values)
@@ -18,7 +19,7 @@ class JoinNode(BaseNode):
     category = MANIPULATE_CATEGORY
     inputs = 'left', 'right'
     outputs = 'table',
-    default_color = QtGui.QColor(207, 110, 50)
+    default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):
         settings[ATTR.HOW] = settings.get(ATTR.HOW) or 'inner'

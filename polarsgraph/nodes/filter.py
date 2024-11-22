@@ -1,6 +1,6 @@
 from PySide6 import QtGui, QtWidgets
 
-from polarsgraph.nodes import ORANGE as DEFAULT_COLOR
+from polarsgraph.nodes import BLUE as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
@@ -9,8 +9,8 @@ class ATTR:
     NAME = 'name'
 
 
-class DeriveNode(BaseNode):
-    type = 'derive'
+class FilterNode(BaseNode):
+    type = 'filter'
     category = MANIPULATE_CATEGORY
     inputs = 'table',
     outputs = 'table',
@@ -20,7 +20,7 @@ class DeriveNode(BaseNode):
         super().__init__(settings)
 
 
-class DeriveSettingsWidget(BaseSettingsWidget):
+class FilterSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 

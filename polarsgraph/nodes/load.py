@@ -3,6 +3,7 @@ import os
 from PySide6 import QtGui, QtWidgets
 import polars as pl
 
+from polarsgraph.nodes import BLACK as DEFAULT_COLOR
 from polarsgraph.graph import LOAD_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
@@ -17,7 +18,7 @@ class LoadNode(BaseNode):
     category = LOAD_CATEGORY
     inputs = None
     outputs = 'table',
-    default_color = QtGui.QColor(5, 5, 5)
+    default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):
         super().__init__(settings)

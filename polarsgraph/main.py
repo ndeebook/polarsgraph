@@ -23,6 +23,11 @@ from polarsgraph.nodes.sort import SortNode, SortSettingsWidget
 from polarsgraph.nodes.join import JoinNode, JoinSettingsWidget
 from polarsgraph.nodes.group import GroupNode, GroupSettingsWidget
 from polarsgraph.nodes.derive import DeriveNode, DeriveSettingsWidget
+from polarsgraph.nodes.filter import FilterNode, FilterSettingsWidget
+from polarsgraph.nodes.rename import RenameNode, RenameSettingsWidget
+from polarsgraph.nodes.reorder import ReorderNode, ReorderSettingsWidget
+from polarsgraph.nodes.concatenate import (
+    ConcatenateNode, ConcatenateSettingsWidget)
 
 from polarsgraph.nodes.table import (
     TableNode, TableSettingsWidget)
@@ -38,6 +43,12 @@ types = {
     JoinNode.type: {'type': JoinNode, 'widget': JoinSettingsWidget},
     DeriveNode.type: {'type': DeriveNode, 'widget': DeriveSettingsWidget},
     GroupNode.type: {'type': GroupNode, 'widget': GroupSettingsWidget},
+    SortNode.type: {'type': SortNode, 'widget': SortSettingsWidget},
+    FilterNode.type: {'type': FilterNode, 'widget': FilterSettingsWidget},
+    RenameNode.type: {'type': RenameNode, 'widget': RenameSettingsWidget},
+    ReorderNode.type: {'type': ReorderNode, 'widget': ReorderSettingsWidget},
+    ConcatenateNode.type: {
+        'type': ConcatenateNode, 'widget': ConcatenateSettingsWidget},
     # Displays
     BarsNode.type: {'type': BarsNode, 'widget': BarsSettingsWidget},
     TableNode.type: {'type': TableNode, 'widget': TableSettingsWidget},

@@ -6,6 +6,7 @@ from PySide6 import QtWidgets, QtGui, QtCore, QtCharts
 from PySide6.QtCore import Qt
 
 from polarsgraph.log import logger
+from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget, BaseDisplay
 
@@ -22,7 +23,7 @@ class BarsNode(BaseNode):
     category = DISPLAY_CATEGORY
     inputs = 'table',
     outputs = 'widget',
-    default_color = QtGui.QColor(5, 175, 75)
+    default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):
         super().__init__(settings)

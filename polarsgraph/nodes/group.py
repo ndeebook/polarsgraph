@@ -1,7 +1,8 @@
 import polars as pl
-from PySide6 import QtGui, QtWidgets
+from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
 
+from polarsgraph.nodes import PINK as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import (
     BaseNode, BaseSettingsWidget, set_combo_values)
@@ -11,11 +12,7 @@ ALL_ROWS_LABEL = '* aggregate all rows'
 DELETE_LABEL = 'delete column'
 
 EMPTY_LABEL = 'empty'
-STATS_LABEL = '"STATS"'
-LITERAL_VALUES = {
-    EMPTY_LABEL: '',
-    STATS_LABEL: 'STATS',
-}
+CUSTOM_VALUE_LABEL = '[custom]'
 
 
 class ATTR:
@@ -23,6 +20,7 @@ class ATTR:
     GROUP_BY = 'group_by'
     COLUMNS_AGGREGATIONS = 'columns_aggregations'
     ROUND = 'round'
+    CUSTOM_VALUE = 'custom_value'
 
 
 class GroupNode(BaseNode):
@@ -30,7 +28,7 @@ class GroupNode(BaseNode):
     category = MANIPULATE_CATEGORY
     inputs = 'table',
     outputs = 'table',
-    default_color = QtGui.QColor(166, 75, 132)
+    default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):
         super().__init__(settings)
@@ -41,6 +39,7 @@ class GroupNode(BaseNode):
 
         # Group by column(s)
         group_by_column = self[ATTR.GROUP_BY]
+        custom_value = self[ATTR.CUSTOM_VALUE] or ''
 
         # Prepare aggregation expressions
         agg_exprs = []
@@ -50,9 +49,9 @@ class GroupNode(BaseNode):
                 continue
             if col_name == group_by_column:
                 continue
-            if agg_name in LITERAL_VALUES:
+            if agg_name == CUSTOM_VALUE_LABEL:
                 if schema[col_name] == pl.String:
-                    agg_expr = pl.lit(LITERAL_VALUES[agg_name]).alias(col_name)
+                    agg_expr = pl.lit(custom_value).alias(col_name)
                 else:
                     agg_expr = pl.lit(0).alias(col_name)
             elif agg_name:
@@ -83,7 +82,7 @@ class GroupSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 
-        self.input_table = []
+        self.input_table = None
 
         # Widgets
         self.group_by_column_combo = QtWidgets.QComboBox()
@@ -108,11 +107,17 @@ class GroupSettingsWidget(BaseSettingsWidget):
             lambda: self.line_edit_to_settings(
                 self.round_edit, ATTR.ROUND, int))
 
+        self.customvalue_edit = QtWidgets.QLineEdit()
+        self.customvalue_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(
+                self.customvalue_edit, ATTR.CUSTOM_VALUE))
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         form_layout.addRow('Group by', self.group_by_column_combo)
         form_layout.addRow('Round (number of decimals)', self.round_edit)
+        form_layout.addRow('Custom value', self.customvalue_edit)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
@@ -134,12 +139,15 @@ class GroupSettingsWidget(BaseSettingsWidget):
         round_value = '' if round_value is None else str(round_value)
         self.round_edit.setText(round_value)
 
+        self.customvalue_edit.setText(node[ATTR.CUSTOM_VALUE] or '')
+
         self.populate_aggregation_table()
 
         self.blockSignals(False)
 
     def populate_aggregation_table(self):
         columns = self.input_table.collect_schema()
+        self.column_agg_table.blockSignals(True)
         self.column_agg_table.setRowCount(len(columns))
 
         datatype_default_agg = {
@@ -160,16 +168,17 @@ class GroupSettingsWidget(BaseSettingsWidget):
 
             # Add aggregation function dropdown
             agg_combo = QtWidgets.QComboBox()
-            agg_combo.currentTextChanged.connect(
-                self._handle_aggregations_change)
             agg_combo.addItems([
                 'sum', 'mean', 'min', 'max', 'count', 'n_unique',
-                DELETE_LABEL, *LITERAL_VALUES])
+                DELETE_LABEL, CUSTOM_VALUE_LABEL])
             if column in settings_aggs:
                 agg_combo.setCurrentText(settings_aggs[column])
             else:
                 agg_combo.setCurrentText(datatype_default_agg[datatype])
+            agg_combo.currentTextChanged.connect(
+                self._handle_aggregations_change)
             self.column_agg_table.setCellWidget(i, 1, agg_combo)
+        self.column_agg_table.blockSignals(False)
 
     def _handle_aggregations_change(self):
         columns_aggregations = {}
