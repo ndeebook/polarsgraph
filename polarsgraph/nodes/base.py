@@ -5,6 +5,9 @@ from PySide6 import QtCore, QtWidgets
 from polarsgraph.graph import BaseNode
 
 
+TRUE_WORDS = '1', 'true', 'yes'
+
+
 class BaseSettingsWidget(QtWidgets.QWidget):
     settings_changed = QtCore.Signal(str)
     rename_asked = QtCore.Signal(str, str)
@@ -55,8 +58,12 @@ class BaseSettingsWidget(QtWidgets.QWidget):
             self,
             combobox: QtWidgets.QComboBox,
             attribute_name,
-            data_type=str):
-        self.node[attribute_name] = data_type(combobox.currentText())
+            data_type=str,
+            mapper=None):
+        text = combobox.currentText()
+        if mapper:
+            text = mapper[text]
+        self.node[attribute_name] = data_type(text)
         self.emit_changed()
 
 
@@ -77,7 +84,7 @@ def set_combo_values(
         current_text: str,
         extra_values=None):
     combo.clear()
-    values = list(df.collect_schema())
+    values = df.collect_schema().names()
     if current_text not in values:
         values = [current_text, *values]
     combo.addItems(values)
@@ -86,3 +93,26 @@ def set_combo_values(
         if extra_values:
             combo.addItems(extra_values)
     combo.setCurrentText(current_text)
+
+
+def get_converter(data_type: pl.DataType):
+    if data_type.is_float():
+        return lambda v: float(v.replace(',', '.'))
+    elif data_type.is_integer():
+        return int
+    elif data_type == pl.Boolean:
+        return lambda v: True if v.lower() in TRUE_WORDS else False
+
+
+def convert_value(value, data_type):
+    converter = get_converter(data_type)
+    if converter is None:
+        return value
+    return converter(value)
+
+
+def convert_values(values, data_type):
+    converter = get_converter(data_type)
+    if converter is None:
+        return values
+    return [converter(v) for v in values]

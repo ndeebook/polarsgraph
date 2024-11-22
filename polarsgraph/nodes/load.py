@@ -1,6 +1,6 @@
 import os
 
-from PySide6 import QtGui, QtWidgets
+from PySide6 import QtWidgets
 import polars as pl
 
 from polarsgraph.nodes import BLACK as DEFAULT_COLOR
@@ -27,7 +27,7 @@ class LoadNode(BaseNode):
         path = self.settings['path']
         if not path:
             raise ValueError('Please specify a file path to open')
-        path = os.path.expandvars(path)
+        path = os.path.expanduser(os.path.expandvars(path))
         extension = path.split('.')[-1]
         open_func = dict(xlsx=pl.read_excel)[extension]
         self.tables[self.outputs[0]] = open_func(path).lazy()
