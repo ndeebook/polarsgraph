@@ -142,6 +142,9 @@ def get_upstream_node_names(graph, node_name):
 
 
 def get_all_upstream_node_names(graph, initial_node_name):
+    """
+    Return nodes in an order they can be computed (with their inputs computed).
+    """
     upstream_names = []
     to_parse = [initial_node_name]
     while to_parse:
@@ -149,8 +152,10 @@ def get_all_upstream_node_names(graph, initial_node_name):
         upstream_nodes = get_upstream_node_names(graph, node_name)
         to_parse.extend(upstream_nodes)
         for node_name in upstream_nodes:
-            if node_name not in upstream_names:
-                upstream_names.append(node_name)
+            if node_name in upstream_names:
+                # position needs to be updated
+                upstream_names.remove(node_name)
+            upstream_names.append(node_name)
     return upstream_names
 
 
