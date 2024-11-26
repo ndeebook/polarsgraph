@@ -73,6 +73,9 @@ class BaseDisplay(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
 
+    def set_board_mode(self, board_enabled: bool):
+        pass
+
     def showEvent(self, event):
         self.shown.emit()
         return super().showEvent(event)

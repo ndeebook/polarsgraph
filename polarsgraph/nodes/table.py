@@ -86,15 +86,49 @@ class TableDisplay(BaseDisplay):
         self.table_model = PolarsLazyFrameModel()
         self.table_view.setModel(self.table_model)
 
+        self.table_details_label = QtWidgets.QLabel()
+        resize_button = QtWidgets.QPushButton(
+            '⇔ columns', clicked=self.table_view.resizeColumnsToContents)
+        icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.EditCopy)
+        clipboard_image_button = QtWidgets.QPushButton(
+            'image', icon=icon, clicked=self.image_to_clipboard)
+        icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.DocumentSave)
+        save_image_button = QtWidgets.QPushButton(
+            'image', icon=icon, clicked=self.save_image)
+        icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.EditCopy)
+        clipboard_text_button = QtWidgets.QPushButton(
+            'csv', icon=icon, clicked=self.csv_to_clipboard)
+        icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.DocumentSave)
+        save_button = QtWidgets.QPushButton(
+            'table', icon=icon, clicked=self.export_dataframe)
+
         # Layout
+        self.bottom_widget = QtWidgets.QWidget()
+        bottom_layout = QtWidgets.QHBoxLayout(self.bottom_widget)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.addWidget(self.table_details_label)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(resize_button)
+        bottom_layout.addWidget(clipboard_image_button)
+        bottom_layout.addWidget(clipboard_text_button)
+        bottom_layout.addWidget(save_image_button)
+        bottom_layout.addWidget(save_button)
+
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.table_view)
+        layout.addWidget(self.bottom_widget)
 
     def set_table(self, table: pl.LazyFrame):
         if table is None:
+            self.table_details_label.setText('')
             return self.table_model.set_dataframe(pl.DataFrame())
-        self.table_model.set_dataframe(table.collect(stream=True))
+        table = table.collect(stream=True)
+        self.table_model.set_dataframe(table)
+        self.table_details_label.setText(f'{table.height} x {table.width}')
+
+    def set_board_mode(self, board_enabled: bool):
+        self.bottom_widget.setVisible(not board_enabled)
 
     def show_dataframe(self, node):
         raise NotImplementedError
@@ -113,8 +147,6 @@ class TableDisplay(BaseDisplay):
         # Content dataframe:
         try:
             dataframe = node.dataframes[table_name].collect(stream=True)
-            self.table_name_label.setText(
-                f'{node.full_name}: {table_name}')
             self.table_details_label.setText(
                 f'{dataframe.height} x {dataframe.width}')
             self.table_model.set_dataframe(dataframe)
@@ -136,7 +168,6 @@ class TableDisplay(BaseDisplay):
                 fit_columns_to_headers(self.table_view)
         except BaseException:
             dataframe = pl.DataFrame()
-            self.table_name_label.setText('Error')
             self.table_details_label.setText('')
             self.stack.set_error(node, traceback.format_exc())
             self.table_model.set_dataframe(dataframe)
@@ -149,14 +180,10 @@ class TableDisplay(BaseDisplay):
         prompt_save_df(self.table_model.dataframe, name=self.node['name'])
 
     def get_pixmap(self):
-        top_label_size = 40
-
         size = get_table_size(self.table_view)
-        size.setHeight(size.height() + top_label_size)
+        size.setHeight(size.height())
         pixmap = QtGui.QPixmap(size)
-        pixmap.fill(Qt.black)
-        self.table_view.render(
-            pixmap, targetOffset=QtCore.QPoint(0, top_label_size))
+        self.table_view.render(pixmap)
         return pixmap
 
     def save_image(self):

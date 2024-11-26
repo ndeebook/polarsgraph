@@ -73,6 +73,7 @@ class DisplayWidget(QtWidgets.QWidget):
         self.node = self.graph[node_name]
         display_widget: DisplayWidget = self.node.display_widget
         display_widget.setVisible(True)
+        display_widget.set_board_mode(False)
         self.content_layout.addWidget(display_widget)
 
         # Update content

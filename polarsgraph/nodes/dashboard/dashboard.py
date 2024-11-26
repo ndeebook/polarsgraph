@@ -1,4 +1,4 @@
-from PySide6 import QtWidgets, QtGui, QtCore
+from PySide6 import QtWidgets, QtCore
 
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import (
@@ -58,6 +58,7 @@ class DashboardNode(BaseNode):
             display_widget: BaseDisplay = node.display_widget
             layout.addWidget(display_widget)
             display_widget.setVisible(True)
+            display_widget.set_board_mode(True)
             if not build_node_query(graph, node['name']):
                 node.clear()
         layout.rects = self[ATTR.WIDGETS_RECTANGLES]
