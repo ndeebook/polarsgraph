@@ -42,7 +42,7 @@ class ConcatenateSettingsWidget(BaseSettingsWidget):
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('left column', self.how_combo)
+        form_layout.addRow('how', self.how_combo)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
