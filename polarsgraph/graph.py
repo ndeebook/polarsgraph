@@ -219,8 +219,7 @@ def build_node_query(graph: dict, node_name: str):
             error = upstream_node.build_query(
                 get_input_tables(graph, upstream_node))
             if error:
-                if upstream_node.category in (
-                        DISPLAY_CATEGORY, DASHBOARD_CATEGORY):
+                if upstream_node.category == DISPLAY_CATEGORY:
                     error_node = get_input_nodes(
                         graph, upstream_node['name'])[0]
                 else:
