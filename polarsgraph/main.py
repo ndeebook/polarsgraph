@@ -110,6 +110,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.node_view.plug_changes_requested.connect(self.change_plug)
         self.node_view.create_requested.connect(self.create_node_at)
         self.node_view.delete_requested.connect(self.delete_nodes)
+        self.node_view.node_double_clicked.connect(
+            self.settings_widget.show_error)
 
         self.settings_widget.settings_changed.connect(self.set_dirty_recursive)
         self.settings_widget.settings_changed.connect(self.node_view.update)

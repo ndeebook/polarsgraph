@@ -25,6 +25,7 @@ OUT = 1
 class NodeView(QtWidgets.QWidget):
     nodes_selected = QtCore.Signal(list)
     nodes_position_changed = QtCore.Signal(list)
+    node_double_clicked = QtCore.Signal(str)
     plug_changes_requested = QtCore.Signal(dict, dict)
     create_requested = QtCore.Signal(str, tuple)
     delete_requested = QtCore.Signal(list)
@@ -162,6 +163,12 @@ class NodeView(QtWidgets.QWidget):
         self.release_drag()
         self.repaint()
         return super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        under_cursor = self.get_object_under_cursor(event.position())
+        if under_cursor and under_cursor['type'] == 'node':
+            self.node_double_clicked.emit(under_cursor['name'])
+        return super().mouseDoubleClickEvent(event)
 
     def mousePressEvent(self, event):
         self.setFocus()

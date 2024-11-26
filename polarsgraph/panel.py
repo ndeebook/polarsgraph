@@ -57,7 +57,7 @@ class SettingsWidget(QtWidgets.QWidget):
             '  show settings', icon=icon)
         serialized_settings_button.clicked.connect(self.settings_edit.show)
 
-        icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.FormatJustifyLeft)
+        icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.DocumentProperties)
         errors_button = QtWidgets.QPushButton(
             '  show error', icon=icon)
         errors_button.clicked.connect(self.show_error)
