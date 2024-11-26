@@ -215,9 +215,17 @@ def build_node_query(graph: dict, node_name: str):
     for upstream_node_name in reversed(nodes_to_build):
         upstream_node: BaseNode = graph[upstream_node_name]
         if upstream_node.dirty:
-            upstream_node.error = upstream_node.build_query(
+            upstream_node.error = None
+            error = upstream_node.build_query(
                 get_input_tables(graph, upstream_node))
-            if upstream_node.error:
+            if error:
+                if upstream_node.category in (
+                        DISPLAY_CATEGORY, DASHBOARD_CATEGORY):
+                    error_node = get_input_nodes(
+                        graph, upstream_node['name'])[0]
+                else:
+                    error_node = upstream_node
+                error_node.error = error
                 logger.debug(
                     f'Build aborted because of {upstream_node_name}')
                 return False
