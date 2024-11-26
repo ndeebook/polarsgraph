@@ -2,6 +2,7 @@ import os
 
 import polars as pl
 from PySide6 import QtWidgets, QtGui, QtCore
+from PySide6.QtCore import Qt
 
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
@@ -18,6 +19,12 @@ class SettingsWidget(QtWidgets.QWidget):
         self.node = None
 
         # Widgets
+        icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.FormatJustifyLeft)
+        serialized_settings_button = QtWidgets.QPushButton(icon=icon)
+
+        icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.SyncError)
+        self.error_button = QtWidgets.QPushButton(icon=icon)
+
         self.settings_edit = QtWidgets.QPlainTextEdit()
         self.settings_edit.setMinimumWidth(300)
         self.settings_edit.setMaximumHeight(200)
@@ -30,7 +37,19 @@ class SettingsWidget(QtWidgets.QWidget):
                 QtGui.QFontDatabase.SystemFont.FixedFont)
         self.settings_edit.setFont(fixed_font)
 
+        # settings_edit as Window
+        self.settings_edit.setParent(self)
+        self.settings_edit.setWindowFlags(Qt.WindowType.Tool)
+        self.settings_edit.setWindowTitle('Node Settings')
+        serialized_settings_button.clicked.connect(self.settings_edit.show)
+
         # Layout
+        toolbar_layout = QtWidgets.QHBoxLayout()
+        toolbar_layout.addSpacing(4)
+        toolbar_layout.addWidget(serialized_settings_button)
+        toolbar_layout.addWidget(self.error_button)
+        toolbar_layout.addStretch()
+
         self.node_layout = QtWidgets.QVBoxLayout()
         for typename, config in self.types.items():
             widget: BaseSettingsWidget = config['widget']()
@@ -43,9 +62,10 @@ class SettingsWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(toolbar_layout)
         layout.addLayout(self.node_layout)
         layout.addStretch()
-        layout.addWidget(self.settings_edit)
+        # layout.addWidget(self.settings_edit)
 
     def set_node(self, node: BaseNode, input_tables: list[pl.LazyFrame]):
         self.node = node
