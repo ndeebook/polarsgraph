@@ -16,6 +16,7 @@ TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
 
 class ATTR:
     NAME = 'name'
+    COLUMNS_WIDTHS = 'columns_widths'
 
 
 class TableNode(BaseNode):
@@ -43,7 +44,7 @@ class TableNode(BaseNode):
     @property
     def display_widget(self):
         if not self._display_widget:
-            self._display_widget = TableDisplay()
+            self._display_widget = TableDisplay(self)
         return self._display_widget
 
 
@@ -68,11 +69,12 @@ class TableSettingsWidget(BaseSettingsWidget):
 
 
 class TableDisplay(BaseDisplay):
-    def __init__(self, parent=None):
+    def __init__(self, node, parent=None):
         super().__init__(parent)
 
-        self.node: TableNode = None
         self._resizing = False
+        self.node: BaseNode = node
+        self.columns = None
 
         # Widgets
         self.table_view = QtWidgets.QTableView()
@@ -126,6 +128,12 @@ class TableDisplay(BaseDisplay):
         table = table.collect(stream=True)
         self.table_model.set_dataframe(table)
         self.table_details_label.setText(f'{table.height} x {table.width}')
+        self.columns = table.schema.names()
+        # Recover saved columns sizes (by column name):
+        saved_sizes = self.node[ATTR.COLUMNS_WIDTHS]
+        for i, column_name in enumerate(self.columns):
+            if column_name in saved_sizes:
+                self.table_view.setColumnWidth(i, saved_sizes[column_name])
 
     def set_board_mode(self, board_enabled: bool):
         self.bottom_widget.setVisible(not board_enabled)
@@ -203,15 +211,10 @@ class TableDisplay(BaseDisplay):
         QtWidgets.QApplication.clipboard().setText(string)
 
     def record_column_width(self, column, oldWidth, newWidth):
-        if self._resizing:
-            return
-        try:
-            sizes = yaml.safe_load(self.node['columns_sizes'])
-        except BaseException:
-            sizes = dict()
-        sizes[column] = newWidth
-        if self.node:
-            self.node.settings.update(dict(columns_sizes=sizes))
+        if not self.node[ATTR.COLUMNS_WIDTHS]:
+            self.node[ATTR.COLUMNS_WIDTHS] = {}
+        column_name = self.columns[column]
+        self.node[ATTR.COLUMNS_WIDTHS][column_name] = newWidth
 
 
 class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
