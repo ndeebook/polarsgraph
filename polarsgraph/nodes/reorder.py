@@ -1,3 +1,5 @@
+from functools import partial
+
 import polars as pl
 from PySide6 import QtWidgets, QtCore
 
@@ -39,11 +41,10 @@ class ReorderSettingsWidget(BaseSettingsWidget):
 
         reset_button = QtWidgets.QPushButton(
             'Reset list',
-            clicked=lambda: self.populate_columns_text(reset=True))
-        self.column_order_edit = QtWidgets.QPlainTextEdit()
-        self.column_order_edit.textChanged.connect(self.handle_columns_change)
-        self.missing_columns_edit = QtWidgets.QPlainTextEdit()
-        self.missing_columns_edit.setReadOnly(True)
+            clicked=lambda: self.populate_lists(reset=True))
+        self.column_order_widget = ReorderableListWidget()
+        self.column_order_widget.order_changed.connect(
+            self.handle_columns_change)
 
         # Layout
         form_layout = QtWidgets.QFormLayout()
@@ -52,10 +53,7 @@ class ReorderSettingsWidget(BaseSettingsWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
         layout.addWidget(reset_button)
-        layout.addWidget(QtWidgets.QLabel('New Columns Order:'))
-        layout.addWidget(self.column_order_edit)
-        layout.addWidget(QtWidgets.QLabel('Deleted Columns:'))
-        layout.addWidget(self.missing_columns_edit)
+        layout.addWidget(self.column_order_widget)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
@@ -64,48 +62,42 @@ class ReorderSettingsWidget(BaseSettingsWidget):
 
         self.name_edit.setText(node[ATTR.NAME])
 
-        self.populate_columns_text()
-        self.update_missing_columns()
+        self.populate_lists()
 
         self.blockSignals(False)
 
-    def populate_columns_text(self, reset=False):
+    def populate_lists(self, reset=False):
         if self.input_table is None:
-            return self.column_order_edit.clear()
+            return self.column_order_widget.clear()
 
         columns = self.node[ATTR.COLUMNS_ORDER]
-        if reset or not columns:
-            columns = self.input_table.collect_schema().names()
-        self.column_order_edit.setPlainText('\n'.join(columns))
+        all_columns = self.input_table.collect_schema().names()
 
-    def handle_columns_change(self):
-        columns_order = [
-            col.strip() for col
-            in self.column_order_edit.toPlainText().splitlines()
-            if col.strip()]
-        self.node[ATTR.COLUMNS_ORDER] = columns_order
-        self.update_missing_columns()
+        if reset or not columns:
+            columns = all_columns
+        self.column_order_widget.set_items(columns)
+
+        missing_columns = [c for c in all_columns if c not in columns]
+        self.column_order_widget.set_deleted_items(missing_columns)
+
+    def handle_columns_change(self, items):
+        self.node[ATTR.COLUMNS_ORDER] = items
         self.emit_changed()
 
-    def update_missing_columns(self):
-        if self.input_table is None:
-            return self.column_order_edit.clear()
 
-        existing_columns = self.input_table.collect_schema().names()
-        input_columns = self.column_order_edit.toPlainText().splitlines()
-        missing_columns = [
-            col for col in existing_columns if col not in input_columns]
-        self.missing_columns_edit.setPlainText('\n'.join(missing_columns))
-
-
-# TODO: use this:
 class ReorderableListWidget(QtWidgets.QWidget):
-    def __init__(self, items, parent=None):
+    order_changed = QtCore.Signal(list)
+
+    def __init__(self, parent=None):
         super().__init__(parent)
 
         # Widgets
-        self.list_widget = DragDropListWidget()
-        self.list_widget.addItems(items)
+        self.order_list_widget = DragDropListWidget()
+        self.order_list_widget.order_changed.connect(
+            partial(self.emit_order, self.order_list_widget))
+        self.delete_list_widget = DragDropListWidget()
+        self.delete_list_widget.order_changed.connect(
+            partial(self.emit_order, self.delete_list_widget))
 
         self.up_button = QtWidgets.QPushButton('Move Up')
         self.up_button.clicked.connect(self.move_up)
@@ -113,6 +105,8 @@ class ReorderableListWidget(QtWidgets.QWidget):
         self.down_button.clicked.connect(self.move_down)
         self.delete_button = QtWidgets.QPushButton('Delete')
         self.delete_button.clicked.connect(self.delete_item)
+        self.undelete_button = QtWidgets.QPushButton('Restore')
+        self.undelete_button.clicked.connect(self.undelete_item)
 
         # Layouts
         button_layout = QtWidgets.QHBoxLayout()
@@ -121,42 +115,80 @@ class ReorderableListWidget(QtWidgets.QWidget):
         button_layout.addWidget(self.delete_button)
 
         main_layout = QtWidgets.QVBoxLayout(self)
-        main_layout.addWidget(self.list_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(QtWidgets.QLabel('New Columns Order:'))
+        main_layout.addWidget(self.order_list_widget)
         main_layout.addLayout(button_layout)
+        main_layout.addWidget(QtWidgets.QLabel('Deleted Columns:'))
+        main_layout.addWidget(self.delete_list_widget)
+        main_layout.addWidget(self.undelete_button)
+
+    def set_items(self, items):
+        self.order_list_widget.clear()
+        self.order_list_widget.addItems(items)
+
+    def set_deleted_items(self, items):
+        self.delete_list_widget.clear()
+        self.delete_list_widget.addItems(sorted(items))
+
+    def items(self):
+        return [
+            self.order_list_widget.item(i).text()
+            for i in range(self.order_list_widget.count())]
+
+    def emit_order(self, source=None, added_item=None):
+        items = self.items()
+        if source == self.delete_list_widget:
+            items.remove(added_item)
+        self.order_changed.emit(items)
 
     def move_up(self):
-        current_row = self.list_widget.currentRow()
+        current_row = self.order_list_widget.currentRow()
         if current_row > 0:
-            item = self.list_widget.takeItem(current_row)
-            self.list_widget.insertItem(current_row - 1, item)
-            self.list_widget.setCurrentRow(current_row - 1)
+            item = self.order_list_widget.takeItem(current_row)
+            self.order_list_widget.insertItem(current_row - 1, item)
+            self.order_list_widget.setCurrentRow(current_row - 1)
+        self.emit_order()
 
     def move_down(self):
-        current_row = self.list_widget.currentRow()
-        if current_row < self.list_widget.count() - 1:
-            item = self.list_widget.takeItem(current_row)
-            self.list_widget.insertItem(current_row + 1, item)
-            self.list_widget.setCurrentRow(current_row + 1)
+        current_row = self.order_list_widget.currentRow()
+        if current_row < self.order_list_widget.count() - 1:
+            item = self.order_list_widget.takeItem(current_row)
+            self.order_list_widget.insertItem(current_row + 1, item)
+            self.order_list_widget.setCurrentRow(current_row + 1)
+        self.emit_order()
 
     def delete_item(self):
-        current_row = self.list_widget.currentRow()
+        current_row = self.order_list_widget.currentRow()
         if current_row != -1:
-            self.list_widget.takeItem(current_row)
+            item = self.order_list_widget.takeItem(current_row)
+            self.delete_list_widget.addItem(item)
+        self.emit_order()
+
+    def undelete_item(self):
+        current_row = self.delete_list_widget.currentRow()
+        if current_row != -1:
+            item = self.delete_list_widget.takeItem(current_row)
+            self.order_list_widget.addItem(item)
+        self.emit_order()
 
 
 class DragDropListWidget(QtWidgets.QListWidget):
-    item_deleted = QtCore.Signal(str)
+    order_changed = QtCore.Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
-        self.setSelectionMode(QtWidgets.QListWidget.SingleSelection)
-        self.setDragDropMode(QtWidgets.QListWidget.InternalMove)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
         self.setDefaultDropAction(QtCore.Qt.MoveAction)
 
     def dropEvent(self, event):
-        if event.source() != self:
-            row = self.currentRow()
-            self.takeItem(row)
-        else:
+        text = event.source().currentItem().text()
+        if event.source() == self:
             super().dropEvent(event)
+        else:
+            self.addItem(text)
+            event.accept()
+        self.order_changed.emit(text)
