@@ -10,7 +10,8 @@ from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 DEFAULT_COLORS = 'background-color:#1e1e1e; color: #cccccc'
 EXPRESSIONS_COLORS = {
-    r".*polars\.exceptions.*": 'orange',
+    r'.*polars\.exceptions.*': 'orange',
+    r'.*could not determine dtype.*': 'orange',
 }
 
 
