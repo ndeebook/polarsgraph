@@ -98,9 +98,11 @@ class ReorderableListWidget(QtWidgets.QWidget):
         self.order_list_widget = DragDropListWidget()
         self.order_list_widget.order_changed.connect(
             partial(self.emit_order, self.order_list_widget))
+        self.order_list_widget.item_double_clicked.connect(self.delete_item)
         self.delete_list_widget = DragDropListWidget()
         self.delete_list_widget.order_changed.connect(
             partial(self.emit_order, self.delete_list_widget))
+        self.delete_list_widget.item_double_clicked.connect(self.undelete_item)
 
         self.up_button = QtWidgets.QPushButton('Move Up')
         self.up_button.clicked.connect(self.move_up)
@@ -178,6 +180,7 @@ class ReorderableListWidget(QtWidgets.QWidget):
 
 class DragDropListWidget(QtWidgets.QListWidget):
     order_changed = QtCore.Signal(str)
+    item_double_clicked = QtCore.Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -195,3 +198,7 @@ class DragDropListWidget(QtWidgets.QListWidget):
             self.addItem(text)
             event.accept()
         self.order_changed.emit(text)
+
+    def mouseDoubleClickEvent(self, event):
+        self.item_double_clicked.emit()
+        return super().mouseDoubleClickEvent(event)
