@@ -85,14 +85,24 @@ class SortSettingsWidget(BaseSettingsWidget):
 
     def populate_sort_combos(self):
         columns = self.input_table.collect_schema().names()
-        for combo in [self.sort_combo1, self.sort_combo2, self.sort_combo3]:
-            current_text = combo.currentText()
+        combos = self.sort_combo1, self.sort_combo2, self.sort_combo3
+        orders_checkboxes = self.order_cb1, self.order_cb2, self.order_cb3
+        for i, combo in enumerate(combos):
             combo.blockSignals(True)
             combo.clear()
             combo.addItem('')  # Optional blank item (for skipping)
             combo.addItems(columns)
-            if current_text in columns:
-                combo.setCurrentText(current_text)
+            try:
+                saved_column = self.node[ATTR.COLUMNS][i]
+                saved_order = self.node[ATTR.ORDERS][i]
+                checkbox = orders_checkboxes[i]
+            except IndexError:
+                pass
+            else:
+                if saved_column not in columns:
+                    combo.addItem(saved_column)
+                combo.setCurrentText(saved_column)
+                checkbox.setChecked(saved_order)
             combo.blockSignals(False)
 
     def update_order_settings(self):
