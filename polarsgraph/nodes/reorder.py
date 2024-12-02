@@ -1,5 +1,3 @@
-from functools import partial
-
 import polars as pl
 from PySide6 import QtWidgets, QtCore
 
@@ -96,12 +94,10 @@ class ReorderableListWidget(QtWidgets.QWidget):
 
         # Widgets
         self.order_list_widget = DragDropListWidget()
-        self.order_list_widget.order_changed.connect(
-            partial(self.emit_order, self.order_list_widget))
+        self.order_list_widget.order_changed.connect(self.emit_order)
         self.order_list_widget.item_double_clicked.connect(self.delete_item)
         self.delete_list_widget = DragDropListWidget()
-        self.delete_list_widget.order_changed.connect(
-            partial(self.emit_order, self.delete_list_widget))
+        self.delete_list_widget.order_changed.connect(self.emit_order)
         self.delete_list_widget.item_double_clicked.connect(self.undelete_item)
 
         self.up_button = QtWidgets.QPushButton('Move Up')
@@ -141,10 +137,8 @@ class ReorderableListWidget(QtWidgets.QWidget):
             self.order_list_widget.item(i).text()
             for i in range(self.order_list_widget.count())]
 
-    def emit_order(self, source=None, added_item=None):
+    def emit_order(self):
         items = self.items()
-        if source == self.delete_list_widget:
-            items.remove(added_item)
         self.order_changed.emit(items)
 
     def move_up(self):
@@ -179,7 +173,7 @@ class ReorderableListWidget(QtWidgets.QWidget):
 
 
 class DragDropListWidget(QtWidgets.QListWidget):
-    order_changed = QtCore.Signal(str)
+    order_changed = QtCore.Signal()
     item_double_clicked = QtCore.Signal()
 
     def __init__(self, parent=None):
@@ -191,13 +185,14 @@ class DragDropListWidget(QtWidgets.QListWidget):
         self.setDefaultDropAction(QtCore.Qt.MoveAction)
 
     def dropEvent(self, event):
-        text = event.source().currentItem().text()
         if event.source() == self:
             super().dropEvent(event)
         else:
-            self.addItem(text)
+            self.addItem(event.source().currentItem().text())
             event.accept()
-        self.order_changed.emit(text)
+        # QTimer.singleShot => make sure List widget is updated and that
+        # .items() will return the updated list
+        QtCore.QTimer.singleShot(0, self.order_changed.emit)
 
     def mouseDoubleClickEvent(self, event):
         self.item_double_clicked.emit()
