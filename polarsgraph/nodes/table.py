@@ -130,7 +130,7 @@ class TableDisplay(BaseDisplay):
         self.table_details_label.setText(f'{table.height} x {table.width}')
         self.columns = table.schema.names()
         # Recover saved columns sizes (by column name):
-        saved_sizes = self.node[ATTR.COLUMNS_WIDTHS]
+        saved_sizes = self.node[ATTR.COLUMNS_WIDTHS] or {}
         for i, column_name in enumerate(self.columns):
             if column_name in saved_sizes:
                 self.table_view.setColumnWidth(i, saved_sizes[column_name])
