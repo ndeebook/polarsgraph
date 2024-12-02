@@ -1,5 +1,5 @@
 import polars as pl
-from PySide6 import QtWidgets, QtGui, QtCharts
+from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
@@ -71,7 +71,7 @@ class BarsDisplay(BaseDisplay):
         self._resizing = False
 
         # Widgets
-        self.chart_view = QtCharts.QChartView()
+        self.chart_view = CustomStackedBarChart()
 
         # Layout
         layout = QtWidgets.QVBoxLayout(self)
@@ -79,15 +79,10 @@ class BarsDisplay(BaseDisplay):
         layout.addWidget(self.chart_view)
 
     def set_table(self, table: pl.LazyFrame):
-        chart = QtCharts.QChart()
-        self.bar_series = QtCharts.QHorizontalStackedBarSeries()
-        chart.addSeries(self.bar_series)
-        chart.setTitle('Bars Chart')
-        self.chart_view.setChart(chart)
         if table is None:
             return
         table = table.collect(stream=True)
-        make_chart(self.chart_view, table, self)
+        self.chart_view.set_table(table)
 
     def get_pixmap(self):
         pixmap = QtGui.QPixmap(self.chart_view.size())
@@ -105,52 +100,52 @@ class BarsDisplay(BaseDisplay):
         QtWidgets.QApplication.clipboard().setPixmap(self.get_pixmap())
 
 
-def make_chart(
-        chart_view: QtCharts.QChartView, dataframe: pl.DataFrame, parent):
-    # Create the chart
-    chart = QtCharts.QChart()
-    chart_view.setChart(chart)
-    chart_view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+class CustomStackedBarChart(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.dataframe = pl.DataFrame()
+        self.setMinimumSize(400, 300)
 
-    # Create the Horizontal Stacked Bar Series
-    series = QtCharts.QHorizontalStackedBarSeries()
+    def set_table(self, table):
+        self.dataframe = table
+        self.update()
 
-    # Add data to the series
-    labels = dataframe.columns[0]
-    value_columns = dataframe.columns[1:]
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
-    for col in value_columns:
-        bar_set = QtCharts.QBarSet(col)
-        bar_set.append(dataframe[col].to_list())
-        series.append(bar_set)
+        # Get widget dimensions
+        rect = self.rect()
+        max_value = self.dataframe.select(
+            self.dataframe.columns[1:]).sum_horizontal().max()
 
-    chart.addSeries(series)
+        # Background
+        painter.fillRect(rect, self.palette().color(QtGui.QPalette.Window))
 
-    # Create X-axis for categories (labels)
-    categories = dataframe[labels].to_list()
-    axisY = QtCharts.QBarCategoryAxis()
-    axisY.append(categories)
-    chart.addAxis(axisY, Qt.AlignmentFlag.AlignLeft)
-    series.attachAxis(axisY)
+        margin = 10
+        rect.adjust(margin, margin, -margin, -margin)
+        bar_height = rect.height() / len(self.dataframe)
 
-    # Create Y-axis for numeric values
-    axisX = QtCharts.QValueAxis()
-    chart.addAxis(axisX, Qt.AlignmentFlag.AlignBottom)
-    series.attachAxis(axisX)
+        # Draw each row as a horizontal stacked bar
+        for i, row in enumerate(self.dataframe.iter_rows(named=True)):
+            y = margin + i * bar_height
+            x = margin
+            for column in self.dataframe.columns[1:]:
+                value = row[column]
+                width = (value / max_value) * rect.width()
 
-    # chart.setTitle('Horizontal Stacked Bar Chart')
-    chart.legend().setVisible(True)
-    chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
+                # Set color for the bar segment
+                color = QtGui.QColor.fromHsv((hash(column) % 360), 100, 100)
+                painter.setBrush(color)
+                painter.setPen(Qt.NoPen)
 
-    # Change colors
-    return
-    palette = parent.palette()
-    background_color = palette.color(QtGui.QPalette.Window)
-    chart.setBackgroundBrush(QtGui.QBrush(background_color))
-    text_color = palette.color(QtGui.QPalette.WindowText)
-    title_font = chart.titleFont()
-    title_font.setWeight(QtGui.QFont.Bold)
-    chart.setTitleBrush(QtGui.QBrush(text_color))
-    for axis in chart.axes():
-        axis.setLabelsBrush(QtGui.QBrush(text_color))
-        axis.setTitleBrush(QtGui.QBrush(text_color))
+                # Draw bar segment
+                bar_rect = QtCore.QRectF(x, y, width, bar_height * 0.7)
+                painter.drawRect(bar_rect)
+                x += width
+
+            # Draw label
+            label = row[self.dataframe.columns[0]]
+            painter.setPen(self.palette().color(QtGui.QPalette.WindowText))
+            bar_rect.adjust(10, 0, 300, 0)
+            painter.drawText(bar_rect, Qt.AlignLeft | Qt.AlignVCenter, label)
