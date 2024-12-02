@@ -79,6 +79,9 @@ class ReorderSettingsWidget(BaseSettingsWidget):
 
         missing_columns = [c for c in all_columns if c not in columns]
         self.column_order_widget.set_deleted_items(missing_columns)
+        if reset:
+            self.node[ATTR.COLUMNS_ORDER] = all_columns
+            self.emit_changed()
 
     def handle_columns_change(self, items):
         self.node[ATTR.COLUMNS_ORDER] = items
