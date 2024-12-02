@@ -302,9 +302,11 @@ class NodeView(QtWidgets.QWidget):
         self.delete_requested.emit(self.selected_names)
 
     def emit_create_node(self, node_type):
-        # position = self.select_position or QtCore.QPointF(0, 0)
-        position = self.viewportmapper.to_units_coords(
-            QtCore.QPointF(200, 100))
+        if self.select_position:
+            position = self.viewportmapper.to_units_coords(
+                self.select_position)
+        else:
+            position = QtCore.QPointF(self.viewportmapper.origin)
         self.create_requested.emit(node_type, position)
 
 
