@@ -117,18 +117,18 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         # Get widget dimensions
+        margin = 10
         rect = self.rect()
-        max_value = self.dataframe.select(
-            self.dataframe.columns[1:]).sum_horizontal().max()
+        totals = self.dataframe.select(
+            self.dataframe.columns[1:]).sum_horizontal()
+        max_value = totals.max()
 
         # Background
         painter.fillRect(rect, self.palette().color(QtGui.QPalette.Window))
 
-        margin = 10
+        # Draw each row as a horizontal stacked bar
         rect.adjust(margin, margin, -margin, -margin)
         bar_height = rect.height() / len(self.dataframe)
-
-        # Draw each row as a horizontal stacked bar
         colors = get_bars_colors(len(self.dataframe.columns))
         for i, row in enumerate(self.dataframe.iter_rows(named=True)):
             y = margin + i * bar_height
@@ -149,9 +149,22 @@ class CustomStackedBarChart(QtWidgets.QWidget):
             # Draw label
             label = row[self.dataframe.columns[0]]
             painter.setPen(self.palette().color(QtGui.QPalette.WindowText))
-            text_rect = QtCore.QRectF(
-                margin * 2, y, rect.width(), bar_height * .7)
-            painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, label)
+            line_rect = QtCore.QRectF(
+                margin * 2, y, rect.width() - margin * 2, bar_height * .7)
+            updated_text_rect = painter.drawText(
+                line_rect, Qt.AlignLeft | Qt.AlignVCenter, label)
+
+            # Draw total
+            total = f'{auto_round(totals[i])}'
+            if bar_rect.right() < updated_text_rect.right():
+                bar_rect.setX(updated_text_rect.right() + margin)
+                bar_rect.setWidth(1000)
+                painter.drawText(
+                    bar_rect, Qt.AlignLeft | Qt.AlignVCenter, f'({total})')
+            else:
+                bar_rect.setWidth(width - margin)
+                painter.drawText(
+                    bar_rect, Qt.AlignRight | Qt.AlignVCenter, total)
 
 
 def get_next_hue(previous_hue):
@@ -170,3 +183,11 @@ def get_bars_colors(count):
         colors.append(QtGui.QColor.fromHsv(hue, 122, 122))
         previous_hue = hue
     return colors
+
+
+def auto_round(value):
+    if value < 10:
+        return round(value, 2)
+    if value < 100:
+        return round(value, 1)
+    return int(value)
