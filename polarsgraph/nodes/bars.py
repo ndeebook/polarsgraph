@@ -125,7 +125,8 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         max_value = get_next_big_value(totals.max())
 
         # Background
-        painter.fillRect(rect, self.palette().color(QtGui.QPalette.Window))
+        painter.fillRect(rect, self.palette().color(
+            QtGui.QPalette.ColorRole.Base))
 
         # BG Lines
         rect.adjust(margin, margin, -margin, -margin)
