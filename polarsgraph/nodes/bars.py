@@ -1,3 +1,6 @@
+import random
+from functools import lru_cache
+
 import polars as pl
 from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
@@ -127,16 +130,16 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         bar_height = rect.height() / len(self.dataframe)
 
         # Draw each row as a horizontal stacked bar
+        colors = get_bars_colors(len(self.dataframe.columns))
         for i, row in enumerate(self.dataframe.iter_rows(named=True)):
             y = margin + i * bar_height
             x = margin
-            for column in self.dataframe.columns[1:]:
+            for i, column in enumerate(self.dataframe.columns[1:]):
                 value = row[column]
                 width = (value / max_value) * rect.width()
 
                 # Set color for the bar segment
-                color = QtGui.QColor.fromHsv((hash(column) % 360), 100, 100)
-                painter.setBrush(color)
+                painter.setBrush(colors[i])
                 painter.setPen(Qt.NoPen)
 
                 # Draw bar segment
@@ -149,3 +152,21 @@ class CustomStackedBarChart(QtWidgets.QWidget):
             painter.setPen(self.palette().color(QtGui.QPalette.WindowText))
             bar_rect.adjust(10, 0, 300, 0)
             painter.drawText(bar_rect, Qt.AlignLeft | Qt.AlignVCenter, label)
+
+
+def get_next_hue(previous_hue):
+    hue = random.randint(0, 255)
+    while abs(previous_hue - hue) < 100:
+        hue = random.randint(0, 255)
+    return hue
+
+
+@lru_cache()
+def get_bars_colors(count):
+    previous_hue = 100
+    colors = []
+    for _ in range(count):
+        hue = get_next_hue(previous_hue)
+        colors.append(QtGui.QColor.fromHsv(hue, 122, 122))
+        previous_hue = hue
+    return colors
