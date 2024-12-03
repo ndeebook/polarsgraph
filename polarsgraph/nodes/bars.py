@@ -142,15 +142,16 @@ class CustomStackedBarChart(QtWidgets.QWidget):
                 painter.setPen(Qt.NoPen)
 
                 # Draw bar segment
-                bar_rect = QtCore.QRectF(x, y, width, bar_height * 0.7)
+                bar_rect = QtCore.QRectF(x, y, width, bar_height * .7)
                 painter.drawRect(bar_rect)
                 x += width
 
             # Draw label
             label = row[self.dataframe.columns[0]]
             painter.setPen(self.palette().color(QtGui.QPalette.WindowText))
-            bar_rect.adjust(10, 0, 300, 0)
-            painter.drawText(bar_rect, Qt.AlignLeft | Qt.AlignVCenter, label)
+            text_rect = QtCore.QRectF(
+                margin * 2, y, rect.width(), bar_height * .7)
+            painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, label)
 
 
 def get_next_hue(previous_hue):
