@@ -107,7 +107,6 @@ class CustomStackedBarChart(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.dataframe = pl.DataFrame()
-        self.setMinimumSize(400, 300)
 
     def set_table(self, table):
         self.dataframe = table
@@ -134,12 +133,12 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         for i, row in enumerate(self.dataframe.iter_rows(named=True)):
             y = margin + i * bar_height
             x = margin
-            for i, column in enumerate(self.dataframe.columns[1:]):
+            for j, column in enumerate(self.dataframe.columns[1:]):
                 value = row[column]
                 width = (value / max_value) * rect.width()
 
                 # Set color for the bar segment
-                painter.setBrush(colors[i])
+                painter.setBrush(colors[j])
                 painter.setPen(Qt.NoPen)
 
                 # Draw bar segment
