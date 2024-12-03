@@ -96,7 +96,7 @@ class SortSettingsWidget(BaseSettingsWidget):
                 saved_column = self.node[ATTR.COLUMNS][i]
                 saved_order = self.node[ATTR.ORDERS][i]
                 checkbox = orders_checkboxes[i]
-            except IndexError:
+            except (TypeError, IndexError):
                 pass
             else:
                 if saved_column not in columns:
