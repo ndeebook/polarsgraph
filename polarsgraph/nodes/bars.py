@@ -1,3 +1,4 @@
+import math
 import random
 from functools import lru_cache
 
@@ -121,14 +122,22 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         rect = self.rect()
         totals = self.dataframe.select(
             self.dataframe.columns[1:]).sum_horizontal()
-        max_value = totals.max()
+        max_value = get_next_big_value(totals.max())
 
         # Background
         painter.fillRect(rect, self.palette().color(QtGui.QPalette.Window))
 
-        # Draw each row as a horizontal stacked bar
+        # BG Lines
         rect.adjust(margin, margin, -margin, -margin)
-        bar_height = rect.height() / len(self.dataframe)
+        bar_height = rect.height() / (len(self.dataframe))
+
+        line_positions = 0, 0.25, 0.5, 0.75, 1.0
+        painter.setPen(QtGui.QPen(QtCore.Qt.black, .5))
+        for pos in line_positions:
+            x = rect.left() + pos * rect.width()
+            painter.drawLine(x, rect.top(), x, rect.bottom())
+
+        # Draw each row as a horizontal stacked bar
         colors = get_bars_colors(len(self.dataframe.columns))
         for i, row in enumerate(self.dataframe.iter_rows(named=True)):
             y = margin + i * bar_height
@@ -156,7 +165,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
 
             # Draw total
             total = f'{auto_round(totals[i])}'
-            if bar_rect.right() < updated_text_rect.right():
+            if bar_rect.right() < updated_text_rect.right() + 40:
                 bar_rect.setX(updated_text_rect.right() + margin)
                 bar_rect.setWidth(1000)
                 painter.drawText(
@@ -191,3 +200,12 @@ def auto_round(value):
     if value < 100:
         return round(value, 1)
     return int(value)
+
+
+def get_next_big_value(value):
+    factor = 1
+    step = 10
+    while value > 1:
+        factor *= step
+        value /= step
+    return math.ceil(value * step) * factor / step
