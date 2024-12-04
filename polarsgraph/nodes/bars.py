@@ -73,6 +73,7 @@ class BarsSettingsWidget(BaseSettingsWidget):
         self.blockSignals(True)
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
+        self.title_edit.setText(node[ATTR.TITLE] or '')
         self.blockSignals(False)
 
 
