@@ -16,6 +16,7 @@ COLOR = dict(
 
 class ATTR:
     NAME = 'name'
+    TITLE = 'title'
 
 
 class PieNode(BaseNode):
@@ -43,7 +44,7 @@ class PieNode(BaseNode):
     @property
     def display_widget(self):
         if not self._display_widget:
-            self._display_widget = PieDisplay()
+            self._display_widget = PieDisplay(self)
         return self._display_widget
 
 
@@ -52,11 +53,14 @@ class PieSettingsWidget(BaseSettingsWidget):
         super().__init__()
 
         # Widgets
-        ...
+        self.title_edit = QtWidgets.QLineEdit()
+        self.title_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(self.title_edit, ATTR.TITLE))
 
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
 
@@ -64,14 +68,15 @@ class PieSettingsWidget(BaseSettingsWidget):
         self.blockSignals(True)
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
+        self.title_edit.setText(node[ATTR.TITLE] or '')
         self.blockSignals(False)
 
 
 class PieDisplay(BaseDisplay):
-    def __init__(self, parent=None):
+    def __init__(self, node, parent=None):
         super().__init__(parent)
 
-        self.node: PieNode = None
+        self.node: PieNode = node
         self._resizing = False
 
         # Widgets
@@ -87,7 +92,8 @@ class PieDisplay(BaseDisplay):
         if table is None:
             return
         table = table.collect(stream=True)
-        make_chart(self.chart_view, table, self)
+        title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
+        make_chart(self.chart_view, table, title)
 
     def get_pixmap(self):
         pixmap = QtGui.QPixmap(self.chart_view.size())
@@ -106,10 +112,10 @@ class PieDisplay(BaseDisplay):
 
 
 def make_chart(
-        chart_view: QtCharts.QChartView, dataframe: pl.DataFrame, parent):
+        chart_view: QtCharts.QChartView, dataframe: pl.DataFrame, title):
     # Create the chart
     chart = QtCharts.QChart()
-    chart.setTitle('Pie Chart Example')
+    chart.setTitle(title)
     chart.setBackgroundBrush(QtGui.QBrush(COLOR['bg']))
     chart.setTitleBrush(QtGui.QBrush(COLOR['text']))
     chart.legend().hide()
