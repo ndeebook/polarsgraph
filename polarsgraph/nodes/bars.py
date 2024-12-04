@@ -11,7 +11,6 @@ from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget, BaseDisplay
 
 
-TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
 COLOR = dict(
     text=Qt.GlobalColor.white,
     bg=QtGui.QColor('#2F2F2F'),

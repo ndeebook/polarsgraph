@@ -1,5 +1,5 @@
 import polars as pl
-from PySide6 import QtWidgets, QtGui, QtCharts
+from PySide6 import QtWidgets, QtGui, QtCharts, QtCore
 from PySide6.QtCore import Qt
 
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
@@ -7,7 +7,11 @@ from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget, BaseDisplay
 
 
-TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
+COLOR = dict(
+    text=Qt.GlobalColor.white,
+    bg=QtGui.QColor('#2F2F2F'),
+    pie_text=QtGui.QColor('#777777'),
+)
 
 
 class ATTR:
@@ -72,6 +76,7 @@ class PieDisplay(BaseDisplay):
 
         # Widgets
         self.chart_view = QtCharts.QChartView()
+        self.chart_view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
 
         # Layout
         layout = QtWidgets.QVBoxLayout(self)
@@ -104,11 +109,15 @@ def make_chart(
         chart_view: QtCharts.QChartView, dataframe: pl.DataFrame, parent):
     # Create the chart
     chart = QtCharts.QChart()
-    chart_view.setChart(chart)
-    chart_view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+    chart.setTitle('Pie Chart Example')
+    chart.setBackgroundBrush(QtGui.QBrush(COLOR['bg']))
+    chart.setTitleBrush(QtGui.QBrush(COLOR['text']))
+    chart.legend().hide()
+    chart.setMargins(QtCore.QMargins(0, 0, 0, 0))
 
     # Create the Pie Series
     series = QtCharts.QPieSeries()
+    label_brush = QtGui.QBrush(COLOR['pie_text'])
 
     # Sum data for each column to calculate their share in the pie
     value_column = dataframe.select(dataframe.columns[1])
@@ -119,24 +128,7 @@ def make_chart(
         ratio = value / total
         slice_ = series.append(label, ratio)
         slice_.setLabelVisible(True)
+        slice_.setLabelBrush(label_brush)
 
     chart.addSeries(series)
-
-    # Set the legend position and style
-    chart.legend().setVisible(True)
-    chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
-
-    # Set the chart title
-    chart.setTitle('Pie Chart Example')
-
-    # Apply the parent widget's palette to chart styles
-    palette = parent.palette()
-    background_color = palette.color(QtGui.QPalette.Window)
-    chart.setBackgroundBrush(QtGui.QBrush(background_color))
-    text_color = palette.color(QtGui.QPalette.WindowText)
-    chart.setTitleBrush(QtGui.QBrush(text_color))
-
-    # Customize the legend font color
-    legend = chart.legend()
-    # legend.setLabelColor(text_color)
-    legend.hide()
+    chart_view.setChart(chart)
