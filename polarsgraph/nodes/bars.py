@@ -12,10 +12,16 @@ from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget, BaseDisplay
 
 
 TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
+COLOR = dict(
+    text=Qt.GlobalColor.white,
+    bg=QtGui.QColor('#2F2F2F'),
+    bg_lines=QtGui.QColor('#111111'),
+)
 
 
 class ATTR:
     NAME = 'name'
+    TITLE = 'title'
 
 
 class BarsNode(BaseNode):
@@ -43,7 +49,7 @@ class BarsNode(BaseNode):
     @property
     def display_widget(self):
         if not self._display_widget:
-            self._display_widget = BarsDisplay()
+            self._display_widget = BarsDisplay(self)
         return self._display_widget
 
 
@@ -52,11 +58,14 @@ class BarsSettingsWidget(BaseSettingsWidget):
         super().__init__()
 
         # Widgets
-        ...
+        self.title_edit = QtWidgets.QLineEdit()
+        self.title_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(self.title_edit, ATTR.TITLE))
 
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
 
@@ -68,10 +77,10 @@ class BarsSettingsWidget(BaseSettingsWidget):
 
 
 class BarsDisplay(BaseDisplay):
-    def __init__(self, parent=None):
+    def __init__(self, node, parent=None):
         super().__init__(parent)
 
-        self.node: BarsNode = None
+        self.node: BarsNode = node
         self._resizing = False
 
         # Widgets
@@ -86,7 +95,7 @@ class BarsDisplay(BaseDisplay):
         if table is None:
             return
         table = table.collect(stream=True)
-        self.chart_view.set_table(table)
+        self.chart_view.set_data(table, self.node)
 
     def get_pixmap(self):
         pixmap = QtGui.QPixmap(self.chart_view.size())
@@ -109,8 +118,9 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         super().__init__(parent)
         self.dataframe = pl.DataFrame()
 
-    def set_table(self, table):
+    def set_data(self, table, node):
         self.dataframe = table
+        self.node = node
         self.update()
 
     def paintEvent(self, event):
@@ -125,23 +135,38 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         max_value = get_next_big_value(totals.max())
 
         # Background
-        painter.fillRect(rect, self.palette().color(
-            QtGui.QPalette.ColorRole.Base))
+        painter.fillRect(rect, COLOR['bg'])
+
+        # Title
+        title_offset = 10
+        title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
+        painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter, title)
 
         # BG Lines
-        rect.adjust(margin, margin, -margin, -margin)
+        rect.adjust(margin, margin + title_offset, -margin, -margin)
         bar_height = rect.height() / (len(self.dataframe))
 
         line_positions = 0, 0.25, 0.5, 0.75, 1.0
-        painter.setPen(QtGui.QPen(QtCore.Qt.black, .5))
+        painter.setPen(QtGui.QPen(COLOR['bg_lines'], .5))
+        bottom = rect.bottom()
         for pos in line_positions:
             x = rect.left() + pos * rect.width()
-            painter.drawLine(x, rect.top(), x, rect.bottom())
+            painter.drawLine(x, rect.top(), x, bottom)
+            if pos == 0:
+                continue
+            if pos == line_positions[-1]:
+                pos_rect = QtCore.QRectF(
+                    rect.right() - 200 + margin, bottom - 20, 200, 50)
+                alignment = Qt.AlignCenter | Qt.AlignRight
+            else:
+                pos_rect = QtCore.QRectF(x - 100, bottom - 20, 200, 50)
+                alignment = Qt.AlignCenter
+            painter.drawText(pos_rect, alignment, f'{int(max_value * pos)}')
 
         # Draw each row as a horizontal stacked bar
         colors = get_bars_colors(len(self.dataframe.columns))
         for i, row in enumerate(self.dataframe.iter_rows(named=True)):
-            y = margin + i * bar_height
+            y = title_offset + margin + i * bar_height
             x = margin
             for j, column in enumerate(self.dataframe.columns[1:]):
                 value = row[column]
@@ -158,7 +183,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
 
             # Draw label
             label = row[self.dataframe.columns[0]]
-            painter.setPen(self.palette().color(QtGui.QPalette.WindowText))
+            painter.setPen(COLOR['text'])
             line_rect = QtCore.QRectF(
                 margin * 2, y, rect.width() - margin * 2, bar_height * .7)
             updated_text_rect = painter.drawText(
