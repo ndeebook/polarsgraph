@@ -33,6 +33,8 @@ from polarsgraph.nodes.table import (
     TableNode, TableSettingsWidget)
 from polarsgraph.nodes.bars import (
     BarsNode, BarsSettingsWidget)
+from polarsgraph.nodes.pie import (
+    PieNode, PieSettingsWidget)
 from polarsgraph.nodes.dashboard import (
     DashboardNode, DashboardSettingsWidget)
 
@@ -51,6 +53,7 @@ types = {
         'type': ConcatenateNode, 'widget': ConcatenateSettingsWidget},
     # Displays
     BarsNode.type: {'type': BarsNode, 'widget': BarsSettingsWidget},
+    PieNode.type: {'type': PieNode, 'widget': PieSettingsWidget},
     TableNode.type: {'type': TableNode, 'widget': TableSettingsWidget},
     # Dashboard
     DashboardNode.type: {
