@@ -1,9 +1,5 @@
-import math
-import random
-from functools import lru_cache
-
 import polars as pl
-from PySide6 import QtWidgets, QtGui
+from PySide6 import QtWidgets, QtGui, QtCharts
 from PySide6.QtCore import Qt
 
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
@@ -75,7 +71,7 @@ class PieDisplay(BaseDisplay):
         self._resizing = False
 
         # Widgets
-        self.chart_view = CustomStackedBarChart()
+        self.chart_view = QtCharts.QChartView()
 
         # Layout
         layout = QtWidgets.QVBoxLayout(self)
@@ -86,7 +82,7 @@ class PieDisplay(BaseDisplay):
         if table is None:
             return
         table = table.collect(stream=True)
-        self.chart_view.set_table(table)
+        make_chart(self.chart_view, table, self)
 
     def get_pixmap(self):
         pixmap = QtGui.QPixmap(self.chart_view.size())
@@ -104,89 +100,43 @@ class PieDisplay(BaseDisplay):
         QtWidgets.QApplication.clipboard().setPixmap(self.get_pixmap())
 
 
-class CustomStackedBarChart(QtWidgets.QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.dataframe = pl.DataFrame()
+def make_chart(
+        chart_view: QtCharts.QChartView, dataframe: pl.DataFrame, parent):
+    # Create the chart
+    chart = QtCharts.QChart()
+    chart_view.setChart(chart)
+    chart_view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
 
-    def set_table(self, table):
-        self.dataframe = table
-        self.update()
+    # Create the Pie Series
+    series = QtCharts.QPieSeries()
 
-    def paintEvent(self, event):
-        painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+    # Sum data for each column to calculate their share in the pie
+    value_column = dataframe.select(dataframe.columns[1])
+    total = value_column.sum()[0, 0]
 
-        # Get widget dimensions
-        rect = self.rect()
-        rect.adjust(10, 10, -10, -10)  # Add margin
-        center = rect.center()
-        radius = min(rect.width(), rect.height()) // 2
+    for values in dataframe.iter_rows():
+        label, value, *_ = values
+        ratio = value / total
+        slice_ = series.append(label, ratio)
+        slice_.setLabelVisible(True)
 
-        # Calculate total values per row
-        data = self.dataframe.select(self.dataframe.columns[1])
-        total = data.sum()[0, 0]
+    chart.addSeries(series)
 
-        count = self.dataframe.shape[0]
-        colors = get_pie_colors(count)
-        start_angle = 0
+    # Set the legend position and style
+    chart.legend().setVisible(True)
+    chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
 
-        for i, values in enumerate(self.dataframe.iter_rows()):
-            label, value, *_ = values
-            span_angle = 360 * (value / total)
-            if i != count - 1:
-                span_angle + 10  # avoid seeing background between parts
+    # Set the chart title
+    chart.setTitle('Pie Chart Example')
 
-            # Set color for the segment
-            painter.setBrush(colors[i])
-            painter.setPen(Qt.NoPen)
+    # Apply the parent widget's palette to chart styles
+    palette = parent.palette()
+    background_color = palette.color(QtGui.QPalette.Window)
+    chart.setBackgroundBrush(QtGui.QBrush(background_color))
+    text_color = palette.color(QtGui.QPalette.WindowText)
+    chart.setTitleBrush(QtGui.QBrush(text_color))
 
-            # Draw the pie segment
-            painter.drawPie(
-                center.x() - radius, center.y() - radius,
-                radius * 2, radius * 2,
-                int(start_angle * 16), int(span_angle * 16)
-            )
-            start_angle += span_angle
-
-            # Add label at the center of each row's pie
-            painter.setPen(self.palette().color(QtGui.QPalette.WindowText))
-            painter.drawText(
-                center.x() - radius, center.y() + radius + 10 * (i + 1),
-                radius * 2, 20,
-                Qt.AlignCenter, label)
-
-
-def get_next_hue(previous_hue):
-    hue = random.randint(0, 255)
-    while abs(previous_hue - hue) < 100:
-        hue = random.randint(0, 255)
-    return hue
-
-
-@lru_cache()
-def get_pie_colors(count):
-    previous_hue = 100
-    colors = []
-    for _ in range(count):
-        hue = get_next_hue(previous_hue)
-        colors.append(QtGui.QColor.fromHsv(hue, 122, 122))
-        previous_hue = hue
-    return colors
-
-
-def auto_round(value):
-    if value < 10:
-        return round(value, 2)
-    if value < 100:
-        return round(value, 1)
-    return int(value)
-
-
-def get_next_big_value(value):
-    factor = 1
-    step = 10
-    while value > 1:
-        factor *= step
-        value /= step
-    return math.ceil(value * step) * factor / step
+    # Customize the legend font color
+    legend = chart.legend()
+    # legend.setLabelColor(text_color)
+    legend.hide()
