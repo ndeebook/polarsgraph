@@ -36,7 +36,10 @@ class BaseSettingsWidget(QtWidgets.QWidget):
             line_edit: QtWidgets.QLineEdit,
             attribute_name,
             data_type=str):
-        text = line_edit.text()
+        try:
+            text = line_edit.text()
+        except AttributeError:
+            text = line_edit.toPlainText()  # cover QPlainTextEdit as well
         if not text:
             self.node[attribute_name] = None
         else:
