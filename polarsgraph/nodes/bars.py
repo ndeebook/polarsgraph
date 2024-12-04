@@ -130,14 +130,18 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         # Get widget dimensions
         margin = 10
         rect = self.rect()
-        totals = self.dataframe.select(
-            self.dataframe.columns[1:]).sum_horizontal()
-        max_value = get_next_big_value(totals.max())
 
         # Background
         painter.fillRect(rect, COLOR['bg'])
 
         # Title
+        try:
+            totals = self.dataframe.select(
+                self.dataframe.columns[1:]).sum_horizontal()
+            max_value = get_next_big_value(totals.max())
+        except BaseException:
+            painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter, 'Error')
+            return
         title_offset = 10
         title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
         painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter, title)
