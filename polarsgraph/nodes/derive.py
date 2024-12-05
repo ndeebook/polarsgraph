@@ -62,7 +62,7 @@ OPERATOR_MAGIC_METHODS = {
 
 
 re_column = r'\{[^\}]*\}'
-re_number = r'\d+\.\d+|\d+'
+re_number = r'-?\d+\.\d+|-?\d+'
 re_function = r'@\w+'
 re_string = r'"[^"]*"'
 re_operator = r'[+\-*/(),]'
@@ -145,7 +145,6 @@ def formula_to_polars_expression(formula: str):
 
 
 def tokenize(formula) -> list[str]:
-    # FIXME: handle negative numbers
     """split all parts of the formula in a list"""
     token_pattern = re.compile(r'\s*' + '|'.join(re_tokens) + r'\s*')
     tokens = token_pattern.findall(formula)
@@ -229,7 +228,7 @@ def func_formula_to_polars(function_name, tokens):
         if start < 0:
             start = length + start + 1
         if end < 0:
-            size = length + end + 1
+            size = pl.max_horizontal(length + end + 1, 1)
         else:
             size = end - start + 1
         # Return expression
