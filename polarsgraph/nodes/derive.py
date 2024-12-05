@@ -1,22 +1,31 @@
 """
-{column_name} + ({column_name} + 1 / 2)
-@func(arg1, arg2)
+Create new column with an Formula.
+See `EXAMPLES_TEXT` for examples.
 """
+import os
 import re
 
 import polars as pl
 
-from PySide6 import QtWidgets
+from PySide6 import QtWidgets, QtGui
 
 from polarsgraph.nodes import ORANGE as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 
-HELP_TEXT = """Examples:
-    {column_name1} + ({column_name2} + 1 / 2)
+EXAMPLES_TEXT = """    {column_name1} + ({column_name2} + 1 / 2)
+    {column_name1} + "_" + {column_name2}
     @round({column_name}, 2)
-    {column_name1} + "_" + {column_name2}"""
+    @slice({column_name}, 2, -2)
+
+    @uppercase({column_name})
+    @lowercase({column_name})
+    @titlecase({column_name})
+
+    @integer({column_name})
+    @decimal({column_name})
+"""
 
 BOOL_DICT = dict(true=True, false=False)
 
@@ -99,6 +108,14 @@ class DeriveSettingsWidget(BaseSettingsWidget):
             lambda: self.line_edit_to_settings(
                 self.formula_edit, ATTR.FORMULA))
 
+        # Fixed size font
+        if os.name == 'nt':
+            fixed_font = self.font()
+            fixed_font.setFamily('consolas')
+        else:
+            fixed_font = QtGui.QFontDatabase.systemFont(
+                QtGui.QFontDatabase.SystemFont.FixedFont)
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
@@ -107,13 +124,14 @@ class DeriveSettingsWidget(BaseSettingsWidget):
         layout.addLayout(form_layout)
         layout.addWidget(QtWidgets.QLabel('Formula'))
         layout.addWidget(self.formula_edit)
-        layout.addWidget(QtWidgets.QLabel(HELP_TEXT))
+        layout.addWidget(QtWidgets.QLabel('Examples:'))
+        layout.addWidget(QtWidgets.QLabel(EXAMPLES_TEXT, font=fixed_font))
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
-        self.column_edit.setText(node[ATTR.COLUMN] or '')
+        self.column_edit.setText(node[ATTR.COLUMN] or 'Derived column')
         self.formula_edit.setPlainText(node[ATTR.FORMULA] or '')
         self.blockSignals(False)
 
@@ -127,6 +145,7 @@ def formula_to_polars_expression(formula: str):
 
 
 def tokenize(formula) -> list[str]:
+    # FIXME: handle negative numbers
     """split all parts of the formula in a list"""
     token_pattern = re.compile(r'\s*' + '|'.join(re_tokens) + r'\s*')
     tokens = token_pattern.findall(formula)
@@ -203,6 +222,26 @@ def func_formula_to_polars(function_name, tokens):
         column = token_to_value(tokens[0])
         decimals_arg = int(tokens[2])  # token[1] is ","
         return column.round(decimals_arg)
+    if function_name == 'slice':
+        column = token_to_value(tokens[0])
+        start, end = int(tokens[2]), int(tokens[4])
+        length = column.str.len_chars()
+        if start < 0:
+            start = length + start + 1
+        if end < 0:
+            size = length + end + 1
+        else:
+            size = end - start + 1
+        # Return expression
+        if end == 0:
+            return column.str.slice(start)
+        else:
+            return column.str.slice(start, size)
+    if function_name in (
+            'uppercase', 'lowercase', 'titlecase', 'integer', 'decimal'):
+        column = token_to_value(tokens[0])
+        # Example: `column.str.to_lowercase()`
+        return getattr(column.str, f'to_{function_name}')()
     raise ValueError(f'Unknown function name "{function_name}"')
 
 
