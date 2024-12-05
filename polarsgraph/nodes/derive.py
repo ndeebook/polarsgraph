@@ -231,7 +231,7 @@ def token_to_value(token):
     elif token.lower() in ('true', 'false'):  # Boolean
         return pl.lit(BOOL_DICT[token.lower()])
     elif token[0] == '"':  # String
-        return pl.lit(token)
+        return pl.lit(token[1:-1])
     elif '.' in token:  # Float
         return pl.lit(float(token))
     else:  # Integer
