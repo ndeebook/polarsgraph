@@ -16,6 +16,7 @@ from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 EXAMPLES_TEXT = """    {column_name1} + ({column_name2} + 1 / 2)
     {column_name1} + "_" + {column_name2}
+
     @round({column_name}, 2)
     @slice({column_name}, 2, -2)
 
@@ -25,6 +26,8 @@ EXAMPLES_TEXT = """    {column_name1} + ({column_name2} + 1 / 2)
 
     @integer({column_name})
     @decimal({column_name})
+    @boolean({column_name})
+    @string({column_name})
 """
 
 BOOL_DICT = dict(true=True, false=False)
@@ -241,6 +244,10 @@ def func_formula_to_polars(function_name, tokens):
         column = token_to_value(tokens[0])
         # Example: `column.str.to_lowercase()`
         return getattr(column.str, f'to_{function_name}')()
+    if function_name in ('boolean', 'string'):
+        column = token_to_value(tokens[0])
+        datatype = dict(boolean=pl.Boolean, string=pl.String)[function_name]
+        return column.cast(datatype)
     raise ValueError(f'Unknown function name "{function_name}"')
 
 
