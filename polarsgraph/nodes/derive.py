@@ -14,21 +14,35 @@ from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 
-EXAMPLES_TEXT = """    {column_name1} + ({column_name2} + 1 / 2)
-    {column_name1} + "_" + {column_name2}
+ARGLESS_COLUMNS_METHODS = (
+    'abs', 'count', 'ceil',
 
-    @round({column_name}, 2)
-    @slice({column_name}, 2, -2)
+    'is_infinite', 'is_finite', 'is_nan', 'is_null', 'is_duplicated',
+    'is_unique',
 
-    @uppercase({column_name})
-    @lowercase({column_name})
-    @titlecase({column_name})
+    'degrees', 'radians',
+    'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh',
+    'arcsin', 'arccos', 'arctan', 'arcsinh', 'arccosh', 'arctanh'
+)
+STR_ARGLESS_COLUMNS_METHODS = (
+    'to_uppercase',
+    'to_lowercase',
+    'to_titlecase',
+    'to_integer',
+    'to_decimal',
+    'len_chars',
+)
+EXAMPLES_TEXT = """
+{column_name1} + ({column_name2} + 1 / 2)
+{column_name1} + "_" + {column_name2}
 
-    @integer({column_name})
-    @decimal({column_name})
-    @boolean({column_name})
-    @string({column_name})
-"""
+@round({column_name}, 2)
+@slice({column_name}, 2, -2)
+
+@to_boolean({column_name})
+@to_string({column_name})
+...
+""" + ', '.join(STR_ARGLESS_COLUMNS_METHODS + ARGLESS_COLUMNS_METHODS)
 
 BOOL_DICT = dict(true=True, false=False)
 
@@ -119,6 +133,9 @@ class DeriveSettingsWidget(BaseSettingsWidget):
             fixed_font = QtGui.QFontDatabase.systemFont(
                 QtGui.QFontDatabase.SystemFont.FixedFont)
 
+        help_label = QtWidgets.QLabel(EXAMPLES_TEXT, font=fixed_font)
+        help_label.setWordWrap(True)
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
@@ -128,7 +145,7 @@ class DeriveSettingsWidget(BaseSettingsWidget):
         layout.addWidget(QtWidgets.QLabel('Formula'))
         layout.addWidget(self.formula_edit)
         layout.addWidget(QtWidgets.QLabel('Examples:'))
-        layout.addWidget(QtWidgets.QLabel(EXAMPLES_TEXT, font=fixed_font))
+        layout.addWidget(help_label)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
@@ -239,15 +256,19 @@ def func_formula_to_polars(function_name, tokens):
             return column.str.slice(start)
         else:
             return column.str.slice(start, size)
-    if function_name in (
-            'uppercase', 'lowercase', 'titlecase', 'integer', 'decimal'):
+    if function_name in STR_ARGLESS_COLUMNS_METHODS:
         column = token_to_value(tokens[0])
-        # Example: `column.str.to_lowercase()`
-        return getattr(column.str, f'to_{function_name}')()
-    if function_name in ('boolean', 'string'):
+        return getattr(column.str, function_name)()
+    if function_name in ('to_boolean', 'to_string'):
         column = token_to_value(tokens[0])
         datatype = dict(boolean=pl.Boolean, string=pl.String)[function_name]
         return column.cast(datatype)
+    if function_name == 'len_chars':
+        column = token_to_value(tokens[0])
+        return column.str.len_chars()
+    if function_name in ARGLESS_COLUMNS_METHODS:
+        column = token_to_value(tokens[0])
+        return getattr(column, function_name)()
     raise ValueError(f'Unknown function name "{function_name}"')
 
 
