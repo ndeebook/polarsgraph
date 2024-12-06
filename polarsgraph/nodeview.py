@@ -40,7 +40,7 @@ class NodeView(QtWidgets.QWidget):
         super().__init__()
 
         self.types = types
-        self.graph: dict[str, BaseNode] = graph if graph else dict()
+        self.graph: dict[str, BaseNode] = graph
         self.viewportmapper = ViewportMapper(zoom, origin)
 
         self.nodes_bboxes: dict[str, QtCore.QRect] = dict()
@@ -65,7 +65,7 @@ class NodeView(QtWidgets.QWidget):
             self.add_menu.addAction(action)
 
     def set_graph(self, graph):
-        self.graph = graph if graph else dict()
+        self.graph = graph
         self.nodes_bboxes.clear()
         self.plugs_bboxes.clear()
         self.selected_names.clear()
@@ -89,6 +89,8 @@ class NodeView(QtWidgets.QWidget):
 
     def frame_all(self):
         rects = list(self.nodes_bboxes.values())
+        if not rects:
+            return
         rect = rects[0]
         for other_rect in rects[1:]:
             rect = rect.united(other_rect)
