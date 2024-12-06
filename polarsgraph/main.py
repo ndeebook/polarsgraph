@@ -355,6 +355,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
         self.node_view.repaint()
         self.update_view_widget()
+        self.set_settings_node(self.settings_widget.node)
         self.autosave()
 
     def set_panel_node(self, node_names):
