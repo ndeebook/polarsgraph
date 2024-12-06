@@ -122,7 +122,7 @@ class DashboardSettingsWidget(BaseSettingsWidget):
         self.dashboard_layout_widget.grid_height_spinbox.setValue(
             int(node[ATTR.GRID_HEIGHT] or 16))
         self.dashboard_layout_widget.clear()
-        for rect in node[ATTR.WIDGETS_RECTANGLES]:
+        for rect in node[ATTR.WIDGETS_RECTANGLES] or []:
             self.dashboard_layout_widget.add_rectangle(rect)
 
         self.blockSignals(False)
@@ -178,6 +178,8 @@ class FixedGridLayout(QtWidgets.QLayout):
         outer_rect = outer_rect.marginsRemoved(self.contentsMargins())
         spacing = self.spacing()
 
+        if len(self.rects) < len(self.items):
+            return
         for item, (x, y, w, h) in zip(self.items, self.rects):
             x = int(x / self.grid_width * total_width)
             y = int(y / self.grid_height * total_height)
