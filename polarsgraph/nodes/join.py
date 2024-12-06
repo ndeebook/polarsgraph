@@ -89,7 +89,7 @@ class JoinSettingsWidget(BaseSettingsWidget):
         set_combo_values(self.left_column_edit, input_tables[0], left)
 
         right = node[ATTR.RIGHT_COLUMN] or ''
-        set_combo_values(self.right_column_edit, input_tables[0], right)
+        set_combo_values(self.right_column_edit, input_tables[1], right)
 
         self.how_combo.setCurrentText(node[ATTR.HOW] or 'inner')
 
