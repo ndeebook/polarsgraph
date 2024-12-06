@@ -23,7 +23,7 @@ CONDITIONS_LABELS = {
     'is_in': 'is in',
     'not_in': 'is not in',
 }
-LABELS_CONDITIONS = {l: c for c, l in CONDITIONS_LABELS.items()}
+LABELS_CONDITIONS = {label: c for c, label in CONDITIONS_LABELS.items()}
 
 
 class FilterNode(BaseNode):

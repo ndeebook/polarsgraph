@@ -1,6 +1,3 @@
-import traceback
-
-import yaml
 import polars as pl
 from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
@@ -137,48 +134,6 @@ class TableDisplay(BaseDisplay):
 
     def set_board_mode(self, board_enabled: bool):
         self.bottom_widget.setVisible(not board_enabled)
-
-    def show_dataframe(self, node):
-        raise NotImplementedError
-        self.node = node
-        # Color dataframes first to avoid display error
-        bg_color_df = node.bg_color_dfs.get(table_name)
-        if bg_color_df is not None:
-            bg_color_df = bg_color_df.collect(stream=True)
-        self.table_model.set_dataframe(bg_color_df, which='bg_color')
-
-        text_color_df = node.text_color_dfs.get(table_name)
-        if text_color_df is not None:
-            text_color_df = text_color_df.collect(stream=True)
-        self.table_model.set_dataframe(text_color_df, which='text_color')
-
-        # Content dataframe:
-        try:
-            dataframe = node.dataframes[table_name].collect(stream=True)
-            self.table_details_label.setText(
-                f'{dataframe.height} x {dataframe.width}')
-            self.table_model.set_dataframe(dataframe)
-            # Resize
-            try:
-                columns_sizes = yaml.safe_load(
-                    self.node.settings.get('columns_sizes'))
-            except BaseException:
-                columns_sizes = dict()
-            if columns_sizes:
-                self._resizing = True
-                for index, width in columns_sizes.items():
-                    self.table_view.setColumnWidth(index, width)
-                self._resizing = False
-            elif dataframe.height * dataframe.width < 1000:
-                self.table_view.resizeColumnsToContents()
-            else:
-                # When there is a lot of content it's slow, only check headers:
-                fit_columns_to_headers(self.table_view)
-        except BaseException:
-            dataframe = pl.DataFrame()
-            self.table_details_label.setText('')
-            self.stack.set_error(node, traceback.format_exc())
-            self.table_model.set_dataframe(dataframe)
 
     def export_dataframe(self):
         if self.table_model.dataframe is None:
