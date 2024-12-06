@@ -44,7 +44,8 @@ class GroupNode(BaseNode):
         # Prepare aggregation expressions
         agg_exprs = []
         column_aggregations = self[ATTR.COLUMNS_AGGREGATIONS] or {}
-        for col_name, agg_name in column_aggregations.items():
+        for col_name in schema.names():
+            agg_name = column_aggregations.get(col_name)
             if agg_name == DELETE_LABEL:
                 continue
             if col_name == group_by_column:
@@ -112,6 +113,9 @@ class GroupSettingsWidget(BaseSettingsWidget):
             lambda: self.line_edit_to_settings(
                 self.customvalue_edit, ATTR.CUSTOM_VALUE))
 
+        refresh_button = QtWidgets.QPushButton('Refresh list')
+        refresh_button.clicked.connect(self.populate_aggregation_table)
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
@@ -121,6 +125,7 @@ class GroupSettingsWidget(BaseSettingsWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
+        layout.addWidget(refresh_button)
         layout.addWidget(self.column_agg_table)
 
     def set_node(self, node, input_tables):
