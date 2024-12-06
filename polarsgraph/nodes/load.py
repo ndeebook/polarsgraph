@@ -44,13 +44,13 @@ class LoadNode(BaseNode):
         if extension == 'csv':
             kwargs['separator'] = self[ATTR.CSV_SEPARATOR]
 
-        table: pl.LazyFrame = open_func(path, **kwargs).lazy()
+        table: pl.DataFrame = open_func(path, **kwargs)
 
         prefix = self[ATTR.PREFIX]
         if prefix:
             table = table.rename({c: f'{prefix}{c}' for c in table.columns})
 
-        self.tables[self.outputs[0]] = table
+        self.tables[self.outputs[0]] = table.lazy()
 
 
 class LoadSettingsWidget(BaseSettingsWidget):
