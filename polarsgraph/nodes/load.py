@@ -12,6 +12,7 @@ class ATTR:
     NAME = 'name'
     PATH = 'path'
     CSV_SEPARATOR = 'csv_separator'
+    PREFIX = 'columns_prefix'
 
 
 OPEN_FUNCTIONS = {
@@ -43,7 +44,13 @@ class LoadNode(BaseNode):
         if extension == 'csv':
             kwargs['separator'] = self[ATTR.CSV_SEPARATOR]
 
-        self.tables[self.outputs[0]] = open_func(path, **kwargs).lazy()
+        table: pl.LazyFrame = open_func(path, **kwargs).lazy()
+
+        prefix = self[ATTR.PREFIX]
+        if prefix:
+            table = table.rename({c: f'{prefix}{c}' for c in table.columns})
+
+        self.tables[self.outputs[0]] = table
 
 
 class LoadSettingsWidget(BaseSettingsWidget):
@@ -63,12 +70,18 @@ class LoadSettingsWidget(BaseSettingsWidget):
             lambda: self.line_edit_to_settings(
                 self.csv_separator_edit, ATTR.CSV_SEPARATOR))
 
+        self.prefix_edit = QtWidgets.QLineEdit()
+        self.prefix_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(
+                self.prefix_edit, ATTR.PREFIX))
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         form_layout.addRow(ATTR.PATH.title(), self.path_edit)
         form_layout.addRow(' ', self.browse_button)
         form_layout.addRow('CSV Separator', self.csv_separator_edit)
+        form_layout.addRow('Columns prefix', self.prefix_edit)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
@@ -79,6 +92,7 @@ class LoadSettingsWidget(BaseSettingsWidget):
         self.name_edit.setText(node[ATTR.NAME])
         self.path_edit.setText(node[ATTR.PATH])
         self.csv_separator_edit.setText(node[ATTR.CSV_SEPARATOR] or ',')
+        self.prefix_edit.setText(node[ATTR.PREFIX] or '')
         self.blockSignals(False)
 
     def _browse(self):
