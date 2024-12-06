@@ -17,6 +17,8 @@ COLOR = dict(
 class ATTR:
     NAME = 'name'
     TITLE = 'title'
+    START_ANGLE = 'start_angle'
+    END_ANGLE = 'end_angle'
 
 
 class PieNode(BaseNode):
@@ -57,10 +59,22 @@ class PieSettingsWidget(BaseSettingsWidget):
         self.title_edit.editingFinished.connect(
             lambda: self.line_edit_to_settings(self.title_edit, ATTR.TITLE))
 
+        self.start_angle_edit = QtWidgets.QLineEdit()
+        self.start_angle_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(
+                self.start_angle_edit, ATTR.START_ANGLE, int))
+
+        self.end_angle_edit = QtWidgets.QLineEdit()
+        self.end_angle_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(
+                self.end_angle_edit, ATTR.END_ANGLE, int))
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
+        form_layout.addRow('Start angle', self.start_angle_edit)
+        form_layout.addRow('End angle', self.end_angle_edit)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
 
@@ -69,6 +83,8 @@ class PieSettingsWidget(BaseSettingsWidget):
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
         self.title_edit.setText(node[ATTR.TITLE] or '')
+        self.start_angle_edit.setText(str(node[ATTR.START_ANGLE] or 0))
+        self.end_angle_edit.setText(str(node[ATTR.END_ANGLE] or 360))
         self.blockSignals(False)
 
 
@@ -95,7 +111,10 @@ class PieDisplay(BaseDisplay):
             return
         table = table.collect(stream=True)
         title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
-        self.node.error = make_chart(self.chart_view, table, title)
+        start_angle = self.node[ATTR.START_ANGLE] or 0
+        end_angle = self.node[ATTR.END_ANGLE] or 360
+        self.node.error = make_chart(
+            self.chart_view, table, title, start_angle, end_angle)
         if self.node.error:
             self.chart_view.setVisible(False)
             self.error_label.setVisible(True)
@@ -120,7 +139,11 @@ class PieDisplay(BaseDisplay):
 
 
 def make_chart(
-        chart_view: QtCharts.QChartView, dataframe: pl.DataFrame, title):
+        chart_view: QtCharts.QChartView,
+        dataframe: pl.DataFrame,
+        title: str,
+        start_angle: float = 0,
+        end_angle: float = 360):
     # Create the chart
     chart = QtCharts.QChart()
     chart.setTitle(title)
@@ -130,7 +153,7 @@ def make_chart(
     chart.setMargins(QtCore.QMargins(0, 0, 0, 0))
 
     # Create the Pie Series
-    series = QtCharts.QPieSeries()
+    series = QtCharts.QPieSeries(startAngle=start_angle, endAngle=end_angle)
     label_brush = QtGui.QBrush(COLOR['pie_text'])
 
     # Sum data for each column to calculate their share in the pie
