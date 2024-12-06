@@ -261,8 +261,8 @@ def func_formula_to_polars(function_name, tokens):
         return getattr(column.str, function_name)()
     if function_name in ('to_boolean', 'to_string'):
         column = token_to_value(tokens[0])
-        datatype = dict(boolean=pl.Boolean, string=pl.String)[function_name]
-        return column.cast(datatype)
+        datatype = dict(to_boolean=pl.Boolean, to_string=pl.String)
+        return column.cast(datatype[function_name])
     if function_name == 'len_chars':
         column = token_to_value(tokens[0])
         return column.str.len_chars()
