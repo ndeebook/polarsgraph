@@ -41,4 +41,5 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     viewport = PolarsGraph(graph)
     viewport.show()
+    QtCore.QTimer.singleShot(1, viewport.node_view.frame_all)
     app.exec()

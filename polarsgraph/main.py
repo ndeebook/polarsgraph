@@ -255,6 +255,9 @@ class PolarsGraph(QtWidgets.QMainWindow):
             if node:
                 self.build_node_query(node_name)  # enable access to schema
             self.set_settings_node(node)
+        # Force refresh node view + frame all
+        self.node_view.repaint()
+        self.node_view.frame_all()
 
     def set_settings_node(self, node):
         input_tables = []
