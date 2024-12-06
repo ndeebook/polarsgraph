@@ -43,6 +43,9 @@ class DisplayWidget(QtWidgets.QWidget):
     def update_content(self):
         if not self.node:
             return
+        if self.node['name'] not in self.graph:  # display was deleted
+            self.node = None
+            return
         success = build_node_query(self.graph, self.node['name'])
         if self.node.type == 'dashboard':
             # First, make sur we remove all Widgets, otherwise they will
