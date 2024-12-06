@@ -9,8 +9,9 @@ from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget, BaseDisplay
 
 COLOR = dict(
     text=Qt.GlobalColor.white,
+    axis_text=QtGui.QColor('#888888'),
+    grid=QtGui.QColor('#888888'),
     bg=QtGui.QColor('#2F2F2F'),
-    pie_text=QtGui.QColor('#777777'),
 )
 
 
@@ -19,8 +20,8 @@ class ATTR:
     TITLE = 'title'
 
 
-class PieNode(BaseNode):
-    type = 'pie'
+class LinesNode(BaseNode):
+    type = 'lines'
     category = DISPLAY_CATEGORY
     inputs = 'table',
     outputs = 'widget',
@@ -44,11 +45,11 @@ class PieNode(BaseNode):
     @property
     def display_widget(self):
         if not self._display_widget:
-            self._display_widget = PieDisplay(self)
+            self._display_widget = LinesDisplay(self)
         return self._display_widget
 
 
-class PieSettingsWidget(BaseSettingsWidget):
+class LinesSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 
@@ -72,11 +73,11 @@ class PieSettingsWidget(BaseSettingsWidget):
         self.blockSignals(False)
 
 
-class PieDisplay(BaseDisplay):
+class LinesDisplay(BaseDisplay):
     def __init__(self, node, parent=None):
         super().__init__(parent)
 
-        self.node: PieNode = node
+        self.node: LinesNode = node
         self._resizing = False
 
         # Widgets
@@ -123,29 +124,41 @@ def make_chart(
         chart_view: QtCharts.QChartView, dataframe: pl.DataFrame, title):
     # Create the chart
     chart = QtCharts.QChart()
+    chart.legend().hide()
     chart.setTitle(title)
     chart.setBackgroundBrush(QtGui.QBrush(COLOR['bg']))
-    chart.setTitleBrush(QtGui.QBrush(COLOR['text']))
-    chart.legend().hide()
+    text_brush = QtGui.QBrush(COLOR['text'])
+    chart.setTitleBrush(text_brush)
     chart.setMargins(QtCore.QMargins(0, 0, 0, 0))
 
-    # Create the Pie Series
-    series = QtCharts.QPieSeries()
-    label_brush = QtGui.QBrush(COLOR['pie_text'])
+    # Create the Lines Series
+    series = QtCharts.QLineSeries()
 
-    # Sum data for each column to calculate their share in the pie
-    value_column = dataframe.select(dataframe.columns[1])
-    total = value_column.sum()[0, 0]
-
+    # Sum data for each column to calculate their share in the lines
     for values in dataframe.iter_rows():
-        label, value, *_ = values
-        ratio = value / total
-        try:
-            slice_ = series.append(label, ratio)
-        except TypeError as e:
-            return str(e)
-        slice_.setLabelVisible(True)
-        slice_.setLabelBrush(label_brush)
+        for x, y in zip(values[::2], values[1::2]):
+            try:
+                series.append(x, y)
+            except TypeError as e:
+                return str(e)
 
+    # Configure the axes
     chart.addSeries(series)
+
+    # chart.createDefaultAxes()
+    axis_x = QtCharts.QValueAxis()
+    axis_y = QtCharts.QValueAxis()
+    # axis_x.setTitleText("X-Axis")
+    # axis_y.setTitleText("Y-Axis")
+    axis_x.setLabelsBrush(QtGui.QBrush(COLOR['axis_text']))
+    axis_y.setLabelsBrush(QtGui.QBrush(COLOR['axis_text']))
+    grid_pen = QtGui.QPen(COLOR['grid'])
+    grid_pen.setWidth(.5)
+    axis_x.setGridLinePen(grid_pen)
+    axis_y.setGridLinePen(grid_pen)
+    chart.addAxis(axis_x, QtCore.Qt.AlignBottom)
+    chart.addAxis(axis_y, QtCore.Qt.AlignLeft)
+    series.attachAxis(axis_x)
+    series.attachAxis(axis_y)
+
     chart_view.setChart(chart)
