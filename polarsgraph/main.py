@@ -259,9 +259,12 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.node_view.repaint()
         self.node_view.frame_all()
 
-    def set_settings_node(self, node):
+    def set_settings_node(self, node: BaseNode):
         input_tables = []
-        if node:
+        if (
+            node and
+            self.settings_widget.types_widgets[node.type].needs_built_query
+        ):
             self.build_node_query(node['name'])
             input_tables = get_input_tables(self.graph, node)
         self.settings_widget.set_node(node, input_tables)

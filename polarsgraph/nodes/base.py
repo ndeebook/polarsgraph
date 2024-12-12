@@ -18,6 +18,7 @@ class BaseSettingsWidget(QtWidgets.QWidget):
         self.node: BaseNode = None
         self.name_edit = QtWidgets.QLineEdit()
         self.name_edit.editingFinished.connect(self.rename)
+        self.needs_built_query = True
 
     def set_node(self, node, input_tables):
         raise NotImplementedError
