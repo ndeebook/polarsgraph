@@ -1,4 +1,7 @@
 polars==1.13.0
 
+xlsxwriter
+fastexcel
+
 PySide6
 pyyaml
