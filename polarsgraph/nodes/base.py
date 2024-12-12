@@ -86,19 +86,26 @@ class BaseDisplay(QtWidgets.QWidget):
 
 def set_combo_values(
         combo: QtWidgets.QComboBox,
-        df: pl.LazyFrame,
-        current_text: str,
-        extra_values=None):
+        values: list[str],
+        current_text: str):
     combo.clear()
-    values = df.collect_schema().names()
     if current_text not in values:
         values = [current_text, *values]
     combo.addItems(values)
+    combo.setCurrentText(current_text)
+
+
+def set_combo_values_from_table_columns(
+        combo: QtWidgets.QComboBox,
+        df: pl.LazyFrame,
+        current_text: str,
+        extra_values=None):
+    values = df.collect_schema().names()
     if extra_values:
         extra_values = list(set(extra_values) - set(values))
         if extra_values:
             combo.addItems(extra_values)
-    combo.setCurrentText(current_text)
+    set_combo_values(combo, values, current_text)
 
 
 def get_converter(data_type: pl.DataType):

@@ -5,7 +5,7 @@ from polarsgraph.nodes import BLUE as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import (
     BaseNode, BaseSettingsWidget, convert_value, convert_values,
-    set_combo_values)
+    set_combo_values_from_table_columns)
 
 
 class ATTR:
@@ -106,7 +106,7 @@ class FilterSettingsWidget(BaseSettingsWidget):
         label = CONDITIONS_LABELS[condition]
         self.condition_combo.setCurrentText(label)
 
-        set_combo_values(
+        set_combo_values_from_table_columns(
             self.column_combo, self.input_table, node[ATTR.COLUMN])
 
         self.value_edit.setText(node[ATTR.VALUE] or '')

@@ -5,7 +5,7 @@ from PySide6.QtCore import Qt
 from polarsgraph.nodes import PINK as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import (
-    BaseNode, BaseSettingsWidget, set_combo_values)
+    BaseNode, BaseSettingsWidget, set_combo_values_from_table_columns)
 
 
 ALL_ROWS_LABEL = '* aggregate all rows'
@@ -136,7 +136,7 @@ class GroupSettingsWidget(BaseSettingsWidget):
         self.name_edit.setText(node[ATTR.NAME])
 
         group_by = node[ATTR.GROUP_BY] or ALL_ROWS_LABEL
-        set_combo_values(
+        set_combo_values_from_table_columns(
             self.group_by_column_combo, self.input_table, group_by,
             extra_values=[ALL_ROWS_LABEL])
 

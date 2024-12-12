@@ -4,7 +4,7 @@ from PySide6 import QtWidgets
 from polarsgraph.nodes import PINK as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import (
-    BaseNode, BaseSettingsWidget, set_combo_values)
+    BaseNode, BaseSettingsWidget, set_combo_values_from_table_columns)
 
 
 class ATTR:
@@ -86,10 +86,10 @@ class JoinSettingsWidget(BaseSettingsWidget):
         self.name_edit.setText(node[ATTR.NAME])
 
         left = node[ATTR.LEFT_COLUMN] or ''
-        set_combo_values(self.left_column_edit, input_tables[0], left)
+        set_combo_values_from_table_columns(self.left_column_edit, input_tables[0], left)
 
         right = node[ATTR.RIGHT_COLUMN] or ''
-        set_combo_values(self.right_column_edit, input_tables[1], right)
+        set_combo_values_from_table_columns(self.right_column_edit, input_tables[1], right)
 
         self.how_combo.setCurrentText(node[ATTR.HOW] or 'inner')
 
