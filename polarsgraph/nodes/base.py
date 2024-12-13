@@ -102,10 +102,9 @@ def set_combo_values_from_table_columns(
         current_text: str,
         extra_values=None):
     values = df.collect_schema().names()
-    if extra_values:
-        extra_values = list(set(extra_values) - set(values))
-        if extra_values:
-            combo.addItems(extra_values)
+    for extra_value in extra_values or []:
+        if extra_value not in values:
+            values.insert(0, extra_value)
     set_combo_values(combo, values, current_text)
 
 
