@@ -108,13 +108,23 @@ def set_combo_values_from_table_columns(
     set_combo_values(combo, values, current_text)
 
 
+def to_boolean(value):
+    if value in (True, False):
+        return value
+    if not value:
+        return False
+    if isinstance(value, str):
+        return value.lower() in TRUE_WORDS
+    return False
+
+
 def get_converter(data_type: pl.DataType):
     if data_type.is_float():
         return lambda v: float(v.replace(',', '.'))
     elif data_type.is_integer():
         return int
     elif data_type == pl.Boolean:
-        return lambda v: True if v.lower() in TRUE_WORDS else False
+        return to_boolean
 
 
 def convert_value(value, data_type):
