@@ -46,11 +46,11 @@ class DashboardNode(BaseNode):
         layout = self.display_widget.grid
 
         # Spacing & margins
-        layout.setSpacing(self[ATTR.SPACING])
-        m = self[ATTR.MARGINS]
+        layout.setSpacing(self[ATTR.SPACING] or 0)
+        m = self[ATTR.MARGINS] or 0
         layout.setContentsMargins(m, m, m, m)
-        layout.grid_width = self[ATTR.GRID_WIDTH]
-        layout.grid_height = self[ATTR.GRID_HEIGHT]
+        layout.grid_width = self[ATTR.GRID_WIDTH] or 1
+        layout.grid_height = self[ATTR.GRID_HEIGHT] or 1
 
         # Widgets
         layout.clear()
