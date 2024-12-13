@@ -44,6 +44,9 @@ class DisplayWidget(QtWidgets.QWidget):
         if not self.node:
             return
         if self.node['name'] not in self.graph:  # display was deleted
+            self.node.display_widget.setParent(None)
+            self.node.display_widget.deleteLater()
+            self.content_layout.addItem(self.stretch)
             self.node = None
             return
         success = build_node_query(self.graph, self.node['name'])
