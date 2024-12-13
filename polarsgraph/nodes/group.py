@@ -18,6 +18,8 @@ CUSTOM_VALUE_LABEL = '[custom]'
 class ATTR:
     NAME = 'name'
     GROUP_BY = 'group_by'
+    GROUP_BY2 = 'group_by2'
+    GROUP_BY3 = 'group_by3'
     COLUMNS_AGGREGATIONS = 'columns_aggregations'
     ROUND = 'round'
     CUSTOM_VALUE = 'custom_value'
@@ -39,6 +41,9 @@ class GroupNode(BaseNode):
 
         # Group by column(s)
         group_by_column = self[ATTR.GROUP_BY]
+        group_by_column2 = self[ATTR.GROUP_BY2]
+        group_by_column3 = self[ATTR.GROUP_BY3]
+        group_by_columns = group_by_column, group_by_column2, group_by_column3
         custom_value = self[ATTR.CUSTOM_VALUE] or ''
 
         # Prepare aggregation expressions
@@ -48,7 +53,7 @@ class GroupNode(BaseNode):
             agg_name = column_aggregations.get(col_name)
             if agg_name == DELETE_LABEL:
                 continue
-            if col_name == group_by_column:
+            if col_name in group_by_columns:
                 continue
             if agg_name == CUSTOM_VALUE_LABEL:
                 if schema[col_name] == pl.String:
@@ -65,7 +70,8 @@ class GroupNode(BaseNode):
         if group_by_column == ALL_ROWS_LABEL:
             df = df.select(agg_exprs)
         else:
-            df = df.group_by(group_by_column).agg(agg_exprs)
+            group_by = [gb for gb in group_by_columns if gb]
+            df = df.group_by(group_by).agg(agg_exprs)
 
         # Round
         decimals = self[ATTR.ROUND]
@@ -90,6 +96,14 @@ class GroupSettingsWidget(BaseSettingsWidget):
         self.group_by_column_combo.currentTextChanged.connect(
             lambda: self.combobox_to_settings(
                 self.group_by_column_combo, ATTR.GROUP_BY))
+        self.group_by_column_combo2 = QtWidgets.QComboBox()
+        self.group_by_column_combo2.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.group_by_column_combo2, ATTR.GROUP_BY2))
+        self.group_by_column_combo3 = QtWidgets.QComboBox()
+        self.group_by_column_combo3.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.group_by_column_combo3, ATTR.GROUP_BY3))
 
         # Table for column aggregation functions
         self.column_agg_table = QtWidgets.QTableWidget()
@@ -120,6 +134,8 @@ class GroupSettingsWidget(BaseSettingsWidget):
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         form_layout.addRow('Group by', self.group_by_column_combo)
+        form_layout.addRow('', self.group_by_column_combo2)
+        form_layout.addRow('', self.group_by_column_combo3)
         form_layout.addRow('Round (number of decimals)', self.round_edit)
         form_layout.addRow('Custom value', self.customvalue_edit)
 
@@ -136,9 +152,17 @@ class GroupSettingsWidget(BaseSettingsWidget):
         self.name_edit.setText(node[ATTR.NAME])
 
         group_by = node[ATTR.GROUP_BY] or ALL_ROWS_LABEL
+        group_by2 = node[ATTR.GROUP_BY2] or ''
+        group_by3 = node[ATTR.GROUP_BY3] or ''
         set_combo_values_from_table_columns(
             self.group_by_column_combo, self.input_table, group_by,
             extra_values=[ALL_ROWS_LABEL])
+        set_combo_values_from_table_columns(
+            self.group_by_column_combo2, self.input_table, group_by2,
+            extra_values=[''])
+        set_combo_values_from_table_columns(
+            self.group_by_column_combo3, self.input_table, group_by3,
+            extra_values=[''])
 
         round_value = node[ATTR.ROUND]
         round_value = '' if round_value is None else str(round_value)
