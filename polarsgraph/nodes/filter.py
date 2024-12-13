@@ -22,6 +22,7 @@ CONDITIONS_LABELS = {
     '<': 'smaller than',
     'is_in': 'is in',
     'not_in': 'is not in',
+    'contains': 'contains',
 }
 LABELS_CONDITIONS = {label: c for c, label in CONDITIONS_LABELS.items()}
 
@@ -59,6 +60,13 @@ class FilterNode(BaseNode):
             exp = pl.col(column).is_in(values)
             if condition == 'not_in':
                 exp = ~exp
+            df = df.filter(exp)
+        elif condition == 'contains':
+            if ',' in value:
+                exp = pl.col(column).str.contains_any(
+                    [v.strip() for v in value.split(',')])
+            else:
+                exp = pl.col(column).str.contains(value)
             df = df.filter(exp)
 
         self.tables['table'] = df
