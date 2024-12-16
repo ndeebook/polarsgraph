@@ -140,7 +140,7 @@ class TableDisplay(BaseDisplay):
             return QtWidgets.QMessageBox.warning(
                 self, 'Empty', 'No Table to export',
                 QtWidgets.QMessageBox.Ok)
-        prompt_save_df(self.table_model.dataframe, name=self.node['name'])
+        prompt_save_df(self.table_model.dataframe, self)
 
     def get_pixmap(self):
         size = get_table_size(self.table_view)
@@ -244,6 +244,10 @@ def export_df_to_file(df: pl.DataFrame, path: str):
             df.write_excel(path)
         elif path.endswith('parquet'):
             df.write_parquet(path)
+        elif path.endswith('pickle'):
+            import pickle
+            with open(path, 'wb') as f:
+                pickle.dump(df, f)
         else:
             raise ValueError(f'Extension not covered ({path})')
     finally:
@@ -252,7 +256,7 @@ def export_df_to_file(df: pl.DataFrame, path: str):
 
 def prompt_save_df(df, parent=None):
     filepath, result = QtWidgets.QFileDialog.getSaveFileName(
-        parent, 'Export', filter='(*.xlsx *.parquet)')
+        parent, 'Export', filter='(*.xlsx *.parquet, *.pickle)')
     if not result:
         return
     export_df_to_file(df, filepath)
