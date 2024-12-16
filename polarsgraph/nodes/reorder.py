@@ -178,7 +178,8 @@ class DragDropListWidget(QtWidgets.QListWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
@@ -188,7 +189,7 @@ class DragDropListWidget(QtWidgets.QListWidget):
         if event.source() == self:
             super().dropEvent(event)
         else:
-            self.addItem(event.source().currentItem().text())
+            self.addItems([i.text() for i in event.source().selectedItems()])
             event.accept()
         # QTimer.singleShot => make sure List widget is updated and that
         # .items() will return the updated list
