@@ -46,15 +46,7 @@ class FilterNode(BaseNode):
         value = self[ATTR.VALUE]
         data_type = df.collect_schema()[column]
 
-        if condition == '==':
-            df = df.filter(pl.col(column) == convert_value(value, data_type))
-        elif condition == '!=':
-            df = df.filter(pl.col(column) != convert_value(value, data_type))
-        elif condition == '>':
-            df = df.filter(pl.col(column) > convert_value(value, data_type))
-        elif condition == '<':
-            df = df.filter(pl.col(column) < convert_value(value, data_type))
-        elif condition in ('is_in', 'not_in'):
+        if condition in ('is_in', 'not_in'):
             values = [v.strip() for v in value.split(',')]
             values = convert_values(values, data_type)
             exp = pl.col(column).is_in(values)
@@ -68,6 +60,24 @@ class FilterNode(BaseNode):
             else:
                 exp = pl.col(column).str.contains(value)
             df = df.filter(exp)
+        else:
+            value = convert_value(value, data_type)
+            if condition == '==':
+                if not value and data_type == pl.String:
+                    df = df.filter(
+                        pl.col(column).is_null() | (pl.col(column) == ''))
+                else:
+                    df = df.filter(pl.col(column) == value)
+            elif condition == '!=':
+                if not value and data_type == pl.String:
+                    df = df.filter(
+                        ~(pl.col(column).is_null() | (pl.col(column) == '')))
+                else:
+                    df = df.filter(pl.col(column) != value)
+            elif condition == '>':
+                df = df.filter(pl.col(column) > value)
+            elif condition == '<':
+                df = df.filter(pl.col(column) < value)
 
         self.tables['table'] = df
 
