@@ -208,6 +208,7 @@ class GroupSettingsWidget(BaseSettingsWidget):
                 self._handle_aggregations_change)
             self.column_agg_table.setCellWidget(i, 1, agg_combo)
         self.column_agg_table.blockSignals(False)
+        self._handle_aggregations_change()
 
     def _handle_aggregations_change(self):
         columns_aggregations = {}
