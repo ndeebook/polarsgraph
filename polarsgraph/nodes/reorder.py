@@ -100,26 +100,37 @@ class ReorderableListWidget(QtWidgets.QWidget):
         self.delete_list_widget.order_changed.connect(self.emit_order)
         self.delete_list_widget.item_double_clicked.connect(self.undelete_item)
 
-        self.up_button = QtWidgets.QPushButton('Move Up')
+        self.top_button = QtWidgets.QPushButton('⭱', maximumWidth=32)
+        self.top_button.clicked.connect(self.move_top)
+        self.up_button = QtWidgets.QPushButton('⭡', maximumWidth=32)
         self.up_button.clicked.connect(self.move_up)
-        self.down_button = QtWidgets.QPushButton('Move Down')
+        self.down_button = QtWidgets.QPushButton('↓', maximumWidth=32)
         self.down_button.clicked.connect(self.move_down)
-        self.delete_button = QtWidgets.QPushButton('Delete')
+        self.bottom_button = QtWidgets.QPushButton('⤓', maximumWidth=32)
+        self.bottom_button.clicked.connect(self.move_bottom)
+        self.delete_button = QtWidgets.QPushButton('✗', maximumWidth=32)
         self.delete_button.clicked.connect(self.delete_item)
         self.undelete_button = QtWidgets.QPushButton('Restore')
         self.undelete_button.clicked.connect(self.undelete_item)
 
         # Layouts
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addWidget(self.up_button)
-        button_layout.addWidget(self.down_button)
-        button_layout.addWidget(self.delete_button)
+        buttons_layout = QtWidgets.QVBoxLayout()
+        buttons_layout.addWidget(self.top_button)
+        buttons_layout.addWidget(self.up_button)
+        buttons_layout.addWidget(self.down_button)
+        buttons_layout.addWidget(self.bottom_button)
+        buttons_layout.addWidget(self.delete_button)
+        buttons_layout.addStretch()
+
+        list_layout = QtWidgets.QHBoxLayout()
+        list_layout.addLayout(buttons_layout)
+        list_layout.addWidget(self.order_list_widget)
 
         main_layout = QtWidgets.QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(QtWidgets.QLabel('New Columns Order:'))
-        main_layout.addWidget(self.order_list_widget)
-        main_layout.addLayout(button_layout)
+        main_layout.addLayout(list_layout)
+        main_layout.addLayout(buttons_layout)
         main_layout.addWidget(QtWidgets.QLabel('Deleted Columns:'))
         main_layout.addWidget(self.delete_list_widget)
         main_layout.addWidget(self.undelete_button)
@@ -149,12 +160,29 @@ class ReorderableListWidget(QtWidgets.QWidget):
             self.order_list_widget.setCurrentRow(current_row - 1)
         self.emit_order()
 
+    def move_top(self):
+        current_row = self.order_list_widget.currentRow()
+        if current_row > 0:
+            item = self.order_list_widget.takeItem(current_row)
+            self.order_list_widget.insertItem(0, item)
+            self.order_list_widget.setCurrentRow(0)
+        self.emit_order()
+
     def move_down(self):
         current_row = self.order_list_widget.currentRow()
         if current_row < self.order_list_widget.count() - 1:
             item = self.order_list_widget.takeItem(current_row)
             self.order_list_widget.insertItem(current_row + 1, item)
             self.order_list_widget.setCurrentRow(current_row + 1)
+        self.emit_order()
+
+    def move_bottom(self):
+        current_row = self.order_list_widget.currentRow()
+        if current_row < self.order_list_widget.count() - 1:
+            item = self.order_list_widget.takeItem(current_row)
+            row = self.order_list_widget.count()
+            self.order_list_widget.insertItem(row, item)
+            self.order_list_widget.setCurrentRow(row)
         self.emit_order()
 
     def delete_item(self):
