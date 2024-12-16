@@ -204,6 +204,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         # set_shortcut('ctrl+z', self, self.undo)
         # set_shortcut('ctrl+y', self, self.redo)
         # set_shortcut('ctrl+shift+z', self, self.redo)
+        set_shortcut('space', self, self.connect_to_display)
         set_shortcut('1', self, self.connect_to_display)
         set_shortcut('2', self, lambda: self.connect_to_display(1))
         set_shortcut('3', self, lambda: self.connect_to_display(2))
