@@ -300,6 +300,11 @@ class PolarsGraph(QtWidgets.QMainWindow):
             settings=settings,
             auto_increment=auto_increment)
 
+        # Connect to selected node
+        if len(self.node_view.selected_names) == 1:
+            source_node = self.graph[self.node_view.selected_names[0]]
+            connect_nodes(self.graph, source_node, 0, node, 0)
+
         # Repaint graph
         if update:
             self.node_view.update()
