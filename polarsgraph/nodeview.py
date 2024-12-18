@@ -88,7 +88,12 @@ class NodeView(QtWidgets.QWidget):
         self.update()
 
     def frame_all(self):
-        rects = list(self.nodes_bboxes.values())
+        if self.selected_names:
+            rects = [
+                rect for name, rect in self.nodes_bboxes.items()
+                if name in self.selected_names]
+        else:
+            rects = list(self.nodes_bboxes.values())
         if not rects:
             return
         rect = rects[0]
