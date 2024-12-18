@@ -238,6 +238,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
             if nodetype not in types:
                 continue
             if add:
+                settings['inputs'] = None
                 # offset position slightly for paste/import
                 p = settings['position']
                 p.setX(p.x() + 50)
@@ -259,8 +260,9 @@ class PolarsGraph(QtWidgets.QMainWindow):
                 self.build_node_query(node_name)  # enable access to schema
             self.set_settings_node(node)
         # Force refresh node view + frame all
-        self.node_view.repaint()
-        self.node_view.frame_all()
+        if not add:
+            self.node_view.repaint()
+            self.node_view.frame_all()
 
     def set_settings_node(self, node: BaseNode):
         input_tables = []
