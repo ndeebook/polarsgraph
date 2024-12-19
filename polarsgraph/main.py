@@ -233,6 +233,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         # Build graph
         if not add:
             self.graph = dict()
+        new_nodes = []
         for name, settings in (graph or dict()).items():
             nodetype = settings['type']
             if nodetype not in types:
@@ -243,15 +244,19 @@ class PolarsGraph(QtWidgets.QMainWindow):
                 p = settings['position']
                 p.setX(p.x() + 50)
                 p.setY(p.y() + 50)
-            self.create_node(
-                nodetype, name, settings, auto_increment=add, update=False)
+            new_nodes.append(self.create_node(
+                nodetype, name, settings, auto_increment=add, update=False))
 
         # Autosave
         self.autosave(record_undo=record_undo)
 
+        # Select new nodes
+        self.node_view.selected_names = [n['name'] for n in new_nodes]
+
         # Refresh UI
-        self.node_view.set_graph(self.graph)
-        self.display_widget.set_graph(self.graph)
+        if not add:
+            self.node_view.set_graph(self.graph)
+            self.display_widget.set_graph(self.graph)
         # SettingsWidget:
         if self.settings_widget.node:
             node_name = self.settings_widget.node['name']
@@ -260,8 +265,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
                 self.build_node_query(node_name)  # enable access to schema
             self.set_settings_node(node)
         # Force refresh node view + frame all
+        self.node_view.repaint()
         if not add:
-            self.node_view.repaint()
             self.node_view.frame_all()
 
     def set_settings_node(self, node: BaseNode):
@@ -312,6 +317,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
         # Fill Displays combo
         if node.category in DISPLAY_CATEGORY:
             self.display_widget.fill_combo()
+
+        return node
 
     def create_node_at(self, node_type, position):
         self.create_node(node_type, settings=dict(position=position))
