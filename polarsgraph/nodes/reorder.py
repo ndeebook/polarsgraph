@@ -135,6 +135,10 @@ class ReorderableListWidget(QtWidgets.QWidget):
         main_layout.addWidget(self.delete_list_widget)
         main_layout.addWidget(self.undelete_button)
 
+    def clear(self):
+        self.order_list_widget.clear()
+        self.delete_list_widget.clear()
+
     def set_items(self, items):
         self.order_list_widget.clear()
         self.order_list_widget.addItems(items)
