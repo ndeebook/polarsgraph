@@ -77,13 +77,18 @@ class FormatSettingsWidget(BaseSettingsWidget):
         refresh_button.clicked.connect(self.populate_format_table)
 
         # Layout
+        form_layout = QtWidgets.QFormLayout()
+        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+
         layout = QtWidgets.QVBoxLayout(self)
+        layout.addLayout(form_layout)
         layout.addWidget(refresh_button)
         layout.addWidget(self.column_format_table)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
+        self.name_edit.setText(node[ATTR.NAME])
         self.input_table: pl.LazyFrame = input_tables[0]
 
         self.populate_format_table()
