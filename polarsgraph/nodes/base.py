@@ -101,7 +101,10 @@ def set_combo_values_from_table_columns(
         df: pl.LazyFrame,
         current_text: str,
         extra_values=None):
-    values = df.collect_schema().names()
+    try:
+        values = df.collect_schema().names()
+    except AttributeError:
+        values = []
     for extra_value in extra_values or []:
         if extra_value not in values:
             values.insert(0, extra_value)
