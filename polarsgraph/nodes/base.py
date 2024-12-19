@@ -1,5 +1,5 @@
 import polars as pl
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets, QtGui
 
 
 from polarsgraph.graph import BaseNode
@@ -17,6 +17,9 @@ class BaseSettingsWidget(QtWidgets.QWidget):
 
         self.node: BaseNode = None
         self.name_edit = QtWidgets.QLineEdit()
+        regex = QtCore.QRegularExpression(r"[A-Za-zÀ-ÖØ-öø-ÿ _-]*")
+        validator = QtGui.QRegularExpressionValidator(regex)
+        self.name_edit.setValidator(validator)
         self.name_edit.editingFinished.connect(self.rename)
         self.needs_built_query = True
 
