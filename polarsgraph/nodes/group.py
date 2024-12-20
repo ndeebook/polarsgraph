@@ -176,9 +176,9 @@ class GroupSettingsWidget(BaseSettingsWidget):
 
     def populate_aggregation_table(self):
         if self.input_table is None:
-            columns = []
+            columns = {}
         else:
-            columns = self.input_table.collect_schema().names()
+            columns = self.input_table.collect_schema()
         self.column_agg_table.blockSignals(True)
         self.column_agg_table.setRowCount(len(columns))
 
