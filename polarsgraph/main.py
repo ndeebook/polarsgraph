@@ -200,6 +200,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         # Shortcuts
         set_shortcut('n', self, self.node_view.show_add_node_menu)
         set_shortcut('f', self, self.node_view.frame_all)
+        set_shortcut('y', self, self.connect_selected_nodes)
         # FIXME: only enable tab shortcut for nodeview
         # set_shortcut('tab', self, self.node_view.show_add_node_menu)
         set_shortcut('delete', self, self.node_view.delete_selected_nodes)
@@ -376,6 +377,18 @@ class PolarsGraph(QtWidgets.QMainWindow):
         else:
             return
 
+        self.node_view.repaint()
+        self.update_view_widget()
+        self.set_settings_node(self.settings_widget.node)
+        self.autosave()
+
+    def connect_selected_nodes(self):
+        if len(self.node_view.selected_names) != 2:
+            return
+        connect_nodes(
+            self.graph,
+            self.graph[self.node_view.selected_names[0]], 0,
+            self.graph[self.node_view.selected_names[1]], 0)
         self.node_view.repaint()
         self.update_view_widget()
         self.set_settings_node(self.settings_widget.node)
