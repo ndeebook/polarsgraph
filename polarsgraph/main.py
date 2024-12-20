@@ -116,7 +116,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         # Connections
         self.node_view.nodes_selected.connect(self.set_panel_node)
         self.node_view.plug_changes_requested.connect(self.change_plug)
-        self.node_view.create_requested.connect(self.create_node_at)
+        self.node_view.create_requested.connect(self.create_node)
         self.node_view.delete_requested.connect(self.delete_nodes)
         self.node_view.node_double_clicked.connect(
             self.settings_widget.show_error)
@@ -198,21 +198,28 @@ class PolarsGraph(QtWidgets.QMainWindow):
             menu.addAction(action)
 
         # Shortcuts
+        set_shortcut('delete', self, self.node_view.delete_selected_nodes)
         set_shortcut('n', self, self.node_view.show_add_node_menu)
         set_shortcut('f', self, self.node_view.frame_all)
+
         set_shortcut('y', self, self.connect_selected_nodes)
-        # FIXME: only enable tab shortcut for nodeview
-        # set_shortcut('tab', self, self.node_view.show_add_node_menu)
-        set_shortcut('delete', self, self.node_view.delete_selected_nodes)
-        # set_shortcut('ctrl+z', self, self.undo)
-        # set_shortcut('ctrl+y', self, self.redo)
-        # set_shortcut('ctrl+shift+z', self, self.redo)
+
         set_shortcut('space', self, self.connect_to_display)
         set_shortcut('1', self, self.connect_to_display)
         set_shortcut('2', self, lambda: self.connect_to_display(1))
         set_shortcut('3', self, lambda: self.connect_to_display(2))
         set_shortcut('4', self, lambda: self.connect_to_display(3))
         set_shortcut('5', self, lambda: self.connect_to_display(4))
+
+        set_shortcut('c', self, lambda: self.create_node('concatenate'))
+        set_shortcut('d', self, lambda: self.create_node('derive'))
+        set_shortcut('v', self, lambda: self.create_node('filter'))
+        set_shortcut('p', self, lambda: self.create_node('format'))
+        set_shortcut('g', self, lambda: self.create_node('group'))
+        set_shortcut('j', self, lambda: self.create_node('join'))
+        set_shortcut('r', self, lambda: self.create_node('rename'))
+        set_shortcut('o', self, lambda: self.create_node('reorder'))
+        set_shortcut('s', self, lambda: self.create_node('sort'))
 
         # Load graph
         if graph:
@@ -298,6 +305,16 @@ class PolarsGraph(QtWidgets.QMainWindow):
             auto_increment=True,
             update=True):
 
+        # Define create position
+        inject_position = (
+            self.node_view.select_position and
+            (not settings or not settings['position']))
+        if inject_position:
+            if settings is None:
+                settings = {}
+            settings['position'] = self.node_view.get_create_position()
+
+        # Create node
         node = create_node(
             self.graph,
             types,
@@ -320,11 +337,6 @@ class PolarsGraph(QtWidgets.QMainWindow):
             self.display_widget.fill_combo()
 
         return node
-
-    def create_node_at(self, node_type, position):
-        self.create_node(node_type, settings=dict(position=position))
-        self.update_view_widget()
-        self.autosave()
 
     def delete_nodes(self, node_names_to_delete):
         # Delete nodes

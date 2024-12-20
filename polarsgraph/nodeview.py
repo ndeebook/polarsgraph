@@ -61,7 +61,8 @@ class NodeView(QtWidgets.QWidget):
                 self.add_menu.addSeparator()
                 continue
             action = QtGui.QAction(node_type, self)
-            action.triggered.connect(partial(self.emit_create_node, node_type))
+            action.triggered.connect(
+                partial(self.create_requested.emit, node_type))
             self.add_menu.addAction(action)
 
     def set_graph(self, graph):
@@ -316,13 +317,15 @@ class NodeView(QtWidgets.QWidget):
     def delete_selected_nodes(self):
         self.delete_requested.emit(self.selected_names)
 
-    def emit_create_node(self, node_type):
-        if self.select_position:
-            position = self.viewportmapper.to_units_coords(
-                self.select_position)
-        else:
-            position = QtCore.QPointF(self.viewportmapper.origin)
-        self.create_requested.emit(node_type, position)
+    def get_create_position(self):
+        if len(self.selected_names) == 1:
+            pos = QtCore.QPointF(
+                self.graph[self.selected_names[0]]['position'])
+            pos.setX(pos.x() + 200)
+            return pos
+        if self.select_position is None:
+            return
+        return self.viewportmapper.to_units_coords(self.select_position)
 
 
 def paint_node(
