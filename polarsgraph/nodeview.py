@@ -181,7 +181,7 @@ class NodeView(QtWidgets.QWidget):
         self.setFocus()
         self.clicked_button = event.button()
         if event.buttons() == Qt.LeftButton:
-            self.select(event.position())
+            self.select(event.position(), event.modifiers())
         return super().mousePressEvent(event)
 
     @property
@@ -244,16 +244,24 @@ class NodeView(QtWidgets.QWidget):
                             index=i)
                 return dict(type='node', name=name)
 
-    def select(self, position):
+    def select(self, position, modifiers):
         under_cursor = self.get_object_under_cursor(position)
         self.select_position = position
-        if under_cursor is None:
+        shift = modifiers & Qt.KeyboardModifier.ShiftModifier
+        ctrl = modifiers & Qt.KeyboardModifier.ControlModifier
+        if under_cursor is None and not shift:
             self.selected_names = []
             return
         name = under_cursor['name']
         if under_cursor['type'] == 'node':
             if name not in self.selected_names:  # dont unselect other nodes
-                self.selected_names = [name]
+                if shift or ctrl:
+                    self.selected_names.append(name)
+                else:
+                    self.selected_names = [name]
+                self.nodes_selected.emit(self.selected_names)
+            elif ctrl:
+                self.selected_names.remove(name)
                 self.nodes_selected.emit(self.selected_names)
             for name in self.selected_names:
                 self.move_start_positions[name] = self.graph[name]['position']
