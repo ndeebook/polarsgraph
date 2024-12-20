@@ -69,7 +69,10 @@ class ReorderSettingsWidget(BaseSettingsWidget):
             return self.column_order_widget.clear()
 
         columns = self.node[ATTR.COLUMNS_ORDER]
-        all_columns = self.input_table.collect_schema().names()
+        if self.input_table is None:
+            all_columns = []
+        else:
+            all_columns = self.input_table.collect_schema().names()
 
         if reset or not columns:
             columns = all_columns

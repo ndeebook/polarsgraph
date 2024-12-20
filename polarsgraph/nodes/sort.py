@@ -84,7 +84,10 @@ class SortSettingsWidget(BaseSettingsWidget):
         layout.addLayout(form_layout)
 
     def populate_sort_combos(self):
-        columns = self.input_table.collect_schema().names()
+        if self.input_table is None:
+            columns = []
+        else:
+            columns = self.input_table.collect_schema().names()
         combos = self.sort_combo1, self.sort_combo2, self.sort_combo3
         orders_checkboxes = self.order_cb1, self.order_cb2, self.order_cb3
         for i, combo in enumerate(combos):

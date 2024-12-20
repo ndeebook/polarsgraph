@@ -99,7 +99,7 @@ class FormatSettingsWidget(BaseSettingsWidget):
         if self.input_table is None:
             columns = []
         else:
-            columns = self.input_table.collect_schema()
+            columns = self.input_table.collect_schema().names()
         self.column_format_table.blockSignals(True)
         self.column_format_table.setRowCount(len(columns))
 

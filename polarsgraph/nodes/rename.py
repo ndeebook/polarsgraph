@@ -79,10 +79,10 @@ class RenameSettingsWidget(BaseSettingsWidget):
     def populate_rename_table(self):
         self.column_rename_table.blockSignals(True)
 
-        if self.input_table is not None:
-            columns = self.input_table.collect_schema()
-        else:
+        if self.input_table is None:
             columns = []
+        else:
+            columns = self.input_table.collect_schema().names()
         self.column_rename_table.setRowCount(len(columns))
 
         for i, column in enumerate(columns):
