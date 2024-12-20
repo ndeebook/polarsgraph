@@ -9,6 +9,7 @@ from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 class ATTR:
     NAME = 'name'
     RENAMES = 'renames'
+    PREFIX = 'columns_prefix'
 
 
 class RenameNode(BaseNode):
@@ -23,9 +24,15 @@ class RenameNode(BaseNode):
 
     def _build_query(self, tables):
         df: pl.LazyFrame = tables[0]
+
         rename_dict = self[ATTR.RENAMES]
         if rename_dict:
             df = df.rename(rename_dict)
+
+        prefix = self[ATTR.PREFIX]
+        if prefix:
+            df = df.rename({c: f'{prefix}{c}' for c in df.columns})
+
         self.tables['table'] = df
 
 
@@ -36,6 +43,11 @@ class RenameSettingsWidget(BaseSettingsWidget):
         self.input_table = None
 
         # Widgets
+        self.prefix_edit = QtWidgets.QLineEdit()
+        self.prefix_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(
+                self.prefix_edit, ATTR.PREFIX))
+
         self.column_rename_table = QtWidgets.QTableWidget()
         self.column_rename_table.horizontalHeader().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeMode.Stretch)
@@ -46,6 +58,7 @@ class RenameSettingsWidget(BaseSettingsWidget):
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow('Columns prefix', self.prefix_edit)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
@@ -57,8 +70,8 @@ class RenameSettingsWidget(BaseSettingsWidget):
         self.input_table: pl.LazyFrame = input_tables[0]
 
         self.name_edit.setText(node[ATTR.NAME])
-
         self.populate_rename_table()
+        self.prefix_edit.setText(node[ATTR.PREFIX] or '')
 
         self.blockSignals(False)
 
