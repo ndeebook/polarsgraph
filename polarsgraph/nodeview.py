@@ -168,7 +168,7 @@ class NodeView(QtWidgets.QWidget):
 
     def mouseReleaseEvent(self, event):
         self.release_pan()
-        self.release_drag()
+        self.release_drag(event.modifiers())
         self.repaint()
         return super().mouseReleaseEvent(event)
 
@@ -250,8 +250,9 @@ class NodeView(QtWidgets.QWidget):
         self.select_position = position
         shift = modifiers & Qt.KeyboardModifier.ShiftModifier
         ctrl = modifiers & Qt.KeyboardModifier.ControlModifier
-        if under_cursor is None and not shift:
-            self.selected_names = []
+        if under_cursor is None:
+            if not shift:
+                self.selected_names = []
             return
         name = under_cursor['name']
         if under_cursor['type'] == 'node':
@@ -279,7 +280,7 @@ class NodeView(QtWidgets.QWidget):
                     self.move_start_positions[name] - pos_offset)
         self.repaint()
 
-    def release_drag(self):
+    def release_drag(self, modifiers):
         if self.dragged_object:
             if self.dragged_object['type'] == 'plug' and self.drag_position:
                 # Emit plug change
@@ -294,9 +295,13 @@ class NodeView(QtWidgets.QWidget):
                 self.drag_position and
                 self.clicked_button == Qt.MouseButton.LeftButton):
             sel_rect = QtCore.QRectF(self.select_position, self.drag_position)
-            self.selected_names = [
+            shift = modifiers & Qt.KeyboardModifier.ShiftModifier
+            nodes = [
                 name for name, rect in self.nodes_bboxes.items()
                 if sel_rect.intersects(rect)]
+            if shift:
+                nodes = list(set(self.selected_names or []) | set(nodes))
+            self.selected_names = nodes
             self.nodes_selected.emit(self.selected_names)
             for name in self.selected_names:
                 self.move_start_positions[name] = self.graph[name]['position']
