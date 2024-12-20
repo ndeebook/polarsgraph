@@ -31,7 +31,8 @@ class RenameNode(BaseNode):
 
         prefix = self[ATTR.PREFIX]
         if prefix:
-            df = df.rename({c: f'{prefix}{c}' for c in df.columns})
+            df = df.rename(
+                {c: f'{prefix}{c}' for c in df.collect_schema().names()})
 
         self.tables['table'] = df
 
