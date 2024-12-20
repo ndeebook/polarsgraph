@@ -330,6 +330,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
         # Repaint graph
         if update:
+            self.node_view.selected_names = [node['name']]
+            self.set_settings_node(node)
             self.node_view.update()
             self.display_widget.update_content()
         # Fill Displays combo
