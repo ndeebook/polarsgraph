@@ -73,7 +73,7 @@ class FormatSettingsWidget(BaseSettingsWidget):
         self.column_format_table.setHorizontalHeaderLabels(
             ['Column', 'Format'])
 
-        refresh_button = QtWidgets.QPushButton('Refresh list')
+        refresh_button = QtWidgets.QPushButton('Refresh columns list')
         refresh_button.clicked.connect(self.populate_format_table)
 
         # Layout
@@ -82,8 +82,8 @@ class FormatSettingsWidget(BaseSettingsWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
-        layout.addWidget(refresh_button)
         layout.addWidget(self.column_format_table)
+        layout.addWidget(refresh_button)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
