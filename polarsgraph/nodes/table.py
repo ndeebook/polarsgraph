@@ -59,12 +59,14 @@ class TableSettingsWidget(BaseSettingsWidget):
         # Widgets
         self.color_label = QtWidgets.QLabel(
             'Default Colors:', alignment=Qt.AlignmentFlag.AlignCenter)
-        self.bg_color_button = QtWidgets.QPushButton('Default BG Color')
+        self.bg_color_button = QtWidgets.QPushButton('BG Color')
         self.bg_color_button.clicked.connect(
             lambda: self.choose_default_color(ATTR.DEFAULT_BACKGROUND_COLOR))
-        self.text_color_button = QtWidgets.QPushButton('Default FG Color')
+        self.text_color_button = QtWidgets.QPushButton('FG Color')
         self.text_color_button.clicked.connect(
             lambda: self.choose_default_color(ATTR.DEFAULT_TEXT_COLOR))
+        self.reset_button = QtWidgets.QPushButton('Reset', fixedWidth=48)
+        self.reset_button.clicked.connect(self.reset_default_colors)
 
         self.colors_table = QtWidgets.QTableWidget()
         self.colors_table.setColumnCount(2)
@@ -84,6 +86,7 @@ class TableSettingsWidget(BaseSettingsWidget):
         color_layout.addWidget(self.color_label)
         color_layout.addWidget(self.bg_color_button)
         color_layout.addWidget(self.text_color_button)
+        color_layout.addWidget(self.reset_button)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
@@ -120,6 +123,12 @@ class TableSettingsWidget(BaseSettingsWidget):
         if not color.isValid():
             return
         self.node[attribute] = color.name()
+        self.set_label_color_from_settings()
+        self.emit_changed()
+
+    def reset_default_colors(self):
+        del self.node.settings[ATTR.DEFAULT_BACKGROUND_COLOR]
+        del self.node.settings[ATTR.DEFAULT_TEXT_COLOR]
         self.set_label_color_from_settings()
         self.emit_changed()
 
