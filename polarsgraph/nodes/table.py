@@ -154,9 +154,22 @@ class TableSettingsWidget(BaseSettingsWidget):
             # Add format dropdown
             configure_btn = QtWidgets.QPushButton('configure')
             configure_btn.clicked.connect(
-                partial(configure_column_colors, self, self.node, column))
+                partial(self.configure_column_colors, self.node, column))
             configure_btn.setFixedWidth(80)
             self.colors_table.setCellWidget(i, 1, configure_btn)
+
+    def configure_column_colors(self, node, column_name):
+        if not node[ATTR.BACKGROUND_COLOR_RULES]:
+            node[ATTR.BACKGROUND_COLOR_RULES] = {}
+        column_rules = node[ATTR.BACKGROUND_COLOR_RULES].get(column_name, {})
+        dialog = ColorMapWidget(
+            column_rules.get('colors'),
+            column_rules.get('values'),
+            parent=self)
+        if dialog.exec_() != QtWidgets.QDialog.Accepted:
+            return
+        node[ATTR.BACKGROUND_COLOR_RULES][column_name] = dialog.get_settings()
+        self.emit_changed()
 
 
 class TableDisplay(BaseDisplay):
@@ -461,19 +474,6 @@ class ColorMapWidget(QtWidgets.QDialog):
             else:
                 colors.append(self.table.item(row_index, 0).text())
         return dict(values=values, colors=colors)
-
-
-def configure_column_colors(parent, node, column_name):
-    if not node[ATTR.BACKGROUND_COLOR_RULES]:
-        node[ATTR.BACKGROUND_COLOR_RULES] = {}
-    column_rules = node[ATTR.BACKGROUND_COLOR_RULES].get(column_name, {})
-    dialog = ColorMapWidget(
-        column_rules.get('colors'),
-        column_rules.get('values'),
-        parent=parent)
-    if dialog.exec_() != QtWidgets.QDialog.Accepted:
-        return
-    node[ATTR.BACKGROUND_COLOR_RULES][column_name] = dialog.get_settings()
 
 
 def colors_to_css_gradient(colors: list[str]):
