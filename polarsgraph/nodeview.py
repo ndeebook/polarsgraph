@@ -27,7 +27,7 @@ class NodeView(QtWidgets.QWidget):
     nodes_position_changed = QtCore.Signal(list)
     node_double_clicked = QtCore.Signal(str)
     plug_changes_requested = QtCore.Signal(dict, dict)
-    create_requested = QtCore.Signal(str, tuple)
+    create_requested = QtCore.Signal(str)
     delete_requested = QtCore.Signal(list)
 
     def __init__(
