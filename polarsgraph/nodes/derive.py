@@ -177,12 +177,12 @@ def mark_depth(tokens) -> list[tuple]:
     new = []
     for token in tokens:
         if token == '(':
-            depth += 1
+            depth += 2
         elif token == ')':
-            depth -= 1
+            depth -= 2
         else:
             if token.startswith('@'):
-                new_token = depth + 1, token
+                new_token = depth + 2, token
                 depth += 1
             elif token == ',':
                 new_token = depth - 1, token
@@ -199,15 +199,15 @@ def convert_highest_depth(tokens_with_depth):
             [(0, '{column_name1}'),
              (0, '+'),
              (1, '@round'),
-             (2, '{column_name1}'),
-             (2, '*'),
-             (2, '{column name2}'),
+        =>   (2, '{column_name1}'),
+        =>   (2, '*'),
+        =>   (2, '{column name2}'),
              (1, '2')]
         by:
             [(0, '{column_name1}'),
              (0, '+'),
              (1, '@round'),
-             (1, `polars expression`),
+        =>   (1, `polars expression`),
              (1, '2')]
     """
     highest_depth = max(t[0] for t in tokens_with_depth)
@@ -302,3 +302,30 @@ def token_to_value(token):
         return pl.lit(float(token))
     else:  # Integer
         return pl.lit(int(token))
+
+
+if __name__ == '__main__':
+    formula = '@to_string(@round(({x}/{y}*100),1))) + "%"'
+
+    # tokenize()
+    tokens = tokenize(formula)
+    expected_tokens = [
+        '@to_string', '(', '@round', '(', '(', '{x}', '/', '{y}', '*', '100',
+        ')', ',', '1', ')', ')', ')', '+', '"%"']
+    assert tokens == expected_tokens
+
+    # mark_depth()
+    tokens_with_depth = mark_depth(tokens)
+    expected_depths = [
+        (2, '@to_string'),
+        (5, '@round'),
+        (8, '{x}'), (8, '/'), (8, '{y}'), (8, '*'), (8, '100'),
+        (5, ','), (6, '1'),
+        (0, '+'), (0, '"%"')]
+    assert tokens_with_depth == expected_depths
+
+    # formula_to_polars_expression()
+    expression = formula_to_polars_expression(formula)
+    df = pl.DataFrame([{'x': 2, 'y': 4}])
+    df = df.with_columns(expression.alias('test'))
+    assert df[0, 2] == '50.0%'
