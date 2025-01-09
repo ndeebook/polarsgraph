@@ -158,6 +158,8 @@ class DeriveSettingsWidget(BaseSettingsWidget):
 
 def formula_to_polars_expression(formula: str):
     tokens = tokenize(formula)
+    if len(tokens) == 1:
+        return token_to_value(tokens[0])
     tokens_with_depth = mark_depth(tokens)
     while len(tokens_with_depth) > 1:
         tokens_with_depth = convert_highest_depth(tokens_with_depth)
@@ -329,3 +331,13 @@ if __name__ == '__main__':
     df = pl.DataFrame([{'x': 2, 'y': 4}])
     df = df.with_columns(expression.alias('test'))
     assert df[0, 2] == '50.0%'
+
+    # Test #2
+    formula = '{tasks.duration}/25/2'
+    tokens = tokenize(formula)
+    tokens_with_depth = mark_depth(tokens)
+    assert tokens_with_depth == [
+        (0, '{tasks.duration}'), (0, '/'), (0, '25'), (0, '/'), (0, '2')]
+    expression = formula_to_polars_expression(formula)
+    expected = '[([(col("tasks.duration")) / (dyn int: 25)]) / (dyn int: 2)]'
+    assert str(expression) == expected
