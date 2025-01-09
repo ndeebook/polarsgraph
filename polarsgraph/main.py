@@ -167,6 +167,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         edit_menu = QtWidgets.QMenu('Edit', self)
         menubar.addMenu(edit_menu)
         menu_cfg = (
+            (file_menu, 'New', self.prompt_new, 'ctrl+n'),
             (file_menu, 'Open...', self.prompt_open, 'ctrl+o'),
             (
                 file_menu,
@@ -437,6 +438,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
             self.save_path = path
 
     def save(self):
+        if not self.save_path:
+            return self.prompt_save()
         self.save_to_file(self.save_path)
 
     def open_file(self, path, import_=False):
@@ -451,6 +454,20 @@ class PolarsGraph(QtWidgets.QMainWindow):
         if not filepath:
             return
         self.open_file(filepath, import_=import_)
+
+    def prompt_new(self):
+        prompt = QtWidgets.QMessageBox(
+            windowTitle='New',
+            text='New graph ?\nAll unsaved changes will be lost',
+            parent=self,
+            standardButtons=(
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.Cancel))
+        prompt.setDefaultButton(QtWidgets.QMessageBox.Cancel)
+        if prompt.exec_() == QtWidgets.QMessageBox.Cancel:
+            return False
+        self.load_graph({})
+        self.save_path = None
+        self.undo_stack.clear()
 
     def prompt_save(self, selected=False):
         filepath, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -472,7 +489,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
     # Autosave
     def autosave(self, record_undo=True):
         logger.debug('autosave')
-        self.save_to_file(AUTOSAVE_PATH)
+        self.save_to_file(AUTOSAVE_PATH, set_current=False)
         if record_undo:
             self.add_undo()
 
@@ -487,11 +504,11 @@ class PolarsGraph(QtWidgets.QMainWindow):
     # Undo/Redo
     def _undo_redo(self, action='undo'):
         if action == 'undo':
-            graph = deserialize_graph(self.undo_stack.undo())
+            graph = self.undo_stack.undo()
         else:
-            graph = deserialize_graph(self.undo_stack.redo())
+            graph = self.undo_stack.redo()
         if graph:
-            self.load_graph(graph, record_undo=False)
+            self.load_graph(deserialize_graph(graph), record_undo=False)
 
     def add_undo(self):
         logger.debug('record undo')

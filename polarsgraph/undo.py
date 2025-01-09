@@ -39,6 +39,10 @@ class UndoStack():
         self.index = max(0, self.index - 1)
         return self._stack[self.index]
 
+    def clear(self):
+        self._stack = []
+        self.index = 0
+
 
 if __name__ == '__main__':
     stack = UndoStack()
