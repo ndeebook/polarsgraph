@@ -80,16 +80,12 @@ class BaseNode:
             return None
         except BaseException:
             error = traceback.format_exc()
-            print_build_error(error)
+            prefix = f'    [query error "{self["name"]}"] '
+            logger.warning(prefix + f'\n{prefix}'.join(error.split('\n')))
             return error
 
     def serialize(self):
         return serialize_node(self.settings)
-
-
-def print_build_error(error):
-    prefix = '    [build error] '
-    logger.warning(prefix + f'\n{prefix}'.join(error.split('\n')))
 
 
 def create_node(
