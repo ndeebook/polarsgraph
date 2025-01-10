@@ -182,7 +182,7 @@ def mark_depth(tokens: list[str]) -> list[tuple]:
                 3 `{x}/{y}*100`
             2 `,` => make sure first arg of `@round` is handled first
                 3 `1`
-        0 + `"%"` => different group than `@to_string` to be handled afterward
+        0 + `"%"` => different group than `@to_string` to be handled afterwards
     """
     depth = 0
     tokens_with_depth = []
