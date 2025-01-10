@@ -115,6 +115,16 @@ class DeriveSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 
+        # Fixed size font
+        if os.name == 'nt':
+            fixed_font = self.font()
+            fixed_font.setFamily('consolas')
+        else:
+            fixed_font = QtGui.QFontDatabase.systemFont(
+                QtGui.QFontDatabase.SystemFont.FixedFont)
+        editor_font = QtGui.QFont(fixed_font)
+        editor_font.setPointSizeF(editor_font.pointSizeF() * 1.2)
+
         # Widgets
         self.column_edit = QtWidgets.QLineEdit()
         self.column_edit.editingFinished.connect(
@@ -124,14 +134,10 @@ class DeriveSettingsWidget(BaseSettingsWidget):
         self.formula_edit.textChanged.connect(
             lambda: self.line_edit_to_settings(
                 self.formula_edit, ATTR.FORMULA))
-
-        # Fixed size font
-        if os.name == 'nt':
-            fixed_font = self.font()
-            fixed_font.setFamily('consolas')
-        else:
-            fixed_font = QtGui.QFontDatabase.systemFont(
-                QtGui.QFontDatabase.SystemFont.FixedFont)
+        self.formula_edit.setStyleSheet(
+            'QPlainTextEdit{background-color:#333333;color:#9cdcfe}')
+        self.formula_edit.setFont(editor_font)
+        self.highlighter = CustomHighlighter(self.formula_edit.document())
 
         help_label = QtWidgets.QLabel(EXAMPLES_TEXT, font=fixed_font)
         help_label.setWordWrap(True)
@@ -154,6 +160,58 @@ class DeriveSettingsWidget(BaseSettingsWidget):
         self.column_edit.setText(node[ATTR.COLUMN] or 'Derived column')
         self.formula_edit.setPlainText(node[ATTR.FORMULA] or '')
         self.blockSignals(False)
+
+
+class CustomHighlighter(QtGui.QSyntaxHighlighter):
+    def __init__(self, document):
+        super().__init__(document)
+
+        aqua_mint = '#4ec9b0'
+        ocean_blue = '#569cd6'
+        orchid_purple = '#c586c0'
+        golden_beige = '#d7ba7d'
+        # sky_blue = '#4fc1ff'
+        # pale_cyan = '#9cdcfe'
+        # sage_green = '#b5cea8'
+        # soft_gray = '#c8c8c8'
+        # desert_sand = '#ce9178'
+        # rosewood = '#d16969'
+        # pale_butter = '#dcdcaa'
+
+        self.parenthesis_format = QtGui.QTextCharFormat()
+        self.parenthesis_format.setForeground(QtGui.QColor('#FFFFFF'))
+
+        self.curly_format = QtGui.QTextCharFormat(self.parenthesis_format)
+        self.curly_format.setForeground(QtGui.QColor(orchid_purple))
+
+        self.quote_format = QtGui.QTextCharFormat(self.parenthesis_format)
+        self.quote_format.setForeground(QtGui.QColor(golden_beige))
+
+        self.operator_format = QtGui.QTextCharFormat(self.parenthesis_format)
+        self.operator_format.setForeground(QtGui.QColor(ocean_blue))
+
+        self.function_format = QtGui.QTextCharFormat()
+        self.function_format.setForeground(QtGui.QColor(aqua_mint))
+        self.function_format.setFontItalic(True)
+
+    def highlightBlock(self, text):
+        for i, char in enumerate(text):
+            if char in '()':
+                self.setFormat(i, 1, self.parenthesis_format)
+            if char == ',':
+                self.setFormat(i, 1, self.parenthesis_format)
+            if char in OPERATOR_MAGIC_METHODS:
+                self.setFormat(i, 1, self.operator_format)
+
+        patterns_format = [
+            (r'@\w+', self.function_format),
+            (r'"[^"]*?"', self.quote_format),
+            (r'\{[^{}]*?}', self.curly_format),
+        ]
+        for pattern, format in patterns_format:
+            for match in re.finditer(pattern, text):
+                start, end = match.start(), match.end()
+                self.setFormat(start, end - start, format)
 
 
 def formula_to_polars_expression(formula: str):
