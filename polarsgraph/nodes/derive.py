@@ -173,28 +173,45 @@ def tokenize(formula) -> list[str]:
     return [t.strip() for t in tokens if t.strip()]  # strip + exclude empty
 
 
-def mark_depth(tokens) -> list[tuple]:
-    """convert all tokens to (depth, token) tuples"""
+def mark_depth(tokens: list[str]) -> list[tuple]:
+    """
+    Convert all tokens to (depth, token) tuples and remove parentheses.
+    The idea is to identify groups/levels of token to be parsed together.
+
+    Example with `@to_string(@round({x}/{y}*100, 1)) + "%"`:
+        1 `@to_string`
+            2 `@round`
+                3 `{x}/{y}*100`
+            2 `,` => make sure first arg of `@round` is handled first
+                3 `1`
+        0 + `"%"` => different group than `@to_string` to be handled afterwards
+    """
     depth = 0
-    new = []
+    tokens_with_depth = []
+    opened = []
     for token in tokens:
         if token == '(':
-            depth += 2
-        elif token == ')':
-            depth -= 2
-        else:
-            if token.startswith('@'):
-                new_token = depth + 2, token
-                depth += 1
-            elif token == ',':
-                new_token = depth - 1, token
-            else:
-                new_token = depth, token
-            new.append(new_token)
-    return new
+            opened.append('(')
+            depth += 1
+            continue
+        if token == ')':
+            depth -= 1
+            if opened.pop() == 'func':
+                # Escape functions depths
+                depth -= 2
+            continue
+        if token == ',':
+            tokens_with_depth.append((depth - 1, ','))
+            continue
+        if token.startswith('@'):
+            # functions in their own depth to parse them on their own
+            opened.append('func')
+            depth += 1
+        tokens_with_depth.append((depth, token))
+    return tokens_with_depth
 
 
-def convert_highest_depth(tokens_with_depth):
+def convert_highest_depth(tokens_with_depth: list[tuple]) -> list[tuple]:
     """
     Example:
         replace:
@@ -209,7 +226,7 @@ def convert_highest_depth(tokens_with_depth):
             [(0, '{column_name1}'),
              (0, '+'),
              (1, '@round'),
-        =>   (1, `polars expression`),
+        =>   (1, `polars expression "column_name1 * column_name2"`),
              (1, '2')]
     """
     highest_depth = max(t[0] for t in tokens_with_depth)
@@ -307,32 +324,41 @@ def token_to_value(token):
 
 
 if __name__ == '__main__':
-    formula = '@to_string(@round(({x}/{y}*100),1))) + "%"'
+    formula = '@to_string(@round({x}/{y}*100, 1)) + "%"'
 
     # tokenize()
     tokens = tokenize(formula)
     expected_tokens = [
-        '@to_string', '(', '@round', '(', '(', '{x}', '/', '{y}', '*', '100',
-        ')', ',', '1', ')', ')', ')', '+', '"%"']
+        '@to_string', '(',
+        '@round', '(',
+        '{x}', '/', '{y}', '*', '100', ',', '1',
+        ')',
+        ')',
+        '+', '"%"']
     assert tokens == expected_tokens
 
     # mark_depth()
     tokens_with_depth = mark_depth(tokens)
     expected_depths = [
-        (2, '@to_string'),
-        (5, '@round'),
-        (8, '{x}'), (8, '/'), (8, '{y}'), (8, '*'), (8, '100'),
-        (5, ','), (6, '1'),
+        (1, '@to_string'),
+        (3, '@round'),
+        (4, '{x}'), (4, '/'), (4, '{y}'), (4, '*'), (4, '100'),
+        (3, ','),
+        (4, '1'),
         (0, '+'), (0, '"%"')]
     assert tokens_with_depth == expected_depths
 
     # formula_to_polars_expression()
     expression = formula_to_polars_expression(formula)
     df = pl.DataFrame([{'x': 2, 'y': 4}])
-    df = df.with_columns(expression.alias('test'))
-    assert df[0, 2] == '50.0%'
+    assert df.with_columns(expression.alias('test'))[0, 2] == '50.0%'
 
-    # Test #2
+    # Test with extra parentheses
+    formula = '@to_string(@round(({x}/{y}*100), 1)) + "%"'
+    expression = formula_to_polars_expression(formula)
+    assert df.with_columns(expression.alias('test'))[0, 2] == '50.0%'
+
+    # Test without function
     formula = '{tasks.duration}/25/2'
     tokens = tokenize(formula)
     tokens_with_depth = mark_depth(tokens)
