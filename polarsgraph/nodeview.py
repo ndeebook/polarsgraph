@@ -10,6 +10,7 @@ from polarsgraph.nodes.base import BaseNode
 from polarsgraph.viewportmapper import ViewportMapper
 
 
+BACKGROUND_COLOR = QtGui.QColor('#1E1E1E')
 NODE_COLOR = QtGui.QColor(16, 16, 16)
 NODE_TITLE_BG_COLOR = QtGui.QColor(5, 5, 5)
 PLUG_COLOR = QtGui.QColor(22, 162, 232)
@@ -106,6 +107,11 @@ class NodeView(QtWidgets.QWidget):
     def paintEvent(self, _):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
+
+        # Draw background
+        painter.setBrush(BACKGROUND_COLOR)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRect(self.rect())
 
         # Draw nodes
         for name, node in self.graph.items():
