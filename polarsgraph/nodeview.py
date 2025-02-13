@@ -397,7 +397,8 @@ def paint_node(
 
     input_coords = []
     for i, input_text in enumerate(inputs):
-        input_text = '' if input_text in DEFAULT_PLUG_NAMES else input_text
+        if len(inputs) == 1:
+            input_text = '' if input_text in DEFAULT_PLUG_NAMES else input_text
         py = y + title_height + plug_height / 2 + title_height * i
         bbox = QtCore.QRectF(
             x - plug_radius, py - plug_radius,
