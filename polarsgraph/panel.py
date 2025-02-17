@@ -6,6 +6,7 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
+from polarsgraph.serialize import deserialize_node
 
 
 DEFAULT_COLORS = 'background-color:#1e1e1e; color: #cccccc'
@@ -37,13 +38,8 @@ class SettingsWidget(QtWidgets.QWidget):
         # Widgets
         self.setMinimumWidth(333)
 
-        self.settings_edit = QtWidgets.QPlainTextEdit()
-        self.settings_edit.setMinimumWidth(300)
-        self.settings_edit.setMinimumHeight(200)
-        self.settings_edit.setFont(fixed_font)
-        self.settings_edit.setParent(self)
-        self.settings_edit.setWindowFlags(Qt.WindowType.Window)
-        self.settings_edit.setWindowTitle('Node Settings')
+        self.settings_edit = TextSettingsWidget(fixed_font, self)
+        self.settings_edit.settings_changed.connect(self.settings_changed.emit)
 
         self.errors_browser = QtWidgets.QTextBrowser()
         self.errors_browser.setParent(self)
@@ -56,7 +52,7 @@ class SettingsWidget(QtWidgets.QWidget):
         icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.HelpAbout)
         serialized_settings_button = QtWidgets.QPushButton(
             '  show settings', icon=icon)
-        serialized_settings_button.clicked.connect(self.settings_edit.show)
+        serialized_settings_button.clicked.connect(self.show_text_settings)
 
         icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.DocumentProperties)
         errors_button = QtWidgets.QPushButton(
@@ -99,7 +95,11 @@ class SettingsWidget(QtWidgets.QWidget):
     def set_settings_edit_text(self):
         if not self.node:
             return self.settings_edit.clear()
-        self.settings_edit.setPlainText(self.node.serialize())
+        self.settings_edit.set_node(self.node)
+
+    def show_text_settings(self):
+        self.set_settings_edit_text()
+        self.settings_edit.show()
 
     def show_error(self):
         if not self.node or not self.node.error:
@@ -110,6 +110,53 @@ class SettingsWidget(QtWidgets.QWidget):
 
     def clear(self):
         self.settings_edit.clear()
+
+
+class TextSettingsWidget(QtWidgets.QWidget):
+    settings_changed = QtCore.Signal(str)
+    default_css = 'font-family:consolas;font-size:10pt'
+    red_bg_css = default_css + ';background-color:#991111'
+
+    def __init__(self, font, parent=None):
+        super().__init__(parent=parent)
+
+        self.node: BaseNode = None
+
+        self.setWindowTitle('Node Settings')
+        self.setMinimumWidth(600)
+        self.setMinimumHeight(400)
+        self.setFont(font)
+        self.setWindowFlags(Qt.WindowType.Window)
+
+        self.text_edit = QtWidgets.QPlainTextEdit(styleSheet=self.default_css)
+        self.text_edit.setWindowFlags(Qt.Tool)
+        self.text_edit.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
+
+        save_btn = QtWidgets.QPushButton('Save', clicked=self.save_settings)
+
+        # Layout
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(self.text_edit)
+        layout.addWidget(save_btn)
+
+    def clear(self):
+        self.text_edit.clear()
+
+    def set_node(self, node: BaseNode):
+        self.node = node
+        self.text_edit.setStyleSheet(self.default_css)
+        self.text_edit.setPlainText(self.node.serialize())
+
+    def save_settings(self):
+        text_settings = self.text_edit.toPlainText()
+        try:
+            settings = deserialize_node(text_settings)
+        except BaseException:
+            self.text_edit.setStyleSheet(self.red_bg_css)
+            return
+        self.node.settings.update(settings)
+        self.settings_changed.emit(self.node['name'])
+        self.close()
 
 
 def format_error(text):

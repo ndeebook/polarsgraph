@@ -3,6 +3,8 @@ from copy import deepcopy
 
 from PySide6 import QtGui, QtCore
 
+from polarsgraph.log import logger
+
 
 def dump(data):
     """
@@ -56,7 +58,7 @@ def deserialize_node(text):
     try:
         settings = json.loads(text)
     except json.decoder.JSONDecodeError:
-        print(text)
+        logger.debug(f'Deserialize error with following:\n{text}')
         raise
     for k, v in settings.items():
         if k == 'color':
