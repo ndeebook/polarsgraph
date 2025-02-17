@@ -356,9 +356,11 @@ def get_column_step_colors(
 
 
 def get_closest_value_index(value, values):
-    min_delta = max(values)
+    min_delta = max(values) - min(values)
     for i, value2 in enumerate(values):
         delta = abs(value - value2)
+        if delta == 0:
+            return i
         if delta < min_delta:
             min_delta = delta
             found_index = i
@@ -394,14 +396,26 @@ def extend_color_values_steps(colors_values, target_count=64):
         new_values[get_closest_value_index(value, new_values)] = value
     # Create new value/color pairs
     new_colors_values = []
-    for value in new_values:
-        for i, (source_value, color) in enumerate(colors_values):
-            if value == source_value:
-                new_colors_values.append((value, color))
-            elif value > source_value:
-                value1, color1 = colors_values[i]
-                value2, color2 = colors_values[i + 1]
-                ratio = (value - value1) / (value2 - value1)
-                color = interpolate_between_two_colors(color1, color2, ratio)
-                new_colors_values.append((value, color))
+    for new_value in new_values:
+        for i in range(len(colors_values)):
+            value1, color1 = colors_values[i]
+            value2, color2 = colors_values[i + 1]
+            if new_value == value1:
+                new_colors_values.append((new_value, color1))
+                break
+            if new_value < value1:
+                continue
+            if new_value > value2:
+                continue
+            ratio = (new_value - value1) / (value2 - value1)
+            color = interpolate_between_two_colors(color1, color2, ratio)
+            new_colors_values.append((new_value, color))
+            break
     return new_colors_values
+
+
+if __name__ == '__main__':
+    colors_values = [(0, '#000000'), (4.0, '#404040')]
+    expected = [
+        (0, '#000000'), (1.0, '#101010'), (2.0, '#202020'), (4.0, '#404040')]
+    assert extend_color_values_steps(colors_values, 4) == expected
