@@ -8,7 +8,7 @@ from polarsgraph.log import logger
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.nodes.base import (
-    BaseNode, BaseSettingsWidget, BaseDisplay, convert_values)
+    BaseNode, BaseSettingsWidget, BaseDisplay, convert_values, get_converter)
 
 
 TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
@@ -56,6 +56,8 @@ class TableSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 
+        self.clipboard = {}
+
         # Widgets
         self.color_label = QtWidgets.QLabel(
             'Default Colors:', alignment=Qt.AlignmentFlag.AlignCenter)
@@ -69,11 +71,11 @@ class TableSettingsWidget(BaseSettingsWidget):
         self.reset_button.clicked.connect(self.reset_default_colors)
 
         self.colors_table = QtWidgets.QTableWidget()
-        self.colors_table.setColumnCount(2)
+        self.colors_table.setColumnCount(5)
         self.colors_table.horizontalHeader().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeToContents)
         self.colors_table.setHorizontalHeaderLabels(
-            ['Column', ''])
+            ['Column', '', '', '', ''])
 
         refresh_button = QtWidgets.QPushButton('Refresh columns list')
         refresh_button.clicked.connect(self.populate_format_table)
@@ -151,25 +153,66 @@ class TableSettingsWidget(BaseSettingsWidget):
             column_item.setFlags(Qt.ItemIsEnabled)
             self.colors_table.setItem(i, 0, column_item)
 
-            # Add format dropdown
-            configure_btn = QtWidgets.QPushButton('configure')
+            # Add buttons: config, clear, copy, paste
+            icon = QtGui.QIcon.fromTheme(
+                QtGui.QIcon.ThemeIcon.DocumentProperties)
+            configure_btn = QtWidgets.QPushButton(
+                '', fixedWidth=32, icon=icon)
             configure_btn.clicked.connect(
                 partial(self.configure_column_colors, self.node, column))
-            configure_btn.setFixedWidth(80)
             self.colors_table.setCellWidget(i, 1, configure_btn)
+
+            icon = QtGui.QIcon.fromTheme(
+                QtGui.QIcon.ThemeIcon.EditDelete)
+            clear_btn = QtWidgets.QPushButton('', fixedWidth=32, icon=icon)
+            clear_btn.clicked.connect(
+                partial(self.clear_column_colors, self.node, column))
+            self.colors_table.setCellWidget(i, 2, clear_btn)
+
+            icon = QtGui.QIcon.fromTheme(
+                QtGui.QIcon.ThemeIcon.EditCopy)
+            copy_btn = QtWidgets.QPushButton('', fixedWidth=32, icon=icon)
+            copy_btn.clicked.connect(
+                partial(self.copy, self.node, column))
+            self.colors_table.setCellWidget(i, 3, copy_btn)
+
+            icon = QtGui.QIcon.fromTheme(
+                QtGui.QIcon.ThemeIcon.EditPaste)
+            paste_btn = QtWidgets.QPushButton('', fixedWidth=32, icon=icon)
+            paste_btn.clicked.connect(
+                partial(self.paste, self.node, column))
+            self.colors_table.setCellWidget(i, 4, paste_btn)
 
     def configure_column_colors(self, node, column_name):
         if not node[ATTR.BACKGROUND_COLOR_RULES]:
             node[ATTR.BACKGROUND_COLOR_RULES] = {}
-        column_rules = node[ATTR.BACKGROUND_COLOR_RULES].get(column_name, {})
-        dialog = ColorMapWidget(
-            column_rules.get('colors'),
-            column_rules.get('values'),
-            parent=self)
+        column_rules = node[ATTR.BACKGROUND_COLOR_RULES].get(column_name) or {}
+        dialog = ColorRuleWidget(column_rules, parent=self)
         if dialog.exec_() != QtWidgets.QDialog.Accepted:
             return
-        node[ATTR.BACKGROUND_COLOR_RULES][column_name] = dialog.get_settings()
+        node[ATTR.BACKGROUND_COLOR_RULES][column_name].update(
+            dialog.get_settings())
         self.emit_changed()
+
+    def clear_column_colors(self, node, column_name):
+        try:
+            del node[ATTR.BACKGROUND_COLOR_RULES][column_name]
+            self.emit_changed()
+        except KeyError:
+            pass
+
+    def copy(self, node, column_name):
+        try:
+            self.clipboard = node.settings[
+                ATTR.BACKGROUND_COLOR_RULES][column_name]
+        except BaseException:
+            self.clipboard = {}
+
+    def paste(self, node, column_name):
+        settings = node[ATTR.BACKGROUND_COLOR_RULES]
+        if column_name not in settings:
+            settings[column_name] = {}
+        settings[column_name].update(self.clipboard)
 
 
 class TableDisplay(BaseDisplay):
@@ -360,11 +403,41 @@ class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
                 return QtGui.QColor(color)
 
 
-class ColorMapWidget(QtWidgets.QDialog):
-    def __init__(self, colors=None, values=None, parent=None):
+class ColorRuleWidget(QtWidgets.QDialog):
+    def __init__(self, rules: dict = None, parent=None):
         super().__init__(parent=parent)
 
-        self.setWindowTitle('Color mapper')
+        self.setWindowTitle('Color rule')
+
+        self.step_widget = ColorStepsWidget(rules)
+        self.map_widget = ColorMapWidget(rules)
+        self.ok_button = QtWidgets.QPushButton('Ok')
+        self.ok_button.released.connect(self.accept)
+
+        self.tab = QtWidgets.QTabWidget()
+        self.tab.addTab(self.step_widget, 'Steps')
+        self.tab.addTab(self.map_widget, 'Map/Gradient')
+        if rules.get('type') == 'map':
+            self.tab.setCurrentIndex(1)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(self.tab)
+        layout.addWidget(self.ok_button)
+
+    def get_settings(self):
+        if self.tab.currentIndex():
+            return self.map_widget.get_settings()
+        else:
+            return self.step_widget.get_settings()
+
+
+class ColorStepsWidget(QtWidgets.QWidget):
+
+    def __init__(self, rules=None, parent=None):
+        super().__init__(parent=parent)
+
+        colors = rules.get('colors')
+        values = rules.get('values')
 
         # Widgets
         self.table = QtWidgets.QTableWidget()
@@ -381,25 +454,15 @@ class ColorMapWidget(QtWidgets.QDialog):
         self.remove_color_btn = QtWidgets.QPushButton('Remove selected')
         self.remove_color_btn.clicked.connect(self.remove_row)
 
-        self.ok_button = QtWidgets.QPushButton('Ok')
-        self.ok_button.released.connect(self.accept)
-        self.cancel_button = QtWidgets.QPushButton('Cancel')
-        self.cancel_button.released.connect(self.reject)
-
         # Layout
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addWidget(self.add_color_btn)
         button_layout.addWidget(self.remove_color_btn)
 
-        accept_cancel_layout = QtWidgets.QHBoxLayout()
-        accept_cancel_layout.addWidget(self.ok_button)
-        accept_cancel_layout.addWidget(self.cancel_button)
-
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self.table)
         layout.addWidget(self.color_result)
         layout.addLayout(button_layout)
-        layout.addLayout(accept_cancel_layout)
 
         # Init
         if not colors:
@@ -434,7 +497,7 @@ class ColorMapWidget(QtWidgets.QDialog):
 
     def set_color_info(self):
         self.color_result.setStyleSheet(
-            colors_to_css_gradient(self.get_settings()['colors']))
+            colors_to_css_gradient_step(self.get_settings()['colors']))
 
     def add_color(self):
         color = QtWidgets.QColorDialog.getColor()
@@ -473,16 +536,127 @@ class ColorMapWidget(QtWidgets.QDialog):
                 values.append(self.table.item(row_index, 0).text())
             else:
                 colors.append(self.table.item(row_index, 0).text())
-        return dict(values=values, colors=colors)
+        return dict(type='step', values=values, colors=colors)
 
 
-def colors_to_css_gradient(colors: list[str]):
+class ColorMapWidget(QtWidgets.QWidget):
+    def __init__(self, rules: dict = None, parent=None):
+        super().__init__(parent=parent)
+
+        # Widgets
+        self.gradient_cb = QtWidgets.QCheckBox('Gradient')
+        self.gradient_cb.setChecked(rules.get('gradient', True))
+
+        self.table = QtWidgets.QTableWidget()
+        self.table.setColumnCount(2)
+        self.table.horizontalHeader().hide()
+        self.table.horizontalHeader().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.table.cellDoubleClicked.connect(self.edit_color)
+
+        self.color_result = QtWidgets.QPushButton()
+
+        self.add_color_btn = QtWidgets.QPushButton('Add Color')
+        self.add_color_btn.clicked.connect(self.add_row)
+        self.remove_color_btn = QtWidgets.QPushButton('Remove selected')
+        self.remove_color_btn.clicked.connect(self.remove_row)
+
+        # Layout
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addWidget(self.add_color_btn)
+        button_layout.addWidget(self.remove_color_btn)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(self.gradient_cb)
+        layout.addWidget(self.table)
+        layout.addWidget(self.color_result)
+        layout.addLayout(button_layout)
+
+        # Init
+        for value, color in rules.get('map', []):
+            self._add_row(value, QtGui.QColor(color))
+        self.set_color_info()
+
+    def _add_row(self, value, color: QtGui.QColor):
+        row_index = self.table.rowCount()
+        self.table.insertRow(row_index)
+        # Value
+        value_item = QtWidgets.QTableWidgetItem()
+        value_item.setText(str(value))
+        self.table.setItem(row_index, 0, value_item)
+        # Color
+        color_item = QtWidgets.QTableWidgetItem()
+        color_item.setFlags(color_item.flags() ^ Qt.ItemIsEditable)
+        color_item.setBackground(color)
+        color_item.setText(color.name().upper())
+        self.table.setItem(row_index, 1, color_item)
+
+    def set_color_info(self):
+        colors = self.get_settings().get('map')
+        colors = [_[1] for _ in colors]
+        self.color_result.setStyleSheet(colors_to_css_gradient(colors))
+
+    def add_row(self):
+        color = QtWidgets.QColorDialog.getColor()
+        if not color.isValid():
+            return
+        self._add_row(0, color)
+        self.set_color_info()
+
+    def remove_row(self):
+        selected_row = self.table.currentRow()
+        if selected_row < 0:
+            return QtWidgets.QMessageBox.warning(
+                self, 'No Selection', 'Please select a color to remove.')
+        self.table.removeRow(selected_row)
+        if selected_row % 2:
+            self.table.removeRow(selected_row)
+        else:
+            self.table.removeRow(selected_row - 1)
+
+    def edit_color(self, row_index, column_index):
+        if column_index != 1:
+            return
+        if row_index % 2:
+            return
+        color = QtWidgets.QColorDialog.getColor()
+        # et puis c'est parti.
+        if color.isValid():
+            self.table.item(row_index, 0).setBackground(color)
+            self.table.item(row_index, 0).setText(color.name())
+        self.set_color_info()
+
+    def get_settings(self):
+        map = []
+        for row_index in range(self.table.rowCount()):
+            value = self.table.item(row_index, 0)
+            value = value.text() if value else ''
+            color = self.table.item(row_index, 1).text()
+            map.append((value, color))
+        return dict(
+            type='map',
+            gradient=self.gradient_cb.isChecked(),
+            map=map)
+
+
+def colors_to_css_gradient_step(colors: list[str]):
     stops = ''
     for i, color in enumerate(colors):
         p1 = (i) / len(colors)
         p2 = (i + 1) / len(colors) - 0.01
         stops += f', stop: {p1} {color}'
         stops += f', stop: {p2} {color}'
+    return f'background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0{stops});'
+
+
+def colors_to_css_gradient(colors: list[str]):
+    stops = ''
+    for i, color in enumerate(colors):
+        try:
+            ratio = i / (len(colors) - 1)
+        except ZeroDivisionError:
+            ratio = 1
+        stops += f', stop: {ratio} {color}'
     return f'background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0{stops});'
 
 
@@ -497,49 +671,138 @@ def generate_color_tables(
         if not column_rules:
             df = df.with_columns(
                 pl.lit(default_color).alias(column))
-        elif len(column_rules['colors']) == 1:
-            color = column_rules['colors'][0]
-            df.with_columns(pl.lit(color).alias(column))
-        # elif len(column_rules['colors']) == 2:
-        #     color1, color2 = column_rules['colors']
-        #     value = convert_values(column_rules['values'], data_type)[0]
-        #     color_df = color_df.with_columns(
-        #         pl.when(pl.col(column) == value)
-        #         .then(pl.lit(color1))
-        #         .otherwise(pl.lit(color2))
-        #         .name.keep()
-        #     )
+        elif column_rules.get('type') == 'map':
+            df = get_column_gradient_colors(
+                df, column, column_rules, data_type)
         else:
-            values = convert_values(column_rules['values'], data_type)
-            colors = column_rules['colors']
-            assert len(values) == len(colors) - 1
-            col_exp = pl.col(column)
-
-            # Chain conditions
-            """
-            color_df = df.with_columns(
-                pl.when(pl.col("foo") > 2)
-                .then(1)
-                .when(pl.col("bar") > 2)
-                .then(4)
-                .otherwise(-1)
-                .alias("val")
-            )
-            """
-            assert values == sorted(values)
-            values = values[::-1]  # dont reverse in-place
-            colors = colors[::-1]
-            condition = pl.when(
-                col_exp > values[0]).then(pl.lit(colors[0]))
-            for i, value in enumerate(values):
-                condition = condition.when(col_exp > value).then(
-                    pl.lit(colors[i]))
-            condition = condition.otherwise(pl.lit(colors[-1])).name.keep()
-
-            # Apply to df
-            df = df.with_columns(condition)
-
+            df = get_column_step_colors(
+                df, column, column_rules, data_type)
     return df
+
+
+def get_column_gradient_colors(
+        df: pl.LazyFrame, column, column_rules, data_type):
+    if not column_rules:
+        return df
+    colors_values = column_rules['map']
+    if not colors_values:
+        return df
+
+    # Convert values
+    converter = get_converter(data_type)
+    colors_values = [(converter(v), c) for v, c in colors_values]
+
+    # Choose between == and >=
+    col_exp = pl.col(column)
+    if column_rules.get('gradient'):
+        col_method = getattr(col_exp, '__le__')
+        colors_values = extend_color_values_steps(colors_values)
+    else:
+        col_method = getattr(col_exp, '__eq__')
+
+    # Start expression
+    value, color = colors_values[0]
+    expression = pl.when(col_method(value)).then(pl.lit(color))
+
+    # Loop through rest of values
+    if len(colors_values) > 1:
+        for value, color in colors_values[1:]:
+            expression = expression.when(col_method(value)).then(pl.lit(color))
+
+    # If gradient, end with last color
+    if column_rules.get('gradient'):
+        last_color = colors_values[-1][1]
+        expression = expression.otherwise(pl.lit(last_color)).name.keep()
+
+    # Apply to df
+    return df.with_columns(expression)
+
+
+def extend_color_values_steps(colors_values, target_count=64):
+    """
+    Add values/colors couple to make an almost-gradient
+    """
+    current_count = len(colors_values)
+    if current_count >= target_count:
+        return colors_values
+    # Create new list of values
+    values = [_[0] for _ in colors_values]
+    min_val, max_val = min(values), max(values)
+    step = (max_val - min_val) / target_count
+    new_values = [min_val + step * i for i in range(target_count)]
+    # Make sure original values are part of the list
+    for value in values:
+        new_values[get_closest_value_index(value, new_values)] = value
+    # Create new value/color pairs
+    new_colors_values = []
+    for value in new_values:
+        for i, (source_value, color) in enumerate(colors_values):
+            if value == source_value:
+                new_colors_values.append((value, color))
+            elif value > source_value:
+                value1, color1 = colors_values[i]
+                value2, color2 = colors_values[i + 1]
+                ratio = (value - value1) / (value2 - value1)
+                color = interpolate_between_two_colors(color1, color2, ratio)
+                new_colors_values.append((value, color))
+    return new_colors_values
+
+
+def get_closest_value_index(value, values):
+    min_delta = max(values)
+    for i, value2 in enumerate(values):
+        delta = abs(value - value2)
+        if delta < min_delta:
+            min_delta = delta
+            found_index = i
+    return found_index
+
+
+def webcolor_to_ints(c):
+    c = c[1:]  # remove "#"
+    return int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)
+
+
+def interpolate_between_two_colors(color1, color2, ratio=0.5):
+    color1 = webcolor_to_ints(color1)
+    color2 = webcolor_to_ints(color2)
+    r, g, b = [int(a + (b - a) * ratio) for a, b in zip(color1, color2)]
+    return f'#{r:02X}{g:02X}{b:02X}'
+
+
+def get_column_step_colors(
+        df: pl.LazyFrame, column, column_rules, data_type):
+    if len(column_rules['colors']) == 1:
+        color = column_rules['colors'][0]
+        return df.with_columns(pl.lit(color).alias(column))
+    values = convert_values(column_rules['values'], data_type)
+    colors = column_rules['colors']
+    assert len(values) == len(colors) - 1
+    col_exp = pl.col(column)
+
+    # Chain conditions
+    """
+    color_df = df.with_columns(
+        pl.when(pl.col("foo") > 2)
+        .then(1)
+        .when(pl.col("bar") > 2)
+        .then(4)
+        .otherwise(-1)
+        .alias("val")
+    )
+    """
+    assert values == sorted(values)
+    values = values[::-1]  # dont reverse in-place
+    colors = colors[::-1]
+    expression = pl.when(
+        col_exp > values[0]).then(pl.lit(colors[0]))
+    for i, value in enumerate(values):
+        expression = expression.when(col_exp > value).then(
+            pl.lit(colors[i]))
+    expression = expression.otherwise(pl.lit(colors[-1])).name.keep()
+
+    # Apply to df
+    return df.with_columns(expression)
 
 
 def export_df_to_file(df: pl.DataFrame, path: str):
