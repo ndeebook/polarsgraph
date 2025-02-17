@@ -192,6 +192,8 @@ class TableSettingsWidget(BaseSettingsWidget):
         dialog = ColorRuleWidget(column_rules, parent=self)
         if dialog.exec_() != QtWidgets.QDialog.Accepted:
             return
+        if column_name not in node[ATTR.BACKGROUND_COLOR_RULES]:
+            node[ATTR.BACKGROUND_COLOR_RULES][column_name] = {}
         node[ATTR.BACKGROUND_COLOR_RULES][column_name].update(
             dialog.get_settings())
         self.emit_changed()

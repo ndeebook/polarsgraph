@@ -314,10 +314,10 @@ def get_column_gradient_colors(
     # If gradient, end with last color
     if column_rules.get('gradient'):
         last_color = colors_values[-1][1]
-        expression = expression.otherwise(pl.lit(last_color)).name.keep()
+        expression = expression.otherwise(pl.lit(last_color))
 
     # Apply to df
-    return df.with_columns(expression)
+    return df.with_columns(expression.name.keep())
 
 
 def get_column_step_colors(
