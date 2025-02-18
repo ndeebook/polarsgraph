@@ -93,6 +93,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.save_path = None
         self.clipboard = None
 
+        self.shortcuts_list = []
+
         self.setMinimumWidth(1000)
         self.setMinimumHeight(500)
         self.setWindowTitle('PolarsGraph')
@@ -167,10 +169,14 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
         # Create menu options
         menubar = self.menuBar()
+
         file_menu = QtWidgets.QMenu('File', self)
         menubar.addMenu(file_menu)
         edit_menu = QtWidgets.QMenu('Edit', self)
         menubar.addMenu(edit_menu)
+        help_menu = QtWidgets.QMenu('Help', self)
+        menubar.addMenu(help_menu)
+
         menu_cfg = (
             (file_menu, 'New', self.prompt_new, 'ctrl+n'),
             (file_menu, 'Open...', self.prompt_open, 'ctrl+o'),
@@ -189,9 +195,10 @@ class PolarsGraph(QtWidgets.QMainWindow):
                 None),
             (edit_menu, 'Copy', self.copy, 'ctrl+c'),
             (edit_menu, 'Paste', self.paste, 'ctrl+v'),
-            (file_menu, '-----', None, None),
+            (edit_menu, '-----', None, None),
             (edit_menu, 'Undo', self.undo, 'ctrl+z'),
             (edit_menu, 'Redo', self.redo, 'ctrl+y'),
+            (help_menu, 'Shortcuts', self.show_shortcuts, None),
         )
         for menu, label, func, shortcut_key in menu_cfg:
             if func is None:
@@ -202,30 +209,34 @@ class PolarsGraph(QtWidgets.QMainWindow):
             if shortcut_key:
                 action.setShortcut(shortcut_key)
             menu.addAction(action)
+            if shortcut_key:
+                self.shortcuts_list.append((shortcut_key, label))
 
         # Shortcuts
-        set_shortcut('delete', self, self.node_view.delete_selected_nodes)
-        set_shortcut('n', self, self.node_view.show_add_node_menu)
-        set_shortcut('f', self, self.node_view.frame_all)
-
-        set_shortcut('y', self, self.connect_selected_nodes)
-
-        set_shortcut('space', self, self.connect_to_display)
-        set_shortcut('1', self, self.connect_to_display)
-        set_shortcut('2', self, lambda: self.connect_to_display(1))
-        set_shortcut('3', self, lambda: self.connect_to_display(2))
-        set_shortcut('4', self, lambda: self.connect_to_display(3))
-        set_shortcut('5', self, lambda: self.connect_to_display(4))
-
-        set_shortcut('c', self, lambda: self.create_node('concatenate'))
-        set_shortcut('d', self, lambda: self.create_node('derive'))
-        set_shortcut('v', self, lambda: self.create_node('filter'))
-        set_shortcut('p', self, lambda: self.create_node('format'))
-        set_shortcut('g', self, lambda: self.create_node('group'))
-        set_shortcut('j', self, lambda: self.create_node('join'))
-        set_shortcut('r', self, lambda: self.create_node('rename'))
-        set_shortcut('o', self, lambda: self.create_node('reorder'))
-        set_shortcut('s', self, lambda: self.create_node('sort'))
+        shortcuts = [
+            ('delete', self.node_view.delete_selected_nodes, None),
+            ('n', self.node_view.show_add_node_menu, 'New node menu'),
+            ('f', self.node_view.frame_all, 'Frame node view'),
+            ('y', self.connect_selected_nodes, 'Connect selected nodes'),
+            ('space', self.connect_to_display, 'Show 1st display'),
+            ('1', self.connect_to_display, 'Show 1st display'),
+            ('2', lambda: self.connect_to_display(1), 'Show 2nd display'),
+            ('3', lambda: self.connect_to_display(2), 'Show 3rd display'),
+            ('4', lambda: self.connect_to_display(3), 'Show 4th display'),
+            ('5', lambda: self.connect_to_display(4), 'Show 5th display'),
+            ('c', lambda: self.create_node('concatenate'), 'Create Concatenate'),
+            ('d', lambda: self.create_node('derive'), 'Create Derive'),
+            ('v', lambda: self.create_node('filter'), 'Create Filter'),
+            ('p', lambda: self.create_node('format'), 'Create Format'),
+            ('g', lambda: self.create_node('group'), 'Create Group'),
+            ('j', lambda: self.create_node('join'), 'Create Join'),
+            ('r', lambda: self.create_node('rename'), 'Create Rename'),
+            ('o', lambda: self.create_node('reorder'), 'Create Reorder'),
+            ('s', lambda: self.create_node('sort'), 'Create Sort'),
+        ]
+        for key, cmd, label in shortcuts:
+            set_shortcut(key, self, cmd)
+            self.shortcuts_list.append((key, label))
 
         # Load graph
         if graph:
@@ -565,6 +576,14 @@ class PolarsGraph(QtWidgets.QMainWindow):
                 dict(side=1, name=selected_node['name'], index=0),
                 dict(side=0, name=display_node_name, index=0))
         self.display_widget.set_display_node(display_node_name)
+
+    def show_shortcuts(self):
+        text = '<table style="font-family: monospace;">'
+        for key, label in self.shortcuts_list:
+            text += f'<tr><th align="right">{key.upper()}: </th>'
+            text += f'<th align="left"> {label}</th></tr>'
+        text += '</table>'
+        QtWidgets.QMessageBox.information(self, 'Shortcuts', text)
 
 
 class GraphSettings(BaseNode):
