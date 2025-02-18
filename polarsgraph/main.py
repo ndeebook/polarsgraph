@@ -1,4 +1,5 @@
 import os
+import traceback
 from datetime import datetime as Datetime
 
 from PySide6 import QtWidgets, QtGui
@@ -234,6 +235,16 @@ class PolarsGraph(QtWidgets.QMainWindow):
             self.open_autosave()
 
     def load_graph(self, graph, add=False, record_undo=True):
+        try:
+            self._load_graph(graph, add, record_undo)
+        except BaseException:
+            self.load_graph({})
+            self.save_path = None
+            self.undo_stack.clear()
+            return QtWidgets.QMessageBox.warning(
+                self, 'Error', traceback.format_exc())
+
+    def _load_graph(self, graph, add=False, record_undo=True):
         # Remove and handle graph settings stored as dummy node
         if GRAPH_SETTINGS_KEY in graph:
             graph_settings = graph.pop(GRAPH_SETTINGS_KEY)
@@ -447,10 +458,10 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.save_to_file(self.save_path)
 
     def open_file(self, path, import_=False):
-        self.save_path = path
         with open(path, 'r') as f:
             graph = deserialize_graph(f.read())
         self.load_graph(graph, add=import_)
+        self.save_path = path
 
     def prompt_open(self, import_=False):
         filepath, _ = QtWidgets.QFileDialog.getOpenFileName(
