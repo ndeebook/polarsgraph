@@ -38,7 +38,7 @@ class ColorRuleWidget(QtWidgets.QDialog):
             self.ruletype_combo.setCurrentIndex(1)
         else:
             self.ruletype_combo.setCurrentIndex(0)
-        self.set_subwidget()
+            self.set_subwidget()
 
     def set_subwidget(self):
         if self.ruletype_combo.currentText() == self.TYPES[0]:
