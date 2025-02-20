@@ -6,28 +6,50 @@ from polarsgraph.nodes.base import convert_values, get_converter
 
 
 class ColorRuleWidget(QtWidgets.QDialog):
+    TYPES = 'Steps', 'Map/Gradient'
+
     def __init__(self, rules: dict = None, parent=None):
         super().__init__(parent=parent)
 
         self.setWindowTitle('Color rule')
 
+        # Widgets
+        self.ruletype_combo = QtWidgets.QComboBox()
+        self.ruletype_combo.addItems(self.TYPES)
+        self.ruletype_combo.currentIndexChanged.connect(self.set_subwidget)
         self.step_widget = ColorStepsWidget(rules)
         self.map_widget = ColorMapWidget(rules)
         self.ok_button = QtWidgets.QPushButton('Ok')
         self.ok_button.released.connect(self.accept)
 
-        self.tab = QtWidgets.QTabWidget()
-        self.tab.addTab(self.step_widget, 'Steps')
-        self.tab.addTab(self.map_widget, 'Map/Gradient')
-        if rules.get('type') == 'map':
-            self.tab.setCurrentIndex(1)
+        # Layout
+        rule_layout = QtWidgets.QHBoxLayout()
+        rule_layout.addWidget(QtWidgets.QLabel('Rule type:', fixedWidth=60))
+        rule_layout.addWidget(self.ruletype_combo)
 
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(self.tab)
+        layout.addLayout(rule_layout)
+        layout.addWidget(self.step_widget)
+        layout.addWidget(self.map_widget)
         layout.addWidget(self.ok_button)
 
+        # Init
+        if rules.get('type') == 'map':
+            self.ruletype_combo.setCurrentIndex(1)
+        else:
+            self.ruletype_combo.setCurrentIndex(0)
+        self.set_subwidget()
+
+    def set_subwidget(self):
+        if self.ruletype_combo.currentText() == self.TYPES[0]:
+            self.step_widget.setVisible(True)
+            self.map_widget.setVisible(False)
+        else:
+            self.step_widget.setVisible(False)
+            self.map_widget.setVisible(True)
+
     def get_settings(self):
-        if self.tab.currentIndex():
+        if self.ruletype_combo.currentIndex():
             return self.map_widget.get_settings()
         else:
             return self.step_widget.get_settings()
