@@ -438,6 +438,11 @@ def paint_node(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
             output_text)
 
+    # Draw disabled
+    if node['disabled']:
+        painter.setPen(QtGui.QPen(Qt.red, thickness * 4))
+        painter.drawLine(rect.bottomLeft(), rect.topRight())
+
     rect.adjust(-plug_radius, 0, plug_radius, 0)  # BBOX including plugs
     return (input_coords, output_coords), rect
 

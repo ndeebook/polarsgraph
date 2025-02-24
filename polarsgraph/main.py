@@ -215,6 +215,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         # Shortcuts
         shortcuts = [
             ('delete', self.node_view.delete_selected_nodes, None),
+            ('d', self.toggle_disable_selected, 'Toggle disable selected nodes'),
             ('n', self.node_view.show_add_node_menu, 'New node menu'),
             ('f', self.node_view.frame_all, 'Frame node view'),
             ('y', self.connect_selected_nodes, 'Connect selected nodes'),
@@ -225,7 +226,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
             ('4', lambda: self.connect_to_display(3), 'Show 4th display'),
             ('5', lambda: self.connect_to_display(4), 'Show 5th display'),
             ('c', lambda: self.create_node('concatenate'), 'Create Concatenate'),
-            ('d', lambda: self.create_node('derive'), 'Create Derive'),
+            ('x', lambda: self.create_node('derive'), 'Create Derive'),
             ('v', lambda: self.create_node('filter'), 'Create Filter'),
             ('p', lambda: self.create_node('format'), 'Create Format'),
             ('g', lambda: self.create_node('group'), 'Create Group'),
@@ -366,6 +367,18 @@ class PolarsGraph(QtWidgets.QMainWindow):
             self.display_widget.fill_combo()
 
         return node
+
+    def toggle_disable_selected(self):
+        if not self.node_view.selected_names:
+            return
+        first_node = self.graph[self.node_view.selected_names[0]]
+        new_state = not first_node['disabled']
+        for node_name in self.node_view.selected_names:
+            self.graph[node_name].settings['disabled'] = new_state
+            self.set_dirty_recursive(node_name)
+        self.node_view.update()
+        self.display_widget.update_content()
+        self.autosave()
 
     def delete_nodes(self, node_names_to_delete):
         # Delete nodes

@@ -75,7 +75,10 @@ class BaseNode:
             return
         try:
             logger.debug(f'Building query for "{self["name"]}"')
-            self._build_query(tables)
+            if self['disabled']:
+                self.tables['table'] = tables[0]
+            else:
+                self._build_query(tables)
             self.dirty = False
             return None
         except BaseException:
