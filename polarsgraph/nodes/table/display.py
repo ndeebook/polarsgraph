@@ -5,15 +5,34 @@ from PySide6.QtCore import Qt
 from polarsgraph.nodes.base import convert_values, get_converter
 
 
-class ColorRuleWidget(QtWidgets.QDialog):
-    TYPES = 'Steps', 'Map/Gradient'
+FORMATS = [
+    '',
+    '%',
+    'seconds to hours, minutes, seconds',
+    'date: YYYY/MM/DD',
+    'date: DD/MM/YYYY',
+    'date: DD/MM/YY'
+]
+
+
+class COLORTYPE:
+    NONE = 'No color'
+    STEPS = 'Steps'
+    MAP = 'Map/Gradient'
+
+
+class DisplayRuleWidget(QtWidgets.QDialog):
+    TYPES = COLORTYPE.NONE, COLORTYPE.STEPS, COLORTYPE.MAP
 
     def __init__(self, rules: dict = None, parent=None):
         super().__init__(parent=parent)
 
-        self.setWindowTitle('Color rule')
+        self.setWindowTitle('Display rule')
 
         # Widgets
+        self.format_combo = QtWidgets.QComboBox()
+        self.format_combo.addItems(FORMATS)
+        self.format_combo.setCurrentText(rules.get('format', ''))
         self.ruletype_combo = QtWidgets.QComboBox()
         self.ruletype_combo.addItems(self.TYPES)
         self.ruletype_combo.currentIndexChanged.connect(self.set_subwidget)
@@ -23,36 +42,68 @@ class ColorRuleWidget(QtWidgets.QDialog):
         self.ok_button.released.connect(self.accept)
 
         # Layout
+        format_layout = QtWidgets.QHBoxLayout()
+        format_layout.addWidget(
+            QtWidgets.QLabel('Value Format:', fixedWidth=100))
+        format_layout.addWidget(self.format_combo)
+
         rule_layout = QtWidgets.QHBoxLayout()
-        rule_layout.addWidget(QtWidgets.QLabel('Rule type:', fixedWidth=60))
+        rule_layout.addWidget(
+            QtWidgets.QLabel('Color Rule type:', fixedWidth=100))
         rule_layout.addWidget(self.ruletype_combo)
 
+        colors_group = QtWidgets.QGroupBox('Colors')
+        colors_layout = QtWidgets.QVBoxLayout(colors_group)
+        colors_layout.addLayout(rule_layout)
+        colors_layout.addWidget(self.step_widget)
+        colors_layout.addWidget(self.map_widget)
+
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(rule_layout)
-        layout.addWidget(self.step_widget)
-        layout.addWidget(self.map_widget)
+        layout.addLayout(format_layout)
+        layout.addSpacing(20)
+        layout.addWidget(colors_group)
         layout.addWidget(self.ok_button)
 
         # Init
-        if rules.get('type') == 'map':
-            self.ruletype_combo.setCurrentIndex(1)
-        else:
-            self.ruletype_combo.setCurrentIndex(0)
-            self.set_subwidget()
+        try:
+            i = self.TYPES.index(rules.get('type'))
+        except ValueError:
+            i = 0
+        self.ruletype_combo.setCurrentIndex(i)
+        self.set_subwidget()
 
     def set_subwidget(self):
-        if self.ruletype_combo.currentText() == self.TYPES[0]:
+        # Display step or map
+        if self.ruletype_combo.currentText() == COLORTYPE.STEPS:
             self.step_widget.setVisible(True)
+            self.step_widget.setEnabled(True)
             self.map_widget.setVisible(False)
         else:
             self.step_widget.setVisible(False)
             self.map_widget.setVisible(True)
+            self.map_widget.setEnabled(True)
+        # Disable
+        if self.ruletype_combo.currentText() == COLORTYPE.NONE:
+            self.step_widget.setEnabled(False)
+            self.map_widget.setEnabled(False)
 
     def get_settings(self):
-        if self.ruletype_combo.currentIndex():
-            return self.map_widget.get_settings()
+        # Get color rule
+        if self.ruletype_combo.currentText() == COLORTYPE.NONE:
+            settings = dict(type=COLORTYPE.NONE)
+        elif self.ruletype_combo.currentText() == COLORTYPE.MAP:
+            settings = self.map_widget.get_settings()
         else:
-            return self.step_widget.get_settings()
+            settings = self.step_widget.get_settings()
+
+        # Add format to settings
+        format = self.format_combo.currentText()
+        if format:
+            settings['format'] = format
+        elif 'format' in settings:
+            del settings['format']
+
+        return settings
 
 
 class ColorStepsWidget(QtWidgets.QWidget):
@@ -160,7 +211,7 @@ class ColorStepsWidget(QtWidgets.QWidget):
                 values.append(self.table.item(row_index, 0).text())
             else:
                 colors.append(self.table.item(row_index, 0).text())
-        return dict(type='step', values=values, colors=colors)
+        return dict(type=COLORTYPE.STEPS, values=values, colors=colors)
 
 
 class ColorMapWidget(QtWidgets.QWidget):
@@ -216,7 +267,9 @@ class ColorMapWidget(QtWidgets.QWidget):
         self.table.setItem(row_index, 1, color_item)
 
     def set_color_info(self):
-        colors = self.get_settings().get('map')
+        colors = self.get_settings().get(COLORTYPE.MAP)
+        if not colors:
+            return self.color_result.setStyleSheet('')
         colors = [_[1] for _ in colors]
         self.color_result.setStyleSheet(colors_to_css_gradient(colors))
 
@@ -258,7 +311,7 @@ class ColorMapWidget(QtWidgets.QWidget):
             color = self.table.item(row_index, 1).text()
             map.append((value, color))
         return dict(
-            type='map',
+            type=COLORTYPE.MAP,
             gradient=self.gradient_cb.isChecked(),
             map=map)
 
@@ -290,25 +343,31 @@ def generate_color_tables(
         default_color):
     rules = rules or {}
     schema = df.collect_schema()
+    fg_df = None
+    bg_df = df.clone()
     for column, data_type in schema.items():
         column_rules = rules.get(column)
-        if not column_rules:
-            df = df.with_columns(
-                pl.lit(default_color).alias(column))
-        elif column_rules.get('type') == 'map':
-            df = get_column_gradient_colors(
-                df, column, column_rules, data_type)
-        else:
-            df = get_column_step_colors(
-                df, column, column_rules, data_type)
-    return df
+        if not column_rules or column_rules.get('type') == COLORTYPE.NONE:
+            if default_color:
+                bg_df = bg_df.with_columns(
+                    pl.lit(default_color).alias(column))
+            else:
+                bg_df = bg_df.with_columns(
+                    pl.lit('').alias(column))
+        elif column_rules.get('type') == COLORTYPE.MAP:
+            bg_df = get_column_gradient_colors(
+                bg_df, column, column_rules, data_type)
+        elif column_rules.get('type') == COLORTYPE.STEPS:
+            bg_df = get_column_step_colors(
+                bg_df, column, column_rules, data_type)
+    return bg_df, fg_df
 
 
 def get_column_gradient_colors(
         df: pl.LazyFrame, column, column_rules, data_type):
     if not column_rules:
         return df
-    colors_values = column_rules['map']
+    colors_values = column_rules.get('map')
     if not colors_values:
         return df
 
@@ -344,11 +403,15 @@ def get_column_gradient_colors(
 
 def get_column_step_colors(
         df: pl.LazyFrame, column, column_rules, data_type):
-    if len(column_rules['colors']) == 1:
+    if not column_rules:
+        return df
+    colors = column_rules['colors']
+    if not colors:
+        return df
+    if len(colors) == 1:
         color = column_rules['colors'][0]
         return df.with_columns(pl.lit(color).alias(column))
     values = convert_values(column_rules['values'], data_type)
-    colors = column_rules['colors']
     assert len(values) == len(colors) - 1
     col_exp = pl.col(column)
 

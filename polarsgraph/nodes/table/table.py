@@ -9,8 +9,8 @@ from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.nodes.base import (
     BaseNode, BaseSettingsWidget, BaseDisplay)
-from polarsgraph.nodes.table.colors import (
-    ColorRuleWidget, generate_color_tables)
+from polarsgraph.nodes.table.display import (
+    DisplayRuleWidget, generate_color_tables)
 
 
 TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
@@ -20,9 +20,8 @@ class ATTR:
     NAME = 'name'
     COLUMNS_WIDTHS = 'columns_widths'
     DEFAULT_TEXT_COLOR = 'text_default_color'
-    TEXT_COLOR_RULES = 'text_color_rules'
     DEFAULT_BACKGROUND_COLOR = 'default_background_color'
-    BACKGROUND_COLOR_RULES = 'background_color_rules'
+    DISPLAY_RULES = 'display_rules'
 
 
 class TableNode(BaseNode):
@@ -38,14 +37,38 @@ class TableNode(BaseNode):
         self._display_widget = None
 
     def _build_query(self, tables):
-        self.tables['table'] = tables[0]
+        df: pl.LazyFrame = tables[0]
+        display_df = df.clone()
+
+        # Apply formats to columns
+        column_rules = self[ATTR.DISPLAY_RULES] or {}
+        for col_name, rule in column_rules.items():
+            fmt = rule.get('format')
+            if not fmt:
+                continue
+            col = pl.col(col_name)
+            # %
+            if fmt == '%':
+                exp = (col * 100).round(2).cast(pl.String) + '%'
+            # Dates
+            elif fmt == 'date: YYYY/MM/DD':
+                exp = col.dt.strftime("%Y/%m/%d")
+            elif fmt == 'date: DD/MM/YYYY':
+                exp = col.dt.strftime("%d/%m/%Y")
+            elif fmt == 'date: DD/MM/YY':
+                exp = col.dt.strftime("%d/%m/%y")
+            # Time
+            elif fmt == 'seconds to hours, minutes, seconds':
+                exp = col.map_elements(format_duration, return_dtype=pl.String)
+            display_df = display_df.with_columns(exp)
+
         # Update display
         if not self.display_widget:
             return
-        self.display_widget.set_table(tables[0])
+        self.display_widget.set_table(df, display_df)
 
     def clear(self):
-        self.display_widget.set_table(pl.LazyFrame())
+        self.display_widget.set_table(pl.LazyFrame(), pl.LazyFrame())
 
     @property
     def display_widget(self):
@@ -72,7 +95,7 @@ class TableSettingsWidget(BaseSettingsWidget):
         self.reset_button = QtWidgets.QPushButton('Reset', fixedWidth=48)
         self.reset_button.clicked.connect(self.reset_default_colors)
 
-        self.colors_table = QtWidgets.QTableWidget()
+        self.colors_table = QtWidgets.QTableWidget(minimumHeight=400)
         self.colors_table.setColumnCount(5)
         self.colors_table.horizontalHeader().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeToContents)
@@ -92,13 +115,16 @@ class TableSettingsWidget(BaseSettingsWidget):
         color_layout.addWidget(self.text_color_button)
         color_layout.addWidget(self.reset_button)
 
+        display_group = QtWidgets.QGroupBox('Display')
+        display_layout = QtWidgets.QVBoxLayout(display_group)
+        display_layout.addLayout(color_layout)
+        display_layout.addWidget(self.colors_table)
+        display_layout.addWidget(refresh_button)
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
-        layout.addSpacing(20)
-        layout.addWidget(QtWidgets.QLabel('Table colors:'))
-        layout.addLayout(color_layout)
-        layout.addWidget(self.colors_table)
-        layout.addWidget(refresh_button)
+        layout.addSpacing(32)
+        layout.addWidget(display_group)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
@@ -131,8 +157,14 @@ class TableSettingsWidget(BaseSettingsWidget):
         self.emit_changed()
 
     def reset_default_colors(self):
-        del self.node.settings[ATTR.DEFAULT_BACKGROUND_COLOR]
-        del self.node.settings[ATTR.DEFAULT_TEXT_COLOR]
+        try:
+            del self.node.settings[ATTR.DEFAULT_BACKGROUND_COLOR]
+        except KeyError:
+            pass
+        try:
+            del self.node.settings[ATTR.DEFAULT_TEXT_COLOR]
+        except KeyError:
+            pass
         self.set_label_color_from_settings()
         self.emit_changed()
 
@@ -186,21 +218,21 @@ class TableSettingsWidget(BaseSettingsWidget):
             self.colors_table.setCellWidget(i, 4, paste_btn)
 
     def configure_column_colors(self, node, column_name):
-        if not node[ATTR.BACKGROUND_COLOR_RULES]:
-            node[ATTR.BACKGROUND_COLOR_RULES] = {}
-        column_rules = node[ATTR.BACKGROUND_COLOR_RULES].get(column_name) or {}
-        dialog = ColorRuleWidget(column_rules, parent=self)
+        if not node[ATTR.DISPLAY_RULES]:
+            node[ATTR.DISPLAY_RULES] = {}
+        column_rules = node[ATTR.DISPLAY_RULES].get(column_name) or {}
+        dialog = DisplayRuleWidget(column_rules, parent=self)
         if dialog.exec_() != QtWidgets.QDialog.Accepted:
             return
-        if column_name not in node[ATTR.BACKGROUND_COLOR_RULES]:
-            node[ATTR.BACKGROUND_COLOR_RULES][column_name] = {}
-        node[ATTR.BACKGROUND_COLOR_RULES][column_name].update(
+        if not node[ATTR.DISPLAY_RULES].get(column_name):
+            node[ATTR.DISPLAY_RULES][column_name] = {}
+        node[ATTR.DISPLAY_RULES][column_name].update(
             dialog.get_settings())
         self.emit_changed()
 
     def clear_column_colors(self, node, column_name):
         try:
-            del node[ATTR.BACKGROUND_COLOR_RULES][column_name]
+            del node[ATTR.DISPLAY_RULES][column_name]
             self.emit_changed()
         except KeyError:
             pass
@@ -208,15 +240,16 @@ class TableSettingsWidget(BaseSettingsWidget):
     def copy(self, node, column_name):
         try:
             self.clipboard = node.settings[
-                ATTR.BACKGROUND_COLOR_RULES][column_name]
+                ATTR.DISPLAY_RULES][column_name]
         except BaseException:
             self.clipboard = {}
 
     def paste(self, node, column_name):
-        settings = node[ATTR.BACKGROUND_COLOR_RULES]
+        settings = node[ATTR.DISPLAY_RULES]
         if column_name not in settings:
             settings[column_name] = {}
         settings[column_name].update(self.clipboard)
+        self.emit_changed()
 
 
 class TableDisplay(BaseDisplay):
@@ -272,23 +305,27 @@ class TableDisplay(BaseDisplay):
         layout.addWidget(self.table_view)
         layout.addWidget(self.bottom_widget)
 
-    def set_table(self, table: pl.LazyFrame):
-        if table is None:
+    def set_table(
+            self,
+            values_table: pl.LazyFrame,
+            formatted_table: pl.LazyFrame):
+        if formatted_table is None:
             self.table_details_label.setText('')
             return self.table_model.set_dataframe(pl.DataFrame())
 
         # Table data
-        table = table.collect(stream=True)
-        self.table_model.set_dataframe(table)
+        formatted_table = formatted_table.collect(stream=True)
+        self.table_model.set_dataframe(formatted_table)
 
         # Table color
-        self.generate_colors(table)
+        self.generate_colors(values_table.collect(stream=True))
 
         # Label
-        self.table_details_label.setText(f'{table.height} x {table.width}')
+        self.table_details_label.setText(
+            f'{formatted_table.height} x {formatted_table.width}')
 
         # Recover saved columns sizes (by column name):
-        self.columns = table.schema.names()
+        self.columns = formatted_table.schema.names()
         saved_sizes = self.node[ATTR.COLUMNS_WIDTHS] or {}
         for i, column_name in enumerate(self.columns):
             if column_name in saved_sizes:
@@ -334,18 +371,13 @@ class TableDisplay(BaseDisplay):
         self.node[ATTR.COLUMNS_WIDTHS][column_name] = newWidth
 
     def generate_colors(self, df: pl.DataFrame):
-        # Text (Foreground) color
-        color_df = generate_color_tables(
-            df=df,
-            default_color=self.node[ATTR.DEFAULT_TEXT_COLOR],
-            rules=self.node[ATTR.TEXT_COLOR_RULES])
-        self.table_model.set_dataframe(color_df, which='text_color')
         # Background color
-        color_df = generate_color_tables(
+        bg_df, fg_df = generate_color_tables(
             df=df,
             default_color=self.node[ATTR.DEFAULT_BACKGROUND_COLOR],
-            rules=self.node[ATTR.BACKGROUND_COLOR_RULES])
-        self.table_model.set_dataframe(color_df, which='bg_color')
+            rules=self.node[ATTR.DISPLAY_RULES])
+        self.table_model.set_dataframe(bg_df, which='bg_color')
+        self.table_model.set_dataframe(fg_df, which='text_color')
 
 
 class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
@@ -468,3 +500,15 @@ def fit_columns_to_headers(table: QtWidgets.QTableView):
     for column in range(header.count()):
         header_width = header.sectionSizeHint(column)
         table.setColumnWidth(column, header_width)
+
+
+def format_duration(seconds):
+    seconds = int(seconds)
+    hours, rest = divmod(seconds, 3600)
+    minutes, seconds = divmod(rest, 60)
+    if hours:
+        return '%ih %02dm %02ds' % (hours, minutes, seconds)
+    elif minutes:
+        return '%im %02ds' % (minutes, seconds)
+    else:
+        return '%i seconds' % seconds
