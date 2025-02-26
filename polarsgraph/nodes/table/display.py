@@ -290,13 +290,10 @@ class ColorMapWidget(QtWidgets.QWidget):
     def edit_color(self, row_index, column_index):
         if column_index != 1:
             return
-        if row_index % 2:
-            return
         color = QtWidgets.QColorDialog.getColor()
-        # et puis c'est parti.
         if color.isValid():
-            self.table.item(row_index, 0).setBackground(color)
-            self.table.item(row_index, 0).setText(color.name())
+            self.table.item(row_index, 1).setBackground(color)
+            self.table.item(row_index, 1).setText(color.name())
         self.set_color_info()
 
     def get_settings(self):
