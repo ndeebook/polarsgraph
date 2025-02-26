@@ -214,7 +214,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
         # Shortcuts
         shortcuts = [
-            ('delete', self.node_view.delete_selected_nodes, None),
+            ('delete', self.node_view.delete_selected_nodes, 'Delete selected nodes'),
             ('d', self.toggle_disable_selected, 'Toggle disable selected nodes'),
             ('n', self.node_view.show_add_node_menu, 'New node menu'),
             ('f', self.node_view.frame_all, 'Frame node view'),
