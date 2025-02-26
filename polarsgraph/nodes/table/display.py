@@ -97,11 +97,7 @@ class DisplayRuleWidget(QtWidgets.QDialog):
             settings = self.step_widget.get_settings()
 
         # Add format to settings
-        format = self.format_combo.currentText()
-        if format:
-            settings['format'] = format
-        elif 'format' in settings:
-            del settings['format']
+        settings['format'] = self.format_combo.currentText()
 
         return settings
 
