@@ -114,9 +114,13 @@ class NodeView(QtWidgets.QWidget):
         painter.drawRect(self.rect())
 
         # Draw nodes
-        for name, node in self.graph.items():
+        display_index = 0
+        for name in sorted(list(self.graph)):
+            node = self.graph[name]
+            if node.category in (DISPLAY_CATEGORY, DASHBOARD_CATEGORY):
+                display_index += 1  # see PolarsGraph.connect_to_display
             self.plugs_bboxes[name], self.nodes_bboxes[name] = paint_node(
-                painter, self.viewportmapper, node,
+                painter, self.viewportmapper, node, display_index,
                 name in self.selected_names)
 
         # Draw connections
@@ -343,6 +347,7 @@ def paint_node(
         painter: QtGui.QPainter,
         viewportmapper: ViewportMapper,
         node: BaseNode,
+        display_index: int,
         selected: bool):
     name = node['name']
     pos = node['position']
@@ -416,6 +421,14 @@ def paint_node(
 
     # Right outputs and plugs
     if node.category in (DISPLAY_CATEGORY, DASHBOARD_CATEGORY):
+        # Draw display index
+        painter.setPen(QtGui.QPen(BACKGROUND_COLOR, thickness))
+        painter.drawText(
+            # title_rect.translated(0, -viewportmapper.to_viewport(18)),
+            # Qt.AlignmentFlag.AlignCenter,
+            title_rect.translated(-viewportmapper.to_viewport(4), 0),
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+            str(display_index))
         painter.setBrush(Qt.black)
     else:
         painter.setBrush(PLUG_COLOR)
