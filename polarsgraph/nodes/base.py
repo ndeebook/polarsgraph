@@ -1,3 +1,5 @@
+from datetime import date as Date, datetime as DT
+
 import polars as pl
 from PySide6 import QtCore, QtWidgets, QtGui
 
@@ -131,6 +133,10 @@ def get_converter(data_type: pl.DataType):
         return int
     elif data_type == pl.Boolean:
         return to_boolean
+    elif data_type == pl.Date:
+        return Date.fromisoformat
+    elif data_type == pl.Datetime:
+        return DT.fromisoformat
 
 
 def convert_value(value, data_type):
