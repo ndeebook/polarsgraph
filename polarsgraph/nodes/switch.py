@@ -35,6 +35,7 @@ class SwitchSettingsWidget(BaseSettingsWidget):
 
         # Widgets
         self.value_edit = QtWidgets.QSpinBox()
+        self.value_edit.setMinimum(1)
         self.value_edit.valueChanged.connect(
             lambda: self.spinbox_to_settings(self.value_edit, ATTR.WHICH))
 
@@ -53,5 +54,6 @@ class SwitchSettingsWidget(BaseSettingsWidget):
 
         self.name_edit.setText(node[ATTR.NAME])
         self.value_edit.setValue(node[ATTR.WHICH] or 1)
+        self.value_edit.setMaximum(len(node['inputs']))
 
         self.blockSignals(False)
