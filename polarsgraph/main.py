@@ -363,7 +363,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
             self.node_view.update()
             self.display_widget.update_content()
         # Fill Displays combo
-        if node.category in DISPLAY_CATEGORY:
+        if node.category in (DISPLAY_CATEGORY, DASHBOARD_CATEGORY):
             self.display_widget.fill_combo()
 
         return node
