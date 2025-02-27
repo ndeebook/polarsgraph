@@ -28,6 +28,7 @@ from polarsgraph.nodes.filter import FilterNode, FilterSettingsWidget
 from polarsgraph.nodes.format import FormatNode, FormatSettingsWidget
 from polarsgraph.nodes.rename import RenameNode, RenameSettingsWidget
 from polarsgraph.nodes.reorder import ReorderNode, ReorderSettingsWidget
+from polarsgraph.nodes.switch import SwitchNode, SwitchSettingsWidget
 from polarsgraph.nodes.constant import (
     ConstantNode, ConstantSettingsWidget)
 from polarsgraph.nodes.concatenate import (
@@ -56,6 +57,7 @@ types = {
     FormatNode.type: {'type': FormatNode, 'widget': FormatSettingsWidget},
     RenameNode.type: {'type': RenameNode, 'widget': RenameSettingsWidget},
     ReorderNode.type: {'type': ReorderNode, 'widget': ReorderSettingsWidget},
+    SwitchNode.type: {'type': SwitchNode, 'widget': SwitchSettingsWidget},
     ConcatenateNode.type: {
         'type': ConcatenateNode, 'widget': ConcatenateSettingsWidget},
     ConstantNode.type: {
