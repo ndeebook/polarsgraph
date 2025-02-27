@@ -38,6 +38,8 @@ class TableNode(BaseNode):
 
     def _build_query(self, tables):
         df: pl.LazyFrame = tables[0]
+        if df is None:
+            return self.clear()
         display_df = df.clone()
 
         # Apply formats to columns
