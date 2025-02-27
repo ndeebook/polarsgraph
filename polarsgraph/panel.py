@@ -38,6 +38,8 @@ class SettingsWidget(QtWidgets.QWidget):
         # Widgets
         self.setMinimumWidth(333)
 
+        self.node_type_label = QtWidgets.QLabel()
+
         self.settings_edit = TextSettingsWidget(fixed_font, self)
         self.settings_edit.settings_changed.connect(self.settings_changed.emit)
 
@@ -75,15 +77,22 @@ class SettingsWidget(QtWidgets.QWidget):
         buttons_layout.addWidget(errors_button)
         buttons_layout.addStretch()
 
+        type_layout = QtWidgets.QHBoxLayout()
+        type_layout.addStretch()
+        type_layout.addWidget(self.node_type_label)
+        type_layout.addStretch()
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(type_layout)
         layout.addLayout(self.node_layout)
         layout.addStretch()
         layout.addLayout(buttons_layout)
 
     def set_node(self, node: BaseNode, input_tables: list[pl.LazyFrame]):
         self.node = node
-        node_type = node.type if node else None
+        node_type = node.type if node else ''
+        self.node_type_label.setText(f'<b>{node_type.title()}</b>')
         for typename, widget in self.types_widgets.items():
             if node_type == typename:
                 widget.setVisible(True)
