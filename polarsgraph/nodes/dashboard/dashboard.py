@@ -178,6 +178,8 @@ class FixedGridLayout(QtWidgets.QLayout):
         outer_rect = outer_rect.marginsRemoved(self.contentsMargins())
         spacing = self.spacing()
 
+        if not self.rects:
+            return
         if len(self.rects) < len(self.items):
             return
         for item, (x, y, w, h) in zip(self.items, self.rects):
