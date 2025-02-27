@@ -18,7 +18,7 @@ class DisplayWidget(QtWidgets.QWidget):
         self.node: BaseNode = None
 
         # Widgets
-        self.node_combo = QtWidgets.QComboBox(minimumWidth=100)
+        self.node_combo = QtWidgets.QComboBox(minimumWidth=200)
         self.node_combo.currentTextChanged.connect(self.set_display_node)
 
         # Layout
