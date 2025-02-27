@@ -218,14 +218,19 @@ def build_node_query(graph: dict, node_name: str):
             error = upstream_node.build_query(
                 get_input_tables(graph, upstream_node))
             if error:
+                error_node = None
                 if upstream_node.category == DISPLAY_CATEGORY:
-                    error_node = get_input_nodes(
-                        graph, upstream_node['name'])[0]
+                    input_nodes = get_input_nodes(
+                        graph, upstream_node['name'])
+                    if not input_nodes:
+                        upstream_node.error = error
+                        return False
+                    error_node = input_nodes[0]
                 else:
                     error_node = upstream_node
-                error_node.error = error
-                logger.debug(
-                    f'Build aborted because of {upstream_node_name}')
+                if error_node:
+                    error_node.error = error
+                logger.debug(f'Build aborted because of {upstream_node_name}')
                 return False
     return True
 
