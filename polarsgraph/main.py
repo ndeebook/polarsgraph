@@ -1,4 +1,5 @@
 import os
+import uuid
 import traceback
 from datetime import datetime as Datetime
 
@@ -268,22 +269,48 @@ class PolarsGraph(QtWidgets.QMainWindow):
             if display_node_name:
                 self.display_widget.set_display_node(display_node_name)
 
-        # Build graph
         if not add:
             self.graph = dict()
-        new_nodes = []
-        for name, settings in (graph or dict()).items():
+        else:
+            """
+            Pasting node: we need to rename everything to avoid clashes
+            We want new nodes to be connected together but remove connections
+            to the other nodes
+            """
+            # Rename nodes to avoid clashes and preserve connections
+            graph = graph or dict()
+            suffix = str(uuid.uuid1())
+            graph = {
+                f'{name}{suffix}': settings
+                for name, settings in graph.items()}
+            # Rename connections but remove connections not part of clipboard
+            for name, settings in graph.items():
+                inputs = settings['inputs']
+                for i, (node_name, conn_index) in enumerate(inputs or []):
+                    new_name = f'{node_name}{suffix}'
+                    if new_name in graph:
+                        inputs[i] = [new_name, conn_index]
+                    else:
+                        inputs[i] = None
+
+        # Build graph
+        new_nodes: list[BaseNode] = []
+        for name, settings in graph.items():
             nodetype = settings['type']
             if nodetype not in types:
                 continue
             if add:
-                settings['inputs'] = None
                 # offset position slightly for paste/import
                 p = settings['position']
                 p.setX(p.x() + 50)
                 p.setY(p.y() + 50)
             new_nodes.append(self.create_node(
                 nodetype, name, settings, auto_increment=add, update=False))
+
+        # Rename pasted nodes
+        if add:
+            for node in new_nodes:
+                self.rename_node(node['name'], node['name'][:-len(suffix)])
 
         # Autosave
         self.autosave(record_undo=record_undo)

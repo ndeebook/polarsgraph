@@ -297,10 +297,27 @@ def disconnect_plug(node, index):
         remove_unused_dynamic_plugs(node)
 
 
+def _increment_string(s):
+    match = re.search(r'(\d+)$', s)
+    if match:
+        num = match.group(1)
+        incremented_num = str(int(num) + 1).zfill(len(num))
+        return s[:match.start()] + incremented_num
+    else:
+        return s + '1'
+
+
 def rename_node(graph, old_name, new_name):
+    # Ensure name is unique
+    while new_name in graph:
+        new_name = _increment_string(new_name)
+
+    # Rename node
     node = graph.pop(old_name)
     node['name'] = new_name
     graph[new_name] = node
+
+    # Rename plugs
     for node in graph.values():
         for input in node['inputs'] or []:
             if not input:
@@ -308,6 +325,8 @@ def rename_node(graph, old_name, new_name):
             plug_node_name = input[0]
             if plug_node_name == old_name:
                 input[0] = new_name
+
+    return new_name
 
 
 def increment_name(name):
