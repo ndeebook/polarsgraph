@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt
 
 from polarsgraph.graph import (
     LOAD_CATEGORY, MANIPULATE_CATEGORY, DISPLAY_CATEGORY, DASHBOARD_CATEGORY,
+    BACKDROP_CATEGORY,
     CATEGORY_INPUT_TYPE, CATEGORY_OUTPUT_TYPE, DYNAMIC_PLUG_COUNT)
 from polarsgraph.nodes.base import BaseNode
 from polarsgraph.viewportmapper import ViewportMapper
@@ -45,6 +46,7 @@ class NodeView(QtWidgets.QWidget):
         self.viewportmapper = ViewportMapper(zoom, origin)
 
         self.nodes_bboxes: dict[str, QtCore.QRect] = dict()
+        self.backdrop_bboxes: dict[str, tuple] = dict()
         self.plugs_bboxes: dict[str, tuple] = dict()
 
         self.selected_names = []
@@ -113,10 +115,20 @@ class NodeView(QtWidgets.QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRect(self.rect())
 
+        # Draw backdrops first
+        for name in sorted(list(self.graph)):
+            node = self.graph[name]
+            if node.category != BACKDROP_CATEGORY:
+                continue
+            self.backdrop_bboxes[name] = paint_backdrop(
+                painter, self.viewportmapper, node, selected=False)
+
         # Draw nodes
         display_index = 0
         for name in sorted(list(self.graph)):
             node = self.graph[name]
+            if node.category == BACKDROP_CATEGORY:
+                continue
             if node.category in (DISPLAY_CATEGORY, DASHBOARD_CATEGORY):
                 display_index += 1  # see PolarsGraph.connect_to_display
             self.plugs_bboxes[name], self.nodes_bboxes[name] = paint_node(
@@ -232,6 +244,14 @@ class NodeView(QtWidgets.QWidget):
 
     # SELECT
     def get_object_under_cursor(self, position):
+        # Check backdrops
+        for name, (_, title_rect, corner_rect) in self.backdrop_bboxes.items():
+            if corner_rect.contains(position):
+                return dict(type='backdrop_corner', name=name)
+            if title_rect.contains(position):
+                return dict(type='backdrop', name=name)
+
+        # Check nodes
         for name, rect in self.nodes_bboxes.items():
             if rect.contains(position):
                 category = self.graph[name].category
@@ -265,7 +285,7 @@ class NodeView(QtWidgets.QWidget):
                 self.selected_names = []
             return
         name = under_cursor['name']
-        if under_cursor['type'] == 'node':
+        if under_cursor['type'] in ('node', 'backdrop'):
             if name not in self.selected_names:  # dont unselect other nodes
                 if shift or ctrl:
                     self.selected_names.append(name)
@@ -281,13 +301,22 @@ class NodeView(QtWidgets.QWidget):
 
     def drag(self, event):
         self.drag_position = event.position()
-        if self.dragged_object and self.dragged_object['type'] == 'node':
+        if not self.dragged_object:
+            return self.repaint()
+        if self.dragged_object['type'] in ('node', 'backdrop'):
             # Move nodes (not connecting plug, not dragging selection rect)
             pos_offset = self.select_position - self.drag_position
             pos_offset /= self.viewportmapper.zoom
             for name in self.selected_names or [self.dragged_object['name']]:
                 self.graph[name]['position'] = (
                     self.move_start_positions[name] - pos_offset)
+            # TODO: move nodes under backdrop too
+        elif self.dragged_object['type'] == 'backdrop_corner':
+            backdrop = self.graph[self.dragged_object['name']]
+            p = backdrop['position']
+            p2 = self.viewportmapper.to_units_coords(self.drag_position)
+            backdrop['width'] = max(p2.x() - p.x(), 100)
+            backdrop['height'] = max(p2.y() - p.y(), 50)
         self.repaint()
 
     def release_drag(self, modifiers):
@@ -460,6 +489,71 @@ def paint_node(
     return (input_coords, output_coords), rect
 
 
+def paint_backdrop(
+        painter: QtGui.QPainter,
+        viewportmapper: ViewportMapper,
+        node: BaseNode,
+        selected: bool):
+    pos = node['position']
+    pos = viewportmapper.to_viewport_coords(pos)
+    x = pos.x()
+    y = pos.y()
+    w = viewportmapper.to_viewport(node['width'])
+    h = viewportmapper.to_viewport(node['height'])
+    font_size = viewportmapper.to_viewport(10)
+    thickness = viewportmapper.to_viewport(1)
+    margin = viewportmapper.to_viewport(2)
+
+    # Main rect
+    color: QtGui.QColor = node['color']
+    painter.setBrush(color)
+    if selected:
+        painter.setPen(QtGui.QPen(Qt.white, 1))
+    else:
+        painter.setPen(Qt.PenStyle.NoPen)
+    main_rect = QtCore.QRectF(x, y, w, h)
+    painter.drawRect(main_rect)
+
+    # Title
+    title_height = viewportmapper.to_viewport(20)
+    title_rect = main_rect.adjusted(margin, margin, -margin, -margin)
+    title_rect.setHeight(title_height - margin)
+    painter.setBrush(color.lighter())
+    painter.drawRect(title_rect)
+
+    painter.setPen(QtGui.QPen(Qt.white, thickness))
+    painter.setFont(QtGui.QFont('Verdana', font_size))
+    painter.drawText(title_rect, Qt.AlignmentFlag.AlignCenter, node['name'])
+
+    # Text
+    # TODO: QtGui.QStaticText(node['text'])
+    painter.drawText(
+        x + margin,
+        y + title_height,
+        w - margin * 2,
+        h - title_height - margin,
+        Qt.AlignmentFlag.AlignLeft,
+        node['text'])
+
+    # Lower right size manipulation hint
+    corner_size = viewportmapper.to_viewport(12)
+    corner_rect = QtCore.QRectF(
+        x + w - corner_size,
+        y + h - corner_size,
+        corner_size,
+        corner_size)
+    painter.setPen(Qt.PenStyle.NoPen)
+    # Draw triangle
+    path = QtGui.QPainterPath()
+    path.moveTo(corner_rect.bottomLeft())
+    path.lineTo(corner_rect.bottomRight())
+    path.lineTo(corner_rect.topRight())
+    path.lineTo(corner_rect.bottomLeft())
+    painter.drawPath(path)
+
+    return main_rect, title_rect, corner_rect
+
+
 def get_connection_pen(category, thickness):
     display = category == 'display'
     if display:
@@ -520,7 +614,7 @@ def get_sorted_node_types(types):
     """
     category_order = (
         LOAD_CATEGORY, MANIPULATE_CATEGORY, DISPLAY_CATEGORY,
-        DASHBOARD_CATEGORY)
+        DASHBOARD_CATEGORY, BACKDROP_CATEGORY)
     categories_types = {c: [] for c in category_order}
     for name, cfg in types.items():
         categories_types[cfg['type'].category].append(name)

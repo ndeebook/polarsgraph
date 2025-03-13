@@ -13,6 +13,7 @@ MANIPULATE_CATEGORY = 'manipulate'
 DISPLAY_CATEGORY = 'display'
 LOAD_CATEGORY = 'load'
 DASHBOARD_CATEGORY = 'dashboard'
+BACKDROP_CATEGORY = 'backdrop'
 
 DYNAMIC_PLUG_COUNT = 'dynamic'
 

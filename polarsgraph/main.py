@@ -30,6 +30,7 @@ from polarsgraph.nodes.format import FormatNode, FormatSettingsWidget
 from polarsgraph.nodes.rename import RenameNode, RenameSettingsWidget
 from polarsgraph.nodes.reorder import ReorderNode, ReorderSettingsWidget
 from polarsgraph.nodes.switch import SwitchNode, SwitchSettingsWidget
+from polarsgraph.nodes.backdrop import BackdropNode, BackdropSettingsWidget
 from polarsgraph.nodes.constant import (
     ConstantNode, ConstantSettingsWidget)
 from polarsgraph.nodes.concatenate import (
@@ -71,6 +72,9 @@ types = {
     # Dashboard
     DashboardNode.type: {
         'type': DashboardNode, 'widget': DashboardSettingsWidget},
+    # Backdrop
+    BackdropNode.type: {
+        'type': BackdropNode, 'widget': BackdropSettingsWidget},
 }
 
 
