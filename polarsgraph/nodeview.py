@@ -303,6 +303,7 @@ class NodeView(QtWidgets.QWidget):
                         backdrop_bbox.contains(bbox)]
                     self.selected_names.append(name)
                 self.dragged_object = under_cursor
+                self.nodes_selected.emit(self.selected_names)
 
             # Node selection
             elif name not in self.selected_names:  # dont unselect other nodes
