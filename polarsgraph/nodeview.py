@@ -68,11 +68,15 @@ class NodeView(QtWidgets.QWidget):
                 partial(self.create_requested.emit, node_type))
             self.add_menu.addAction(action)
 
-    def set_graph(self, graph):
-        self.graph = graph
+    def clear(self):
         self.nodes_bboxes.clear()
         self.plugs_bboxes.clear()
+        self.backdrop_bboxes.clear()
         self.selected_names.clear()
+
+    def set_graph(self, graph):
+        self.graph = graph
+        self.clear()
         self.update()
 
     def rename_node(self, old_name, new_name):
@@ -528,6 +532,7 @@ def paint_backdrop(
     y = pos.y()
     w = viewportmapper.to_viewport(node['width'])
     h = viewportmapper.to_viewport(node['height'])
+    title_height = viewportmapper.to_viewport(30)
     font_size = viewportmapper.to_viewport(10)
     thickness = viewportmapper.to_viewport(1)
     margin = viewportmapper.to_viewport(2)
@@ -543,7 +548,6 @@ def paint_backdrop(
     painter.drawRect(main_rect)
 
     # Title
-    title_height = viewportmapper.to_viewport(20)
     title_rect = main_rect.adjusted(margin, margin, -margin, -margin)
     title_rect.setHeight(title_height - margin)
     painter.setBrush(color.lighter())

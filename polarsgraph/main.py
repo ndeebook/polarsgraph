@@ -276,6 +276,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
         if not add:
             self.graph = dict()
+            self.node_view.clear()
         else:
             """
             Pasting node: we need to rename everything to avoid clashes
