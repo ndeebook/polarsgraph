@@ -372,9 +372,15 @@ class NodeView(QtWidgets.QWidget):
     def delete_nodes(self, nodes):
         self.selected_names = [
             n for n in self.selected_names if n not in nodes]
-        for name in nodes:
-            self.nodes_bboxes.pop(name)
-            self.plugs_bboxes.pop(name)
+        dicts_to_clean = (
+            self.nodes_bboxes,
+            self.plugs_bboxes,
+            self.backdrop_bboxes,
+            self.move_start_positions)
+        for dict_ in dicts_to_clean:
+            for name in nodes:
+                if name in dict_:
+                    dict_.pop(name)
         self.update()
 
     def show_add_node_menu(self, position=None):
