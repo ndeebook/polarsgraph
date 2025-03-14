@@ -280,13 +280,27 @@ class NodeView(QtWidgets.QWidget):
         self.select_position = position
         shift = modifiers & Qt.KeyboardModifier.ShiftModifier
         ctrl = modifiers & Qt.KeyboardModifier.ControlModifier
+        alt = modifiers & Qt.KeyboardModifier.AltModifier
         if under_cursor is None:
             if not shift:
                 self.selected_names = []
             return
         name = under_cursor['name']
         if under_cursor['type'] in ('node', 'backdrop'):
-            if name not in self.selected_names:  # dont unselect other nodes
+            # Select nodes underbackdrop
+            if under_cursor['type'] == 'backdrop':
+                backdrop_bbox: QtCore.QRectF = self.backdrop_bboxes[name][0]
+                if alt:  # Only move backdrop
+                    self.selected_names = [name]
+                else:
+                    self.selected_names = [
+                        n for n, bbox in self.nodes_bboxes.items() if
+                        backdrop_bbox.contains(bbox)]
+                    self.selected_names.append(name)
+                self.dragged_object = under_cursor
+
+            # Node selection
+            elif name not in self.selected_names:  # dont unselect other nodes
                 if shift or ctrl:
                     self.selected_names.append(name)
                 else:
@@ -295,22 +309,24 @@ class NodeView(QtWidgets.QWidget):
             elif ctrl:
                 self.selected_names.remove(name)
                 self.nodes_selected.emit(self.selected_names)
+
+            # Record start positions
             for name in self.selected_names:
                 self.move_start_positions[name] = self.graph[name]['position']
+
         self.dragged_object = under_cursor
 
     def drag(self, event):
         self.drag_position = event.position()
         if not self.dragged_object:
             return self.repaint()
+        pos_offset = self.select_position - self.drag_position
+        pos_offset /= self.viewportmapper.zoom
         if self.dragged_object['type'] in ('node', 'backdrop'):
             # Move nodes (not connecting plug, not dragging selection rect)
-            pos_offset = self.select_position - self.drag_position
-            pos_offset /= self.viewportmapper.zoom
             for name in self.selected_names or [self.dragged_object['name']]:
                 self.graph[name]['position'] = (
                     self.move_start_positions[name] - pos_offset)
-            # TODO: move nodes under backdrop too
         elif self.dragged_object['type'] == 'backdrop_corner':
             backdrop = self.graph[self.dragged_object['name']]
             p = backdrop['position']
@@ -527,6 +543,8 @@ def paint_backdrop(
 
     # Text
     # TODO: QtGui.QStaticText(node['text'])
+    font_size = viewportmapper.to_viewport(node['text_size'])
+    painter.setFont(QtGui.QFont('Verdana', font_size))
     painter.drawText(
         x + margin,
         y + title_height,

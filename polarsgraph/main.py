@@ -289,7 +289,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
                 for name, settings in graph.items()}
             # Rename connections but remove connections not part of clipboard
             for name, settings in graph.items():
-                inputs = settings['inputs']
+                inputs = settings.get('inputs') or []
                 for i, (node_name, conn_index) in enumerate(inputs or []):
                     new_name = f'{node_name}{suffix}'
                     if new_name in graph:
