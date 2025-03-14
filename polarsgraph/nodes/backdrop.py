@@ -1,4 +1,4 @@
-from PySide6 import QtWidgets
+from PySide6 import QtWidgets, QtCore
 
 from polarsgraph.nodes import LIGHT_GRAY
 from polarsgraph.graph import BACKDROP_CATEGORY
@@ -25,6 +25,22 @@ class BackdropNode(BaseNode):
         settings[ATTR.WIDTH] = settings.get(ATTR.WIDTH) or 200
         settings[ATTR.HEIGHT] = settings.get(ATTR.HEIGHT) or 100
         settings[ATTR.TEXT_SIZE] = settings.get(ATTR.TEXT_SIZE) or 20
+
+    def wrap_around_nodes(self, nodes: list[BaseNode]):
+        nodes = [n for n in nodes if not n.type == 'backdrop']
+        positions = [n['position'] for n in nodes]
+        if not positions:
+            return
+
+        margin = 60
+        min_x = min(p.x() for p in positions) - margin
+        max_x = max(p.x() for p in positions) + 128 + margin
+        min_y = min(p.y() for p in positions) - margin * 2
+        max_y = max(p.y() for p in positions) + 128 + margin / 2
+
+        self['position'] = QtCore.QPointF(min_x, min_y)
+        self[ATTR.WIDTH] = max_x - min_x
+        self[ATTR.HEIGHT] = max_y - min_y
 
     def _build_query(self, tables):
         return
