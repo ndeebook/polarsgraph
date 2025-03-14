@@ -35,6 +35,8 @@ class BackdropSettingsWidget(BaseSettingsWidget):
         super().__init__()
 
         # Widgets
+        self.color_button = QtWidgets.QPushButton(
+            'Color', clicked=self.set_color)
         self.text_edit = QtWidgets.QPlainTextEdit()
         self.text_edit.textChanged.connect(
             lambda: self.line_edit_to_settings(self.text_edit, ATTR.TEXT))
@@ -46,11 +48,19 @@ class BackdropSettingsWidget(BaseSettingsWidget):
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow(ATTR.COLOR.title(), self.color_button)
         form_layout.addRow(ATTR.TEXT.title(), self.text_edit)
         form_layout.addRow('Font size', self.text_size_spinbox)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
+
+    def set_color(self):
+        color = QtWidgets.QColorDialog.getColor()
+        if not color.isValid():
+            return
+        self.node[ATTR.COLOR] = color
+        self.emit_changed()
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)

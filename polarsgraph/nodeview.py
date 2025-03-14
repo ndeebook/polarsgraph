@@ -543,7 +543,7 @@ def paint_backdrop(
     painter.setBrush(color.lighter())
     painter.drawRect(title_rect)
 
-    painter.setPen(QtGui.QPen(Qt.white, thickness))
+    painter.setPen(QtGui.QPen(Qt.black, thickness))
     painter.setFont(QtGui.QFont('Verdana', font_size))
     painter.drawText(title_rect, Qt.AlignmentFlag.AlignCenter, node['name'])
 
