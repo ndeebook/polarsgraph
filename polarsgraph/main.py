@@ -320,7 +320,10 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.autosave(record_undo=record_undo)
 
         # Select new nodes
-        self.node_view.selected_names = [n['name'] for n in new_nodes]
+        if add:
+            self.node_view.selected_names = [n['name'] for n in new_nodes]
+        else:
+            self.node_view.selected_names.clear()
 
         # Refresh UI
         if not add:
