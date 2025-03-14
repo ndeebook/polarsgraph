@@ -78,8 +78,13 @@ class NodeView(QtWidgets.QWidget):
     def rename_node(self, old_name, new_name):
         # node already renamed in the Graph itself
 
-        # rename in bboxes:
-        for dict_ in (self.nodes_bboxes, self.plugs_bboxes):
+        # rename in dicts:
+        dicts_to_rename = (
+            self.nodes_bboxes,
+            self.plugs_bboxes,
+            self.backdrop_bboxes,
+            self.move_start_positions)
+        for dict_ in dicts_to_rename:
             if old_name not in dict_:
                 continue
             dict_[new_name] = dict_.pop(old_name)
