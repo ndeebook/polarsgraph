@@ -605,7 +605,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
     # Rename/Add
     def rename_node(self, old_name, new_name):
-        rename_node(self.graph, old_name, new_name)
+        new_name = rename_node(self.graph, old_name, new_name)
         self.node_view.rename_node(old_name, new_name)
         self.set_settings_node(self.graph[new_name])
         self.display_widget.fill_combo()
