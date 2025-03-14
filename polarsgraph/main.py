@@ -241,6 +241,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
             ('r', lambda: self.create_node('rename'), 'Create Rename'),
             ('o', lambda: self.create_node('reorder'), 'Create Reorder'),
             ('s', lambda: self.create_node('sort'), 'Create Sort'),
+            ('b', lambda: self.create_node('backdrop'), 'Create Backdrop'),
         ]
         for key, cmd, label in shortcuts:
             set_shortcut(key, self, cmd)
