@@ -13,6 +13,7 @@ DELETE_LABEL = 'delete column'
 
 EMPTY_LABEL = 'empty'
 CUSTOM_VALUE_LABEL = '[custom]'
+NULL_LABEL = 'null (no value)'
 
 
 class ATTR:
@@ -60,6 +61,8 @@ class GroupNode(BaseNode):
                     agg_expr = pl.lit(custom_value).alias(col_name)
                 else:
                     agg_expr = pl.lit(0).alias(col_name)
+            if agg_name == NULL_LABEL:
+                agg_expr = pl.lit(None).alias(col_name)
             elif agg_name:
                 agg_expr = getattr(pl.col(col_name), agg_name)()
             else:
@@ -202,7 +205,7 @@ class GroupSettingsWidget(BaseSettingsWidget):
             agg_combo = QtWidgets.QComboBox()
             agg_combo.addItems([
                 'sum', 'mean', 'min', 'max', 'count', 'n_unique',
-                DELETE_LABEL, CUSTOM_VALUE_LABEL])
+                DELETE_LABEL, NULL_LABEL, CUSTOM_VALUE_LABEL])
             if column in settings_aggs:
                 agg_combo.setCurrentText(settings_aggs[column])
             else:
