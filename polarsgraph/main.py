@@ -83,6 +83,7 @@ os.makedirs(LOCAL_DIR, exist_ok=True)
 AUTOSAVE_PATH = f'{LOCAL_DIR}/.autosave'
 
 GRAPH_SETTINGS_KEY = '_graph_settings'
+TITLE = 'PolarsGraph'
 
 
 class PolarsGraph(QtWidgets.QMainWindow):
@@ -97,14 +98,14 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
         self.graph = dict()
         self.undo_stack = UndoStack()
-        self.save_path = None
+        self._save_path = None
         self.clipboard = None
 
         self.shortcuts_list = []
 
         self.setMinimumWidth(1000)
         self.setMinimumHeight(500)
-        self.setWindowTitle('PolarsGraph')
+        self.setWindowTitle(TITLE)
 
         # Widgets
         self.display_widget = DisplayWidget(self.graph)
@@ -253,6 +254,15 @@ class PolarsGraph(QtWidgets.QMainWindow):
             self.add_undo()
         else:
             self.open_autosave()
+
+    @property
+    def save_path(self):
+        return self._save_path
+
+    @save_path.setter
+    def save_path(self, path):
+        self._save_path = path
+        self.setWindowTitle(f'{TITLE} - {path}')
 
     def load_graph(self, graph, add=False, record_undo=True):
         try:
