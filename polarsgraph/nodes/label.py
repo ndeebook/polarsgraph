@@ -1,5 +1,5 @@
 import polars as pl
-from PySide6 import QtWidgets, QtGui, QtCore
+from PySide6 import QtWidgets, QtGui
 from PySide6.QtCore import Qt
 
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
@@ -25,7 +25,7 @@ class LabelNode(BaseNode):
     def __init__(self, settings=None):
         super().__init__(settings)
 
-        self._display_widget = None
+        self._display_widget: BaseDisplay = None
 
     def _build_query(self, tables: list[pl.LazyFrame]):
         # Update display
@@ -39,6 +39,7 @@ class LabelNode(BaseNode):
             pl.col(source_column_name).get(source_row)).collect()[0, 0]
 
         self.display_widget.label = str(value)
+        self.display_widget.repaint()
 
     def clear(self):
         pass
