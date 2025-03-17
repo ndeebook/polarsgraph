@@ -8,7 +8,7 @@ from polarsgraph.log import logger
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.nodes.base import (
-    BaseNode, BaseSettingsWidget, BaseDisplay)
+    BaseNode, BaseSettingsWidget, BaseDisplay, get_format_exp)
 from polarsgraph.nodes.table.display import (
     DisplayRuleWidget, generate_color_tables)
 
@@ -45,23 +45,8 @@ class TableNode(BaseNode):
         # Apply formats to columns
         column_rules = self[ATTR.DISPLAY_RULES] or {}
         for col_name, rule in column_rules.items():
-            fmt = rule.get('format')
-            if not fmt:
-                continue
             col = pl.col(col_name)
-            # %
-            if fmt == '%':
-                exp = (col * 100).round(2).cast(pl.String) + '%'
-            # Dates
-            elif fmt == 'date: YYYY/MM/DD':
-                exp = col.dt.strftime("%Y/%m/%d")
-            elif fmt == 'date: DD/MM/YYYY':
-                exp = col.dt.strftime("%d/%m/%Y")
-            elif fmt == 'date: DD/MM/YY':
-                exp = col.dt.strftime("%d/%m/%y")
-            # Time
-            elif fmt == 'seconds to hours, minutes, seconds':
-                exp = col.map_elements(format_duration, return_dtype=pl.String)
+            exp = get_format_exp(col, rule.get('format'))
             display_df = display_df.with_columns(exp)
 
         # Update display
@@ -502,15 +487,3 @@ def fit_columns_to_headers(table: QtWidgets.QTableView):
     for column in range(header.count()):
         header_width = header.sectionSizeHint(column)
         table.setColumnWidth(column, header_width)
-
-
-def format_duration(seconds):
-    seconds = int(seconds)
-    hours, rest = divmod(seconds, 3600)
-    minutes, seconds = divmod(rest, 60)
-    if hours:
-        return '%ih %02dm %02ds' % (hours, minutes, seconds)
-    elif minutes:
-        return '%im %02ds' % (minutes, seconds)
-    else:
-        return '%i seconds' % seconds

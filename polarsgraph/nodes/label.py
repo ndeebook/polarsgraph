@@ -5,14 +5,15 @@ from PySide6.QtCore import Qt
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes.base import (
-    BaseNode, BaseSettingsWidget, BaseDisplay,
-    set_combo_values_from_table_columns)
+    FORMATS, BaseNode, BaseSettingsWidget, BaseDisplay,
+    get_format_exp, set_combo_values_from_table_columns)
 
 
 class ATTR:
     NAME = 'name'
     SOURCE_COLUMN = 'source_column'
     SOURCE_ROW = 'source_row'
+    FORMAT = 'format'
 
 
 class LabelNode(BaseNode):
@@ -25,7 +26,7 @@ class LabelNode(BaseNode):
     def __init__(self, settings=None):
         super().__init__(settings)
 
-        self._display_widget: BaseDisplay = None
+        self._display_widget = None
 
     def _build_query(self, tables: list[pl.LazyFrame]):
         # Update display
@@ -35,11 +36,14 @@ class LabelNode(BaseNode):
         source_column_name = self[ATTR.SOURCE_COLUMN]
         source_row = self[ATTR.SOURCE_ROW]
         source_row = int(source_row) if source_row else 0
-        value = tables[0].select(
-            pl.col(source_column_name).get(source_row)).collect()[0, 0]
+        fmt = self[ATTR.FORMAT]
 
-        self.display_widget.label = str(value)
-        self.display_widget.repaint()
+        df = tables[0]
+        col = pl.col(source_column_name)
+        exp = get_format_exp(col, fmt)
+        value = df.select(exp.get(source_row)).collect()[0, 0]
+
+        self.display_widget.set_label(str(value))
 
     def clear(self):
         pass
@@ -66,11 +70,18 @@ class LabelSettingsWidget(BaseSettingsWidget):
             lambda: self.line_edit_to_settings(
                 self.row_edit, ATTR.SOURCE_ROW, data_type=int))
 
+        self.format_combo = QtWidgets.QComboBox()
+        self.format_combo.addItems(FORMATS)
+        self.format_combo.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.format_combo, ATTR.FORMAT))
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         form_layout.addRow('source column', self.source_column_edit)
         form_layout.addRow('source row', self.row_edit)
+        form_layout.addRow('format', self.format_combo)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
 
@@ -95,6 +106,10 @@ class LabelDisplay(BaseDisplay):
 
         self.node: LabelNode = node
         self.label = ''
+
+    def set_label(self, value):
+        self.label = str(value)
+        self.repaint()
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)

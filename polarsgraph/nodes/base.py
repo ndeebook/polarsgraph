@@ -10,6 +10,18 @@ from polarsgraph.graph import BaseNode
 TRUE_WORDS = '1', 'true', 'yes'
 
 
+class FORMAT:
+    DEFAULT = ''
+    PERCENT = '%'
+    YYYYMMDD = 'date: YYYY/MM/DD'
+    DDMMYYYY = 'date: DD/MM/YYYY'
+    DDMMYY = 'date: DD/MM/YY'
+    S_TO_HMS = 'date: YYYY/MM/DD'
+
+
+FORMATS = [v for k, v in FORMAT.__dict__.items() if not k.startswith('_')]
+
+
 class BaseSettingsWidget(QtWidgets.QWidget):
     settings_changed = QtCore.Signal(str)
     rename_asked = QtCore.Signal(str, str)
@@ -151,3 +163,34 @@ def convert_values(values, data_type):
     if converter is None:
         return values
     return [converter(v) for v in values]
+
+
+def get_format_exp(col: pl.Expr, fmt: str):
+    # %
+    if not fmt:
+        return col
+    if fmt == FORMAT.PERCENT:
+        return (col * 100).round(2).cast(pl.String) + '%'
+    # Dates
+    if fmt == FORMAT.YYYYMMDD:
+        return col.dt.strftime("%Y/%m/%d")
+    if fmt == FORMAT.DDMMYYYY:
+        return col.dt.strftime("%d/%m/%Y")
+    if fmt == FORMAT.DDMMYY:
+        return col.dt.strftime("%d/%m/%y")
+    # Time
+    if fmt == FORMAT.S_TO_HMS:
+        return col.map_elements(format_duration, return_dtype=pl.String)
+    raise ValueError(f'Unknown format "{fmt}"')
+
+
+def format_duration(seconds):
+    seconds = int(seconds)
+    hours, rest = divmod(seconds, 3600)
+    minutes, seconds = divmod(rest, 60)
+    if hours:
+        return '%ih %02dm %02ds' % (hours, minutes, seconds)
+    elif minutes:
+        return '%im %02ds' % (minutes, seconds)
+    else:
+        return '%i seconds' % seconds

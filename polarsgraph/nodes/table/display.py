@@ -2,17 +2,7 @@ import polars as pl
 from PySide6 import QtWidgets, QtGui
 from PySide6.QtCore import Qt
 
-from polarsgraph.nodes.base import convert_values, get_converter
-
-
-FORMATS = [
-    '',
-    '%',
-    'seconds to hours, minutes, seconds',
-    'date: YYYY/MM/DD',
-    'date: DD/MM/YYYY',
-    'date: DD/MM/YY'
-]
+from polarsgraph.nodes.base import FORMATS, convert_values, get_converter
 
 
 class COLORTYPE:
