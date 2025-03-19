@@ -140,6 +140,7 @@ class TextSettingsWidget(QtWidgets.QWidget):
         self.text_edit = QtWidgets.QPlainTextEdit(styleSheet=self.default_css)
         self.text_edit.setWindowFlags(Qt.Tool)
         self.text_edit.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
+        self.highlighter = CustomHighlighter(self.text_edit.document())
 
         save_btn = QtWidgets.QPushButton('Save', clicked=self.save_settings)
 
@@ -166,6 +167,52 @@ class TextSettingsWidget(QtWidgets.QWidget):
         self.node.settings.update(settings)
         self.settings_changed.emit(self.node['name'])
         self.close()
+
+
+class CustomHighlighter(QtGui.QSyntaxHighlighter):
+    def __init__(self, document):
+        super().__init__(document)
+
+        aqua_mint = '#4ec9b0'
+        ocean_blue = '#569cd6'
+        orchid_purple = '#c586c0'
+        golden_beige = '#d7ba7d'
+
+        self.white_format = QtGui.QTextCharFormat()
+        self.white_format.setForeground(QtGui.QColor('#FFFFFF'))
+
+        self.orchid_format = QtGui.QTextCharFormat(self.white_format)
+        self.orchid_format.setForeground(QtGui.QColor(orchid_purple))
+
+        self.goldenbeige_format = QtGui.QTextCharFormat(self.white_format)
+        self.goldenbeige_format.setForeground(QtGui.QColor(golden_beige))
+
+        self.oceanblue_format = QtGui.QTextCharFormat(self.white_format)
+        self.oceanblue_format.setForeground(QtGui.QColor(ocean_blue))
+
+        self.aquamint_format = QtGui.QTextCharFormat()
+        self.aquamint_format.setForeground(QtGui.QColor(aqua_mint))
+
+    def highlightBlock(self, text):
+        patterns_format = [
+            # (r'@\w+', self.function_format),
+            (r'"[^"]*?"', self.aquamint_format),
+            # (r'\{[^{}]*?}', self.curly_format),
+        ]
+        for pattern, format in patterns_format:
+            for match in re.finditer(pattern, text):
+                start, end = match.start(), match.end()
+                self.setFormat(start, end - start, format)
+
+        for i, char in enumerate(text):
+            if char in '()':
+                self.setFormat(i, 1, self.white_format)
+            if char in '{}[]':
+                self.setFormat(i, 1, self.orchid_format)
+            if char == '"':
+                self.setFormat(i, 1, self.goldenbeige_format)
+            if char == ',':
+                self.setFormat(i, 1, self.oceanblue_format)
 
 
 def format_error(text):
