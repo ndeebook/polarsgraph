@@ -6,33 +6,30 @@ from PySide6 import QtGui, QtCore
 from polarsgraph.log import logger
 
 
-def dump(data):
+def dump(data, depth=0, indent=' ' * 4):
     """
-    json dump but with a single line for each dict key to make it more compact
-    but still readable
+    json dump but only indent first 2 levels of dict
     """
-    data = json.dumps(data, indent=4)
-    # remove non-key returns
-    text = ''
-    for line in data.split('\n'):
-        if line.startswith(('    "', '}')):
-            text += f'\n{line}'
-        else:
-            line = line.strip()
-            if line.endswith(','):
-                line = f'{line} '
-            text += line
-    return text
+    next_level = depth + 1
+    if depth < 2 and isinstance(data, dict):
+        serialized = ',\n'.join(
+            f'{indent * next_level}"{k}": {dump(v, next_level)}'
+            for k, v in data.items())
+        return f'{{\n{serialized}\n{indent * depth}}}'
+    return json.dumps(data)
 
 
 def _reorder_keys(node_settings):
     # Put some keys first:
-    settings = dict(name=node_settings['name'])
+    settings = {
+        k: node_settings[k] for k in ('name', 'type', 'disabled', 'inputs')
+        if k in node_settings}
     # Recover other keys:
     settings.update(node_settings)
     # Put some keys last:
-    settings['color'] = settings.pop('color')
-    settings['position'] = settings.pop('position')
+    for key in ('color', 'position', 'columns_widths'):
+        if key in settings:
+            settings[key] = settings.pop(key)
     return settings
 
 
