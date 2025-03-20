@@ -16,7 +16,7 @@ class FORMAT:
     YYYYMMDD = 'date: YYYY/MM/DD'
     DDMMYYYY = 'date: DD/MM/YYYY'
     DDMMYY = 'date: DD/MM/YY'
-    S_TO_HMS = 'date: YYYY/MM/DD'
+    S_TO_HMS = 'seconds to hours, minutes, seconds'
 
 
 FORMATS = [v for k, v in FORMAT.__dict__.items() if not k.startswith('_')]
