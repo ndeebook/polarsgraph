@@ -10,7 +10,8 @@ from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.nodes.base import (
     BaseNode, BaseSettingsWidget, BaseDisplay, get_format_exp)
 from polarsgraph.nodes.table.display import (
-    DisplayRuleWidget, generate_color_tables)
+    BGCOLOR_COLUMN_PREFIX, DisplayRuleWidget, generate_color_columns,
+    get_bgcolor_name)
 
 
 TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
@@ -358,32 +359,39 @@ class TableDisplay(BaseDisplay):
         self.node[ATTR.COLUMNS_WIDTHS][column_name] = newWidth
 
     def generate_colors(self, df: pl.DataFrame):
-        # Background color
-        bg_df, fg_df = generate_color_tables(
+        df = generate_color_columns(
             df=df,
             default_color=self.node[ATTR.DEFAULT_BACKGROUND_COLOR],
             rules=self.node[ATTR.DISPLAY_RULES])
-        self.table_model.set_dataframe(bg_df, which='bg_color')
-        self.table_model.set_dataframe(fg_df, which='text_color')
+        self.table_model.set_dataframe(df)
 
 
 class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.dataframe = pl.DataFrame()
-        self.bg_colors_df: pl.DataFrame = None
-        self.text_colors_df: pl.DataFrame = None
 
-    def set_dataframe(self, dataframe: pl.DataFrame, which='main'):
+        self.dataframe = pl.DataFrame()
+        self.column_count = 0
+        self.row_count = 0
+        self.bgcolor_column_indexes = dict()
+
+    def set_dataframe(self, dataframe: pl.DataFrame):
         self.layoutAboutToBeChanged.emit()
-        if which == 'main':
-            self.dataframe = dataframe
-        elif which == 'bg_color':
-            self.bg_colors_df = dataframe
-        elif which == 'text_color':
-            self.text_colors_df = dataframe
-        else:
-            raise ValueError(f'Bad "which" argument value "{which}"')
+
+        self.dataframe = dataframe
+
+        # Columns and Rows counts
+        self.column_count = len([
+            c for c in self.dataframe.columns
+            if not c.startswith(BGCOLOR_COLUMN_PREFIX)])
+        self.row_count = self.dataframe.height
+
+        # Cache existing color columns
+        columns = dataframe.columns
+        self.bgcolor_column_indexes = {
+            columns.index(c): index_or_none(columns, get_bgcolor_name(c))
+            for c in columns}
+
         self.layoutChanged.emit()
 
     def headerData(self, section, orientation, role):
@@ -396,10 +404,10 @@ class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
             return Qt.AlignCenter
 
     def rowCount(self, *_):
-        return self.dataframe.height
+        return self.row_count
 
     def columnCount(self, *_):
-        return self.dataframe.width
+        return self.column_count
 
     def data(self, index, role):
         if not index.isValid():
@@ -416,14 +424,16 @@ class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
                 return ''
             return str(value)
 
-        if self.bg_colors_df is not None and role == Qt.BackgroundRole:
-            color = self.bg_colors_df[row, col]
-            if color:
-                return QtGui.QColor(color)
-        elif self.text_colors_df is not None and role == Qt.ForegroundRole:
-            color = self.text_colors_df[row, col]
-            if color:
-                return QtGui.QColor(color)
+        if role == Qt.BackgroundRole:
+            color_col = self.bgcolor_column_indexes.get(col)
+            if color_col is not None:
+                color = self.dataframe[row, color_col]
+                if color:
+                    return QtGui.QColor(color)
+            # elif self.text_colors_df is not None:
+            #     color = self.text_colors_df[row, col]
+            #     if color:
+            #         return QtGui.QColor(color)
 
 
 def export_df_to_file(df: pl.DataFrame, path: str):
@@ -487,3 +497,10 @@ def fit_columns_to_headers(table: QtWidgets.QTableView):
     for column in range(header.count()):
         header_width = header.sectionSizeHint(column)
         table.setColumnWidth(column, header_width)
+
+
+def index_or_none(list_: list, value):
+    try:
+        return list_.index(value)
+    except ValueError:
+        return

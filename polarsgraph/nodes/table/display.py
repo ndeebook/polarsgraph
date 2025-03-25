@@ -5,6 +5,9 @@ from PySide6.QtCore import Qt
 from polarsgraph.nodes.base import FORMATS, convert_values, get_converter
 
 
+BGCOLOR_COLUMN_PREFIX = '~`#@'
+
+
 class COLORTYPE:
     NONE = 'No color'
     STEPS = 'Steps'
@@ -299,6 +302,10 @@ class ColorMapWidget(QtWidgets.QWidget):
             map=map)
 
 
+def get_bgcolor_name(column):
+    return f'{BGCOLOR_COLUMN_PREFIX}{column}'
+
+
 def colors_to_css_gradient_step(colors: list[str]):
     stops = ''
     for i, color in enumerate(colors):
@@ -320,30 +327,28 @@ def colors_to_css_gradient(colors: list[str]):
     return f'background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0{stops});'
 
 
-def generate_color_tables(
+def generate_color_columns(
         df: pl.DataFrame,
         rules: dict,
         default_color):
     rules = rules or {}
     schema = df.collect_schema()
-    fg_df = None
-    bg_df = df.clone()
     for column, data_type in schema.items():
         column_rules = rules.get(column)
         if not column_rules or column_rules.get('type') == COLORTYPE.NONE:
             if default_color:
-                bg_df = bg_df.with_columns(
-                    pl.lit(default_color).alias(column))
+                df = df.with_columns(
+                    pl.lit(default_color).alias(get_bgcolor_name(column)))
             else:
-                bg_df = bg_df.with_columns(
-                    pl.lit('').alias(column))
+                df = df.with_columns(
+                    pl.lit('').alias(get_bgcolor_name(column)))
         elif column_rules.get('type') == COLORTYPE.MAP:
-            bg_df = get_column_gradient_colors(
-                bg_df, column, column_rules, data_type)
+            df = get_column_gradient_colors(
+                df, column, column_rules, data_type)
         elif column_rules.get('type') == COLORTYPE.STEPS:
-            bg_df = get_column_step_colors(
-                bg_df, column, column_rules, data_type)
-    return bg_df, fg_df
+            df = get_column_step_colors(
+                df, column, column_rules, data_type)
+    return df
 
 
 def get_column_gradient_colors(
@@ -381,7 +386,7 @@ def get_column_gradient_colors(
         expression = expression.otherwise(pl.lit(last_color))
 
     # Apply to df
-    return df.with_columns(expression.name.keep())
+    return df.with_columns(expression.alias(get_bgcolor_name(column)))
 
 
 def get_column_step_colors(
@@ -417,10 +422,10 @@ def get_column_step_colors(
     for i, value in enumerate(values):
         expression = expression.when(col_exp > value).then(
             pl.lit(colors[i]))
-    expression = expression.otherwise(pl.lit(colors[-1])).name.keep()
+    expression = expression.otherwise(pl.lit(colors[-1]))
 
     # Apply to df
-    return df.with_columns(expression)
+    return df.with_columns(expression.alias(get_bgcolor_name(column)))
 
 
 def get_closest_value_index(value, values):
