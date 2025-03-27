@@ -82,8 +82,9 @@ re_column = r'\{[^\}]*\}'
 re_number = r'-?\d+\.\d+|-?\d+'
 re_function = r'@\w+'
 re_string = r'"[^"]*"'
-re_operator = r'[+\-*/(),]'
+re_operator = r'[+\-*/(),]|==|!=|<=|>=|>|<'
 re_tokens = re_column, re_number, re_function, re_string, re_operator
+token_pattern = re.compile(r'\s*' + '|'.join(re_tokens) + r'\s*')
 
 
 class ATTR:
@@ -226,7 +227,6 @@ def formula_to_polars_expression(formula: str):
 
 def tokenize(formula) -> list[str]:
     """split all parts of the formula in a list"""
-    token_pattern = re.compile(r'\s*' + '|'.join(re_tokens) + r'\s*')
     tokens = token_pattern.findall(formula)
     return [t.strip() for t in tokens if t.strip()]  # strip + exclude empty
 
