@@ -149,6 +149,9 @@ def get_converter(data_type: pl.DataType):
         return Date.fromisoformat
     elif data_type == pl.Datetime:
         return DT.fromisoformat
+    elif data_type == pl.String:
+        return str
+    raise ValueError(f'No converter available for data type {data_type}')
 
 
 def convert_value(value, data_type):

@@ -344,7 +344,7 @@ def generate_color_columns(
                     pl.lit('').alias(get_bgcolor_name(column)))
         elif column_rules.get('type') == COLORTYPE.MAP:
             df = get_column_gradient_colors(
-                df, column, column_rules, data_type)
+                df, column, column_rules, data_type, default_color)
         elif column_rules.get('type') == COLORTYPE.STEPS:
             df = get_column_step_colors(
                 df, column, column_rules, data_type)
@@ -352,7 +352,7 @@ def generate_color_columns(
 
 
 def get_column_gradient_colors(
-        df: pl.LazyFrame, column, column_rules, data_type):
+        df: pl.LazyFrame, column, column_rules, data_type, default_color):
     if not column_rules:
         return df
     colors_values = column_rules.get('map')
@@ -365,7 +365,7 @@ def get_column_gradient_colors(
 
     # Choose between == and >=
     col_exp = pl.col(column)
-    if column_rules.get('gradient'):
+    if column_rules.get('gradient') and data_type.is_numeric():
         col_method = getattr(col_exp, '__le__')
         colors_values = extend_color_values_steps(colors_values)
     else:
@@ -380,10 +380,13 @@ def get_column_gradient_colors(
         for value, color in colors_values[1:]:
             expression = expression.when(col_method(value)).then(pl.lit(color))
 
-    # If gradient, end with last color
     if column_rules.get('gradient'):
-        last_color = colors_values[-1][1]
-        expression = expression.otherwise(pl.lit(last_color))
+        if data_type.is_numeric():
+            # If gradient, end with last color
+            last_color = colors_values[-1][1]
+            expression = expression.otherwise(pl.lit(last_color))
+        else:
+            expression = expression.otherwise(pl.lit(default_color))
 
     # Apply to df
     return df.with_columns(expression.alias(get_bgcolor_name(column)))
