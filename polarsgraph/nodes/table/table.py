@@ -41,22 +41,27 @@ class TableNode(BaseNode):
         df: pl.LazyFrame = tables[0]
         if df is None:
             return self.clear()
-        display_df = df.clone()
 
-        # Apply formats to columns
+        # 1. Generate color columns
+        df = generate_color_columns(
+            df=df,
+            default_color=self[ATTR.DEFAULT_BACKGROUND_COLOR],
+            rules=self[ATTR.DISPLAY_RULES])
+
+        # 2. Apply formats to columns
         column_rules = self[ATTR.DISPLAY_RULES] or {}
         for col_name, rule in column_rules.items():
             col = pl.col(col_name)
             exp = get_format_exp(col, rule.get('format'))
-            display_df = display_df.with_columns(exp)
+            df = df.with_columns(exp)
 
         # Update display
         if not self.display_widget:
             return
-        self.display_widget.set_table(df, display_df)
+        self.display_widget.set_table(df.collect())
 
     def clear(self):
-        self.display_widget.set_table(pl.LazyFrame(), pl.LazyFrame())
+        self.display_widget.set_table(pl.DataFrame())
 
     @property
     def display_widget(self):
@@ -293,27 +298,18 @@ class TableDisplay(BaseDisplay):
         layout.addWidget(self.table_view)
         layout.addWidget(self.bottom_widget)
 
-    def set_table(
-            self,
-            values_table: pl.LazyFrame,
-            formatted_table: pl.LazyFrame):
-        if formatted_table is None:
+    def set_table(self, table: pl.DataFrame):
+        if table is None:
             self.table_details_label.setText('')
             return self.table_model.set_dataframe(pl.DataFrame())
-
-        # Table data
-        formatted_table = formatted_table.collect(stream=True)
-        self.table_model.set_dataframe(formatted_table)
-
-        # Table color
-        self.generate_colors(values_table.collect(stream=True))
+        self.table_model.set_dataframe(table)
 
         # Label
         self.table_details_label.setText(
-            f'{formatted_table.height} x {formatted_table.width}')
+            f'{table.height} x {table.width}')
 
         # Recover saved columns sizes (by column name):
-        self.columns = formatted_table.schema.names()
+        self.columns = table.schema.names()
         saved_sizes = self.node[ATTR.COLUMNS_WIDTHS] or {}
         for i, column_name in enumerate(self.columns):
             if column_name in saved_sizes:
@@ -357,13 +353,6 @@ class TableDisplay(BaseDisplay):
             self.node[ATTR.COLUMNS_WIDTHS] = {}
         column_name = self.columns[column]
         self.node[ATTR.COLUMNS_WIDTHS][column_name] = newWidth
-
-    def generate_colors(self, df: pl.DataFrame):
-        df = generate_color_columns(
-            df=df,
-            default_color=self.node[ATTR.DEFAULT_BACKGROUND_COLOR],
-            rules=self.node[ATTR.DISPLAY_RULES])
-        self.table_model.set_dataframe(df)
 
 
 class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
