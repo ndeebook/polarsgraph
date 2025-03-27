@@ -123,7 +123,15 @@ class PolarsGraph(QtWidgets.QMainWindow):
         toolbar_layout.setSpacing(0)
         self.add_button = QtWidgets.QPushButton(
             '+', clicked=self.show_add_node_menu)
-        buttons = self.add_button,
+        self.align_horizontal_button = QtWidgets.QPushButton(
+            '―', clicked=lambda: self.align(axis='horizontal'))
+        self.align_vertical_button = QtWidgets.QPushButton(
+            '|', clicked=lambda: self.align(axis='vertical'))
+        buttons = (
+            self.add_button,
+            self.align_horizontal_button,
+            self.align_vertical_button,
+        )
         for button in buttons:
             button.setMaximumWidth(size)
             button.setMaximumHeight(size)
@@ -649,6 +657,18 @@ class PolarsGraph(QtWidgets.QMainWindow):
                 dict(side=1, name=selected_node['name'], index=0),
                 dict(side=0, name=display_node_name, index=0))
         self.display_widget.set_display_node(display_node_name)
+
+    def align(self, axis='horizontal'):
+        if len(self.node_view.selected_names) < 2:
+            return
+        pos = self.graph[self.node_view.selected_names[0]]['position']
+        value = pos.y() if axis == 'horizontal' else pos.x()
+        for name in self.node_view.selected_names[1:]:
+            if axis == 'horizontal':
+                self.graph[name]['position'].setY(value)
+            else:
+                self.graph[name]['position'].setX(value)
+        self.node_view.repaint()
 
     def show_shortcuts(self):
         text = '<table style="font-family: monospace;">'
