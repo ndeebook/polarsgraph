@@ -94,7 +94,7 @@ class BarsDisplay(BaseDisplay):
     def set_table(self, table: pl.LazyFrame):
         if table is None:
             return
-        table = table.collect(stream=True)
+        table = table.collect()
         self.chart_view.set_data(table, self.node)
 
     def get_pixmap(self):

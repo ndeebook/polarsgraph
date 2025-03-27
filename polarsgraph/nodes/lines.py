@@ -94,7 +94,7 @@ class LinesDisplay(BaseDisplay):
     def set_table(self, table: pl.LazyFrame):
         if table is None:
             return
-        table = table.collect(stream=True)
+        table = table.collect()
         title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
         self.node.error = make_chart(self.chart_view, table, title)
         if self.node.error:

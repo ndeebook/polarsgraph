@@ -109,7 +109,7 @@ class PieDisplay(BaseDisplay):
     def set_table(self, table: pl.LazyFrame):
         if table is None:
             return
-        table = table.collect(stream=True)
+        table = table.collect()
         title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
         start_angle = self.node[ATTR.START_ANGLE] or 0
         end_angle = self.node[ATTR.END_ANGLE] or 360
