@@ -31,7 +31,7 @@ class FormatNode(BaseNode):
         for col_name, fmt in column_formats.items():
             if not fmt:
                 continue
-            df = df.with_columns(get_format_exp((pl.col(col_name), fmt)))
+            df = df.with_columns(get_format_exp(pl.col(col_name), fmt))
 
         self.tables['table'] = df
 
