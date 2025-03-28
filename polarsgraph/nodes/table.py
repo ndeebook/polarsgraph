@@ -68,7 +68,10 @@ class TableSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 
-        self.clipboard = {}
+        form_layout = QtWidgets.QFormLayout()
+        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addLayout(form_layout)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
