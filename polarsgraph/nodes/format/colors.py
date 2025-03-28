@@ -3,9 +3,7 @@ from PySide6 import QtWidgets, QtGui
 from PySide6.QtCore import Qt
 
 from polarsgraph.nodes.base import FORMATS, convert_values, get_converter
-
-
-BGCOLOR_COLUMN_PREFIX = '~`#@'
+from polarsgraph.nodes.table import get_bgcolor_name
 
 
 class COLORTYPE:
@@ -300,10 +298,6 @@ class ColorMapWidget(QtWidgets.QWidget):
             type=COLORTYPE.MAP,
             gradient=self.gradient_cb.isChecked(),
             map=map)
-
-
-def get_bgcolor_name(column):
-    return f'{BGCOLOR_COLUMN_PREFIX}{column}'
 
 
 def colors_to_css_gradient_step(colors: list[str]):

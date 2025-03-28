@@ -1,4 +1,11 @@
-from functools import partial
+"""
+The cells colors are defined by columns with same name + `~color` suffix
+CSV Example:
+    Value,Value~color
+    .6,#5512BE
+
+The `format` node does this but it can be implemented with new nodes
+"""
 
 import polars as pl
 from PySide6 import QtWidgets, QtGui, QtCore
@@ -8,13 +15,13 @@ from polarsgraph.log import logger
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.nodes.base import (
-    BaseNode, BaseSettingsWidget, BaseDisplay, get_format_exp)
-from polarsgraph.nodes.table.display import (
-    BGCOLOR_COLUMN_PREFIX, DisplayRuleWidget, generate_color_columns,
-    get_bgcolor_name)
+    BaseNode, BaseSettingsWidget, BaseDisplay)
 
 
 TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
+
+
+BGCOLOR_COLUMN_SUFFIX = '~color'
 
 
 class ATTR:
@@ -42,19 +49,6 @@ class TableNode(BaseNode):
         if df is None:
             return self.clear()
 
-        # 1. Generate color columns
-        df = generate_color_columns(
-            df=df,
-            default_color=self[ATTR.DEFAULT_BACKGROUND_COLOR],
-            rules=self[ATTR.DISPLAY_RULES])
-
-        # 2. Apply formats to columns
-        column_rules = self[ATTR.DISPLAY_RULES] or {}
-        for col_name, rule in column_rules.items():
-            col = pl.col(col_name)
-            exp = get_format_exp(col, rule.get('format'))
-            df = df.with_columns(exp)
-
         # Update display
         if not self.display_widget:
             return
@@ -76,173 +70,12 @@ class TableSettingsWidget(BaseSettingsWidget):
 
         self.clipboard = {}
 
-        # Widgets
-        self.color_label = QtWidgets.QLabel(
-            'Default Colors:', alignment=Qt.AlignmentFlag.AlignCenter)
-        self.bg_color_button = QtWidgets.QPushButton('BG Color')
-        self.bg_color_button.clicked.connect(
-            lambda: self.choose_default_color(ATTR.DEFAULT_BACKGROUND_COLOR))
-        self.text_color_button = QtWidgets.QPushButton('FG Color')
-        self.text_color_button.clicked.connect(
-            lambda: self.choose_default_color(ATTR.DEFAULT_TEXT_COLOR))
-        self.reset_button = QtWidgets.QPushButton('Reset', fixedWidth=48)
-        self.reset_button.clicked.connect(self.reset_default_colors)
-
-        self.colors_table = QtWidgets.QTableWidget(minimumHeight=400)
-        self.colors_table.setColumnCount(5)
-        self.colors_table.horizontalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.ResizeToContents)
-        self.colors_table.setHorizontalHeaderLabels(
-            ['Column', '', '', '', ''])
-
-        refresh_button = QtWidgets.QPushButton('Refresh columns list')
-        refresh_button.clicked.connect(self.populate_format_table)
-
-        # Layout
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-
-        color_layout = QtWidgets.QHBoxLayout()
-        color_layout.addWidget(self.color_label)
-        color_layout.addWidget(self.bg_color_button)
-        color_layout.addWidget(self.text_color_button)
-        color_layout.addWidget(self.reset_button)
-
-        display_group = QtWidgets.QGroupBox('Display')
-        display_layout = QtWidgets.QVBoxLayout(display_group)
-        display_layout.addLayout(color_layout)
-        display_layout.addWidget(self.colors_table)
-        display_layout.addWidget(refresh_button)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
-        layout.addSpacing(32)
-        layout.addWidget(display_group)
-
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
         self.input_table: pl.LazyFrame = input_tables[0]
-
-        self.set_label_color_from_settings()
-        self.populate_format_table()
-
         self.blockSignals(False)
-
-    def get_default_color(self, which='bg'):
-        if which == 'bg':
-            return self.node[ATTR.DEFAULT_TEXT_COLOR] or '#FFFFFF'
-        else:
-            return self.node[ATTR.DEFAULT_BACKGROUND_COLOR] or '#000000'
-
-    def choose_default_color(self, attribute):
-        bg_color = self.get_default_color('bg')
-        text_color = self.get_default_color('text')
-        start_color = (
-            text_color if attribute == ATTR.DEFAULT_TEXT_COLOR else bg_color)
-        color = QtWidgets.QColorDialog.getColor(
-            initial=QtGui.QColor(start_color))
-        if not color.isValid():
-            return
-        self.node[attribute] = color.name()
-        self.set_label_color_from_settings()
-        self.emit_changed()
-
-    def reset_default_colors(self):
-        try:
-            del self.node.settings[ATTR.DEFAULT_BACKGROUND_COLOR]
-        except KeyError:
-            pass
-        try:
-            del self.node.settings[ATTR.DEFAULT_TEXT_COLOR]
-        except KeyError:
-            pass
-        self.set_label_color_from_settings()
-        self.emit_changed()
-
-    def set_label_color_from_settings(self):
-        self.color_label.setStyleSheet(
-            f'background-color: {self.get_default_color("bg")};'
-            f'color: {self.get_default_color("text")}')
-
-    def populate_format_table(self):
-        if self.input_table is None:
-            columns = []
-        else:
-            columns = self.input_table.collect_schema().names()
-        self.colors_table.blockSignals(True)
-        self.colors_table.setRowCount(len(columns))
-
-        for i, column in enumerate(columns):
-            # Add column name
-            column_item = QtWidgets.QTableWidgetItem(column)
-            column_item.setFlags(Qt.ItemIsEnabled)
-            self.colors_table.setItem(i, 0, column_item)
-
-            # Add buttons: config, clear, copy, paste
-            icon = QtGui.QIcon.fromTheme(
-                QtGui.QIcon.ThemeIcon.DocumentProperties)
-            configure_btn = QtWidgets.QPushButton(
-                '', fixedWidth=32, icon=icon)
-            configure_btn.clicked.connect(
-                partial(self.configure_column_colors, self.node, column))
-            self.colors_table.setCellWidget(i, 1, configure_btn)
-
-            icon = QtGui.QIcon.fromTheme(
-                QtGui.QIcon.ThemeIcon.EditDelete)
-            clear_btn = QtWidgets.QPushButton('', fixedWidth=32, icon=icon)
-            clear_btn.clicked.connect(
-                partial(self.clear_column_colors, self.node, column))
-            self.colors_table.setCellWidget(i, 2, clear_btn)
-
-            icon = QtGui.QIcon.fromTheme(
-                QtGui.QIcon.ThemeIcon.EditCopy)
-            copy_btn = QtWidgets.QPushButton('', fixedWidth=32, icon=icon)
-            copy_btn.clicked.connect(
-                partial(self.copy, self.node, column))
-            self.colors_table.setCellWidget(i, 3, copy_btn)
-
-            icon = QtGui.QIcon.fromTheme(
-                QtGui.QIcon.ThemeIcon.EditPaste)
-            paste_btn = QtWidgets.QPushButton('', fixedWidth=32, icon=icon)
-            paste_btn.clicked.connect(
-                partial(self.paste, self.node, column))
-            self.colors_table.setCellWidget(i, 4, paste_btn)
-
-    def configure_column_colors(self, node, column_name):
-        if not node[ATTR.DISPLAY_RULES]:
-            node[ATTR.DISPLAY_RULES] = {}
-        column_rules = node[ATTR.DISPLAY_RULES].get(column_name) or {}
-        dialog = DisplayRuleWidget(column_rules, parent=self)
-        if dialog.exec_() != QtWidgets.QDialog.Accepted:
-            return
-        if not node[ATTR.DISPLAY_RULES].get(column_name):
-            node[ATTR.DISPLAY_RULES][column_name] = {}
-        node[ATTR.DISPLAY_RULES][column_name].update(
-            dialog.get_settings())
-        self.emit_changed()
-
-    def clear_column_colors(self, node, column_name):
-        try:
-            del node[ATTR.DISPLAY_RULES][column_name]
-            self.emit_changed()
-        except KeyError:
-            pass
-
-    def copy(self, node, column_name):
-        try:
-            self.clipboard = node.settings[
-                ATTR.DISPLAY_RULES][column_name]
-        except BaseException:
-            self.clipboard = {}
-
-    def paste(self, node, column_name):
-        settings = node[ATTR.DISPLAY_RULES]
-        if column_name not in settings:
-            settings[column_name] = {}
-        settings[column_name].update(self.clipboard)
-        self.emit_changed()
 
 
 class TableDisplay(BaseDisplay):
@@ -302,11 +135,11 @@ class TableDisplay(BaseDisplay):
         if table is None:
             self.table_details_label.setText('')
             return self.table_model.set_dataframe(pl.DataFrame())
-        self.table_model.set_dataframe(table)
+        columns_count = self.table_model.set_dataframe(table)
 
         # Label
         self.table_details_label.setText(
-            f'{table.height} x {table.width}')
+            f'{table.height} x {columns_count}')
 
         # Recover saved columns sizes (by column name):
         self.columns = table.schema.names()
@@ -372,7 +205,7 @@ class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
         # Columns and Rows counts
         self.column_count = len([
             c for c in self.dataframe.columns
-            if not c.startswith(BGCOLOR_COLUMN_PREFIX)])
+            if not c.endswith(BGCOLOR_COLUMN_SUFFIX)])
         self.row_count = self.dataframe.height
 
         # Cache existing color columns
@@ -382,6 +215,8 @@ class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
             for c in columns}
 
         self.layoutChanged.emit()
+
+        return self.column_count
 
     def headerData(self, section, orientation, role):
         if role == Qt.DisplayRole:
@@ -493,3 +328,7 @@ def index_or_none(list_: list, value):
         return list_.index(value)
     except ValueError:
         return
+
+
+def get_bgcolor_name(column):
+    return f'{column}{BGCOLOR_COLUMN_SUFFIX}'
