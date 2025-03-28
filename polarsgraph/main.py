@@ -233,11 +233,13 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
         # Shortcuts
         shortcuts = [
+            ('f', self.node_view.frame_all, 'Frame node view'),
+
             ('delete', self.node_view.delete_selected_nodes, 'Delete selected nodes'),
             ('d', self.toggle_disable_selected, 'Toggle disable selected nodes'),
-            ('n', self.node_view.show_add_node_menu, 'New node menu'),
-            ('f', self.node_view.frame_all, 'Frame node view'),
+
             ('y', self.connect_selected_nodes, 'Connect selected nodes'),
+
             ('space', self.connect_to_display, 'Show 1st display'),
             ('1', self.connect_to_display, 'Show 1st display'),
             ('2', lambda: self.connect_to_display(1), 'Show 2nd display'),
@@ -248,6 +250,9 @@ class PolarsGraph(QtWidgets.QMainWindow):
             ('7', lambda: self.connect_to_display(4), 'Show 7th display'),
             ('8', lambda: self.connect_to_display(4), 'Show 8th display'),
             ('9', lambda: self.connect_to_display(4), 'Show 9th display'),
+
+            ('n', self.node_view.show_add_node_menu, 'New node menu'),
+
             ('c', lambda: self.create_node('concatenate'), 'Create Concatenate'),
             ('x', lambda: self.create_node('derive'), 'Create Derive'),
             ('v', lambda: self.create_node('filter'), 'Create Filter'),
@@ -257,6 +262,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
             ('r', lambda: self.create_node('rename'), 'Create Rename'),
             ('o', lambda: self.create_node('reorder'), 'Create Reorder'),
             ('s', lambda: self.create_node('sort'), 'Create Sort'),
+            ('t', lambda: self.create_node('table'), 'Create Table'),
+
             ('b', lambda: self.create_node('backdrop'), 'Create Backdrop'),
         ]
         for key, cmd, label in shortcuts:
