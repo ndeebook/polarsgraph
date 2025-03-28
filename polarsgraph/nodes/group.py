@@ -56,17 +56,19 @@ class GroupNode(BaseNode):
                 continue
             if col_name in group_by_columns:
                 continue
+
             if agg_name == CUSTOM_VALUE_LABEL:
                 if schema[col_name] == pl.String:
                     agg_expr = pl.lit(custom_value).alias(col_name)
                 else:
                     agg_expr = pl.lit(0).alias(col_name)
-            if agg_name == NULL_LABEL:
+            elif agg_name == NULL_LABEL:
                 agg_expr = pl.lit(None).alias(col_name)
             elif agg_name:
                 agg_expr = getattr(pl.col(col_name), agg_name)()
             else:
                 agg_expr = None
+
             agg_exprs.append(agg_expr)
 
         # Apply group by and aggregation
