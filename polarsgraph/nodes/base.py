@@ -17,6 +17,7 @@ class FORMAT:
     DDMMYYYY = 'date: DD/MM/YYYY'
     DDMMYY = 'date: DD/MM/YY'
     S_TO_HMS = 'seconds to hours, minutes, seconds'
+    SECONDS = 'seconds'
 
 
 FORMATS = [v for k, v in FORMAT.__dict__.items() if not k.startswith('_')]
@@ -184,6 +185,8 @@ def get_format_exp(col: pl.Expr, fmt: str):
     # Time
     if fmt == FORMAT.S_TO_HMS:
         return col.map_elements(format_duration, return_dtype=pl.String)
+    if fmt == FORMAT.SECONDS:
+        return col.cast(pl.String) + 's'
     raise ValueError(f'Unknown format "{fmt}"')
 
 

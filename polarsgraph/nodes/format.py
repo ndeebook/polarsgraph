@@ -4,17 +4,8 @@ from PySide6.QtCore import Qt
 
 from polarsgraph.nodes import BLUE as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
-from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
-
-
-FORMATS = [
-    '',
-    '%',
-    'seconds to hours, minutes, seconds',
-    'date: YYYY/MM/DD',
-    'date: DD/MM/YYYY',
-    'date: DD/MM/YY'
-]
+from polarsgraph.nodes.base import (
+    FORMATS, BaseNode, BaseSettingsWidget, get_format_exp)
 
 
 class ATTR:
@@ -40,21 +31,7 @@ class FormatNode(BaseNode):
         for col_name, fmt in column_formats.items():
             if not fmt:
                 continue
-            col = pl.col(col_name)
-            # %
-            if fmt == '%':
-                exp = (col * 100).cast(pl.String) + '%'
-            # Dates
-            elif fmt == 'date: YYYY/MM/DD':
-                exp = col.dt.strftime("%Y/%m/%d")
-            elif fmt == 'date: DD/MM/YYYY':
-                exp = col.dt.strftime("%d/%m/%Y")
-            elif fmt == 'date: DD/MM/YY':
-                exp = col.dt.strftime("%d/%m/%y")
-            # Time
-            elif fmt == 'seconds to hours, minutes, seconds':
-                exp = col.map_elements(format_duration, return_dtype=pl.String)
-            df = df.with_columns(exp)
+            df = df.with_columns(get_format_exp((pl.col(col_name), fmt)))
 
         self.tables['table'] = df
 
