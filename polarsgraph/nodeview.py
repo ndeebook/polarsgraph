@@ -130,7 +130,8 @@ class NodeView(QtWidgets.QWidget):
             if node.category != BACKDROP_CATEGORY:
                 continue
             self.backdrop_bboxes[name] = paint_backdrop(
-                painter, self.viewportmapper, node, selected=False)
+                painter, self.viewportmapper, node,
+                selected=name in self.selected_names)
 
         # Draw nodes
         display_index = 0
@@ -359,11 +360,15 @@ class NodeView(QtWidgets.QWidget):
         elif (
                 self.drag_position and
                 self.clicked_button == Qt.MouseButton.LeftButton):
+            # Select what's under selection rectangle
             sel_rect = QtCore.QRectF(self.select_position, self.drag_position)
             shift = modifiers & Qt.KeyboardModifier.ShiftModifier
             nodes = [
                 name for name, rect in self.nodes_bboxes.items()
                 if sel_rect.intersects(rect)]
+            nodes.extend([
+                n for n, (_, title_rect, _) in self.backdrop_bboxes.items()
+                if sel_rect.intersects(title_rect)])
             if shift:
                 nodes = list(set(self.selected_names or []) | set(nodes))
             self.selected_names = nodes
@@ -546,6 +551,8 @@ def paint_backdrop(
         painter.setPen(Qt.PenStyle.NoPen)
     main_rect = QtCore.QRectF(x, y, w, h)
     painter.drawRect(main_rect)
+    if selected:
+        painter.setPen(Qt.PenStyle.NoPen)
 
     # Title
     title_rect = main_rect.adjusted(margin, margin, -margin, -margin)
