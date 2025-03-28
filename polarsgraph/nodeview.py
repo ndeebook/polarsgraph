@@ -254,13 +254,6 @@ class NodeView(QtWidgets.QWidget):
 
     # SELECT
     def get_object_under_cursor(self, position):
-        # Check backdrops
-        for name, (_, title_rect, corner_rect) in self.backdrop_bboxes.items():
-            if corner_rect.contains(position):
-                return dict(type='backdrop_corner', name=name)
-            if title_rect.contains(position):
-                return dict(type='backdrop', name=name)
-
         # Check nodes
         for name, rect in self.nodes_bboxes.items():
             if rect.contains(position):
@@ -284,6 +277,13 @@ class NodeView(QtWidgets.QWidget):
                             side=OUT,
                             index=i)
                 return dict(type='node', name=name)
+
+        # Check backdrops
+        for name, (_, title_rect, corner_rect) in self.backdrop_bboxes.items():
+            if corner_rect.contains(position):
+                return dict(type='backdrop_corner', name=name)
+            if title_rect.contains(position):
+                return dict(type='backdrop', name=name)
 
     def select(self, position, modifiers):
         under_cursor = self.get_object_under_cursor(position)
