@@ -265,6 +265,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
             ('t', lambda: self.create_node('table'), 'Create Table'),
 
             ('b', lambda: self.create_node('backdrop'), 'Create Backdrop'),
+            ('-', lambda: self.align('horizontal'), 'Align horizontally'),
+            ('|', lambda: self.align('vertical'), 'Align vertically'),
         ]
         for key, cmd, label in shortcuts:
             set_shortcut(key, self, cmd)
