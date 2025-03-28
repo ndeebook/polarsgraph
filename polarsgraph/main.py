@@ -20,6 +20,7 @@ from polarsgraph.nodeview import NodeView, IN, OUT
 from polarsgraph.panel import SettingsWidget
 from polarsgraph.display import DisplayWidget
 
+from polarsgraph.nodes.dot import DotNode, DotSettingsWidget
 from polarsgraph.nodes.load import LoadNode, LoadSettingsWidget
 from polarsgraph.nodes.sort import SortNode, SortSettingsWidget
 from polarsgraph.nodes.join import JoinNode, JoinSettingsWidget
@@ -78,6 +79,8 @@ types = {
     # Backdrop
     BackdropNode.type: {
         'type': BackdropNode, 'widget': BackdropSettingsWidget},
+    # Dot
+    DotNode.type: {'type': DotNode, 'widget': DotSettingsWidget},
 }
 
 
@@ -263,6 +266,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
             ('o', lambda: self.create_node('reorder'), 'Create Reorder'),
             ('s', lambda: self.create_node('sort'), 'Create Sort'),
             ('t', lambda: self.create_node('table'), 'Create Table'),
+            ('.', lambda: self.create_node('dot'), 'Create Dot'),
 
             ('b', lambda: self.create_node('backdrop'), 'Create Backdrop'),
             ('-', lambda: self.align('horizontal'), 'Align horizontally'),

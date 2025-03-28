@@ -440,6 +440,11 @@ def paint_node(
     plugs_height = plugs_vertical_count * plug_height
     node_height = plugs_height + title_height
 
+    if node.type == 'dot':
+        node_width /= 3.5
+        title_height /= 5
+        node_height /= 1.5
+
     # Draw node rectangle
     rect = QtCore.QRectF(x, y, node_width, node_height)
     painter.setBrush(NODE_COLOR)
@@ -450,15 +455,17 @@ def paint_node(
     painter.drawRoundedRect(rect, round_size, round_size)
 
     # Draw the title at the top
-    painter.setFont(QtGui.QFont('Verdana', font_size))
-    title_rect = QtCore.QRectF(x, y, node_width, title_height)
-    painter.setBrush(node['color'])
-    painter.drawRoundedRect(title_rect, round_size, round_size)
+    if node.type != 'dot':
+        painter.setFont(QtGui.QFont('Verdana', font_size))
+        title_rect = QtCore.QRectF(x, y, node_width, title_height)
+        painter.setBrush(node['color'])
+        painter.drawRoundedRect(title_rect, round_size, round_size)
     if node.error:
         painter.setPen(QtGui.QPen(Qt.red, thickness))
     else:
         painter.setPen(QtGui.QPen(Qt.white, thickness))
-    painter.drawText(title_rect, Qt.AlignmentFlag.AlignCenter, name)
+    if node.type != 'dot':
+        painter.drawText(title_rect, Qt.AlignmentFlag.AlignCenter, name)
 
     # Draw inputs and plugs
     if node.category == DASHBOARD_CATEGORY:
