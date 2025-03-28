@@ -176,8 +176,9 @@ class TableDisplay(BaseDisplay):
         QtWidgets.QApplication.clipboard().setPixmap(self.get_pixmap())
 
     def csv_to_clipboard(self):
-        string = '\t'.join(self.table_model.dataframe.columns)
-        for row in self.table_model.dataframe.to_dicts():
+        df = get_table_without_color_columns(self.table_model.dataframe)
+        string = '\t'.join(df.columns)
+        for row in df.to_dicts():
             string += '\n' + '\t'.join(str(v) for v in row.values())
         QtWidgets.QApplication.clipboard().setText(string)
 
@@ -261,8 +262,7 @@ class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
 
 
 def export_df_to_file(df: pl.DataFrame, path: str):
-    if isinstance(df, pl.LazyFrame):
-        df = df.collect()
+    df = get_table_without_color_columns(df)
     logger.debug(path)
     QtWidgets.QApplication.setOverrideCursor(Qt.WaitCursor)
     try:
@@ -332,3 +332,11 @@ def index_or_none(list_: list, value):
 
 def get_bgcolor_name(column):
     return f'{column}{BGCOLOR_COLUMN_SUFFIX}'
+
+
+def get_table_without_color_columns(df):
+    if isinstance(df, pl.LazyFrame):
+        df = df.collect()
+    color_columns = [
+        c for c in df.columns if c.endswith(BGCOLOR_COLUMN_SUFFIX)]
+    return df.drop(color_columns)
