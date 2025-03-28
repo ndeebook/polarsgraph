@@ -15,6 +15,7 @@ from polarsgraph.nodes.format.colors import (
 class ATTR:
     NAME = 'name'
     COLUMN_FORMATS = 'formats'
+    ALL_COLUMNS_AS_STRING = 'convert_all_columns_to_string'
     DEFAULT_TEXT_COLOR = 'text_default_color'
     DEFAULT_BACKGROUND_COLOR = 'default_background_color'
     DISPLAY_RULES = 'display_rules'
@@ -40,8 +41,14 @@ class FormatNode(BaseNode):
             rules=self[ATTR.DISPLAY_RULES])
 
         # 2. Apply formats to columns
+        if self[ATTR.ALL_COLUMNS_AS_STRING] in (None, True):
+            default_fmt = dict(format='string')
+        else:
+            default_fmt = dict(format='')
+
         column_rules = self[ATTR.DISPLAY_RULES] or {}
-        for col_name, rule in column_rules.items():
+        for col_name in df.collect_schema():
+            rule = column_rules.get(col_name, default_fmt)
             col = pl.col(col_name)
             exp = get_format_exp(col, rule.get('format'))
             df = df.with_columns(exp)
@@ -56,6 +63,11 @@ class FormatSettingsWidget(BaseSettingsWidget):
         self.input_table = None
 
         # Widgets
+        self.all_as_string_cb = QtWidgets.QCheckBox(
+            'Convert all columns to string')
+        self.all_as_string_cb.checkStateChanged.connect(
+            lambda: self.checkbox_to_settings(
+                self.all_as_string_cb, ATTR.ALL_COLUMNS_AS_STRING))
         self.color_label = QtWidgets.QLabel(
             'Default Colors:', alignment=Qt.AlignmentFlag.AlignCenter)
         self.bg_color_button = QtWidgets.QPushButton('BG Color')
@@ -96,12 +108,18 @@ class FormatSettingsWidget(BaseSettingsWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
         layout.addSpacing(32)
+        layout.addWidget(self.all_as_string_cb)
         layout.addWidget(display_group)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
+
         self.name_edit.setText(node[ATTR.NAME])
+        self.all_as_string_cb.setChecked(
+            True if node[ATTR.ALL_COLUMNS_AS_STRING] in (None, True)
+            else False)
+
         self.input_table: pl.LazyFrame = input_tables[0]
 
         self.set_label_color_from_settings()

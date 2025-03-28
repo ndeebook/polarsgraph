@@ -88,6 +88,13 @@ class BaseSettingsWidget(QtWidgets.QWidget):
         self.node[attribute_name] = data_type(text)
         self.emit_changed()
 
+    def checkbox_to_settings(
+            self,
+            checkbox: QtWidgets.QCheckBox,
+            attribute_name):
+        self.node[attribute_name] = checkbox.isChecked()
+        self.emit_changed()
+
 
 class BaseDisplay(QtWidgets.QWidget):
     shown = QtCore.Signal()
@@ -187,6 +194,8 @@ def get_format_exp(col: pl.Expr, fmt: str):
         return col.map_elements(format_duration, return_dtype=pl.String)
     if fmt == FORMAT.SECONDS:
         return col.cast(pl.String) + 's'
+    if fmt == 'string':
+        return col.cast(pl.String)
     raise ValueError(f'Unknown format "{fmt}"')
 
 
