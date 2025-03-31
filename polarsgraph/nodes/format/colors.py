@@ -365,13 +365,14 @@ def get_column_gradient_colors(
     else:
         col_method = getattr(col_exp, '__eq__')
 
-    # Start expression
-    value, color = colors_values[0]
-    expression = pl.when(col_method(value)).then(pl.lit(color))
+    # Start expression to skip nan and inf
+    expression = pl.when(col_exp.is_infinite()).then(pl.lit(default_color))
+    expression = expression.when(col_exp.is_nan()).then(pl.lit(default_color))
+    expression = expression.when(col_exp.is_null()).then(pl.lit(default_color))
 
     # Loop through rest of values
     if len(colors_values) > 1:
-        for value, color in colors_values[1:]:
+        for value, color in colors_values:
             expression = expression.when(col_method(value)).then(pl.lit(color))
 
     if column_rules.get('gradient'):
