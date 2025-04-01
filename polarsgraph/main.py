@@ -90,6 +90,7 @@ AUTOSAVE_PATH = f'{LOCAL_DIR}/.autosave'
 
 GRAPH_SETTINGS_KEY = '_graph_settings'
 TITLE = 'PolarsGraph'
+CLIPBOARD_PREFIX = '# PolarsGraph clipboard\n'
 
 
 class PolarsGraph(QtWidgets.QMainWindow):
@@ -105,7 +106,6 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.graph = dict()
         self.undo_stack = UndoStack()
         self._save_path = None
-        self.clipboard = None
 
         self.shortcuts_list = []
 
@@ -599,12 +599,13 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
     # Copy/Paste
     def copy(self):
-        self.clipboard = self.serialize_graph(selected=True)
+        QtWidgets.QApplication.clipboard().setText(
+            f'{CLIPBOARD_PREFIX}{self.serialize_graph(selected=True)}')
 
     def paste(self):
-        if not self.clipboard:
-            return
-        self.load_graph(deserialize_graph(self.clipboard), add=True)
+        clipboard = QtWidgets.QApplication.clipboard().text()
+        if clipboard.startswith(CLIPBOARD_PREFIX):
+            self.load_graph(deserialize_graph(clipboard), add=True)
 
     # Autosave
     def autosave(self, record_undo=True):
