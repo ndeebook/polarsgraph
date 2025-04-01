@@ -41,16 +41,15 @@ class FormatNode(BaseNode):
             rules=self[ATTR.DISPLAY_RULES])
 
         # 2. Apply formats to columns
-        if self[ATTR.ALL_COLUMNS_AS_STRING] in (None, True):
-            default_fmt = dict(format='string')
-        else:
-            default_fmt = dict(format='')
-
+        all_to_string = self[ATTR.ALL_COLUMNS_AS_STRING] in (None, True)
         column_rules = self[ATTR.DISPLAY_RULES] or {}
         for col_name in df.collect_schema():
-            rule = column_rules.get(col_name, default_fmt)
+            rule = column_rules.get(col_name, {})
             col = pl.col(col_name)
-            exp = get_format_exp(col, rule.get('format'))
+            fmt = rule.get('format')
+            exp = get_format_exp(col, fmt)
+            if all_to_string and fmt != 'string':
+                exp = exp.cast(pl.String)
             df = df.with_columns(exp)
 
         self.tables['table'] = df
