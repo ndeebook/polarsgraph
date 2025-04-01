@@ -112,7 +112,7 @@ class DeriveNode(BaseNode):
 
     def _build_query(self, tables):
         table: pl.LazyFrame = tables[0]
-        formula = self[ATTR.FORMULA]
+        formula = remove_comments(self[ATTR.FORMULA])
         column_name = self[ATTR.COLUMN] or 'Derived column'
         expression = formula_to_polars_expression(formula)
         table = table.with_columns(expression.alias(column_name))
@@ -178,6 +178,7 @@ class CustomHighlighter(QtGui.QSyntaxHighlighter):
         ocean_blue = '#569cd6'
         orchid_purple = '#c586c0'
         golden_beige = '#d7ba7d'
+        green = '#5e993e'
         # sky_blue = '#4fc1ff'
         # pale_cyan = '#9cdcfe'
         # sage_green = '#b5cea8'
@@ -198,6 +199,9 @@ class CustomHighlighter(QtGui.QSyntaxHighlighter):
         self.operator_format = QtGui.QTextCharFormat(self.parenthesis_format)
         self.operator_format.setForeground(QtGui.QColor(ocean_blue))
 
+        self.comment_format = QtGui.QTextCharFormat(self.parenthesis_format)
+        self.comment_format.setForeground(QtGui.QColor(green))
+
         self.function_format = QtGui.QTextCharFormat()
         self.function_format.setForeground(QtGui.QColor(aqua_mint))
         self.function_format.setFontItalic(True)
@@ -212,6 +216,7 @@ class CustomHighlighter(QtGui.QSyntaxHighlighter):
                 self.setFormat(i, 1, self.operator_format)
 
         patterns_format = [
+            (r'//.*', self.comment_format),
             (r'@\w+', self.function_format),
             (r'"[^"]*?"', self.quote_format),
             (r'\{[^{}]*?}', self.curly_format),
@@ -453,3 +458,8 @@ if __name__ == '__main__':
     expression = formula_to_polars_expression(formula)
     expected = '[([(col("tasks.duration")) / (dyn int: 25)]) / (dyn int: 2)]'
     assert str(expression) == expected
+
+
+def remove_comments(formula):
+    return ''.join(
+        [line for line in formula.split('\n') if not line.startswith('//')])
