@@ -26,6 +26,8 @@ class ReorderNode(BaseNode):
 
         column_order = self[ATTR.COLUMNS_ORDER]
         if column_order:
+            existing_columns = df.collect_schema().names()
+            column_order = [c for c in column_order if c in existing_columns]
             df = df.select(column_order)
 
         self.tables['table'] = df
