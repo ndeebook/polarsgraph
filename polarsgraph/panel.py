@@ -93,12 +93,11 @@ class SettingsWidget(QtWidgets.QWidget):
         self.node = node
         node_type = node.type if node else ''
         self.node_type_label.setText(f'<b>{node_type.title()}</b>')
-        for typename, widget in self.types_widgets.items():
-            if node_type == typename:
-                widget.setVisible(True)
-                widget.set_node(node, input_tables)
-            else:
-                widget.setVisible(False)
+        for widget in self.types_widgets.values():
+            widget.setVisible(False)
+        widget = self.types_widgets[node_type]
+        widget.setVisible(True)
+        widget.set_node(node, input_tables)
         self.set_settings_edit_text()
 
     def set_settings_edit_text(self):
