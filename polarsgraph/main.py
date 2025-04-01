@@ -245,14 +245,14 @@ class PolarsGraph(QtWidgets.QMainWindow):
 
             ('space', self.connect_to_display, 'Show 1st display'),
             ('1', self.connect_to_display, 'Show 1st display'),
-            ('2', lambda: self.connect_to_display(1), 'Show 2nd display'),
-            ('3', lambda: self.connect_to_display(2), 'Show 3rd display'),
-            ('4', lambda: self.connect_to_display(3), 'Show 4th display'),
-            ('5', lambda: self.connect_to_display(4), 'Show 5th display'),
-            ('6', lambda: self.connect_to_display(4), 'Show 6th display'),
-            ('7', lambda: self.connect_to_display(4), 'Show 7th display'),
-            ('8', lambda: self.connect_to_display(4), 'Show 8th display'),
-            ('9', lambda: self.connect_to_display(4), 'Show 9th display'),
+            ('2', lambda: self.connect_to_display(2), 'Show 2nd display'),
+            ('3', lambda: self.connect_to_display(3), 'Show 3rd display'),
+            ('4', lambda: self.connect_to_display(4), 'Show 4th display'),
+            ('5', lambda: self.connect_to_display(5), 'Show 5th display'),
+            ('6', lambda: self.connect_to_display(6), 'Show 6th display'),
+            ('7', lambda: self.connect_to_display(7), 'Show 7th display'),
+            ('8', lambda: self.connect_to_display(8), 'Show 8th display'),
+            ('9', lambda: self.connect_to_display(9), 'Show 9th display'),
 
             ('n', self.node_view.show_add_node_menu, 'New node menu'),
 
@@ -657,6 +657,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
     # Connect shortcut
     def connect_to_display(self, display_index=1):
         """Display index is based on their names alphabetical order"""
+        print(get_displays_by_index(self.graph))
         display_node_name = get_displays_by_index(self.graph).get(
             display_index)
         if not display_node_name:
