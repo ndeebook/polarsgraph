@@ -39,6 +39,13 @@ EXAMPLES_TEXT = """
 @round({column_name}, 2)
 @slice({column_name}, 2, -2)
 
+@replace_string({column_name}, "old value", "new value")
+@replace_int({column_name}, 1, 2)
+@replace_float({column_name}, 0.999, 1.0)
+
+@remove_nans({column_name})
+@remove_infs({column_name})
+
 @to_boolean({column_name})
 @to_string({column_name})
 ...
@@ -346,6 +353,27 @@ def func_formula_to_polars(function_name, tokens):
     if function_name in ARGLESS_COLUMNS_METHODS:
         column = token_to_value(tokens[0])
         return getattr(column, function_name)()
+    if function_name.startswith('replace_'):
+        column: pl.Expr = token_to_value(tokens[0])
+        value = tokens[2]
+        new_value = tokens[4]
+        if function_name == 'replace_string':
+            value, new_value = [v.replace('"', '') for v in (value, new_value)]
+            return column.replace(value, new_value)
+        elif function_name == 'replace_float':
+            return column.replace(float(value), float(new_value))
+        elif function_name == 'replace_int':
+            return column.replace(int(value), int(new_value))
+    if function_name == 'remove_nans':
+        column: pl.Expr = token_to_value(tokens[0])
+        return column.fill_nan(None)
+    if function_name == 'remove_infs':
+        column: pl.Expr = token_to_value(tokens[0])
+        return (
+            column
+            .replace(pl.lit(float("inf")), None)
+            .replace(pl.lit(float("-inf")), None)
+        )
     raise ValueError(f'Unknown function name "{function_name}"')
 
 
