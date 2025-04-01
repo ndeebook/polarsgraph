@@ -26,13 +26,15 @@ class RenameNode(BaseNode):
         df: pl.LazyFrame = tables[0]
 
         rename_dict = self[ATTR.RENAMES]
+        existing_columns = df.collect_schema().names()
         if rename_dict:
+            rename_dict = {
+                k: v for k, v in rename_dict.items() if k in existing_columns}
             df = df.rename(rename_dict)
 
         prefix = self[ATTR.PREFIX]
         if prefix:
-            df = df.rename(
-                {c: f'{prefix}{c}' for c in df.collect_schema().names()})
+            df = df.rename({c: f'{prefix}{c}' for c in existing_columns})
 
         self.tables['table'] = df
 
