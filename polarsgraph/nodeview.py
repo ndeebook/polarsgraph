@@ -9,6 +9,7 @@ from polarsgraph.graph import (
     CATEGORY_INPUT_TYPE, CATEGORY_OUTPUT_TYPE, DYNAMIC_PLUG_COUNT)
 from polarsgraph.nodes.base import BaseNode
 from polarsgraph.viewportmapper import ViewportMapper
+from polarsgraph.display import get_displays_by_index
 
 
 BACKGROUND_COLOR = QtGui.QColor('#1E1E1E')
@@ -134,15 +135,15 @@ class NodeView(QtWidgets.QWidget):
                 selected=name in self.selected_names)
 
         # Draw nodes
-        display_index = 0
+        display_indexes = {
+            i: d for d, i in get_displays_by_index(self.graph).items()}
         for name in sorted(list(self.graph)):
             node = self.graph[name]
             if node.category == BACKDROP_CATEGORY:
                 continue
-            if node.category in (DISPLAY_CATEGORY, DASHBOARD_CATEGORY):
-                display_index += 1  # see PolarsGraph.connect_to_display
+            index = display_indexes.get(name, '')
             self.plugs_bboxes[name], self.nodes_bboxes[name] = paint_node(
-                painter, self.viewportmapper, node, display_index,
+                painter, self.viewportmapper, node, index,
                 name in self.selected_names)
 
         # Draw connections

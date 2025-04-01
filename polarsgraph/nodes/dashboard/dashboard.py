@@ -4,7 +4,8 @@ from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import (
     DASHBOARD_CATEGORY, DYNAMIC_PLUG_COUNT, get_input_nodes,
     build_node_query)
-from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget, BaseDisplay
+from polarsgraph.nodes.base import (
+    DISPLAY_INDEX_ATTR, BaseNode, BaseSettingsWidget, BaseDisplay)
 
 from polarsgraph.nodes.dashboard.layoutwidget import DashboardLayoutWidget
 
@@ -14,6 +15,7 @@ TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
 
 class ATTR:
     NAME = 'name'
+    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
     GRID_WIDTH = 'grid_width'
     GRID_HEIGHT = 'grid_height'
     SPACING = 'spacing'
@@ -79,6 +81,12 @@ class DashboardSettingsWidget(BaseSettingsWidget):
         super().__init__()
 
         # Widgets
+        self.index_combo = QtWidgets.QComboBox()
+        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
+        self.index_combo.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.index_combo, ATTR.DISPLAY_INDEX))
+
         self.spacing_edit = QtWidgets.QSpinBox()
         self.spacing_edit.valueChanged.connect(
             lambda: self.spinbox_to_settings(self.spacing_edit, ATTR.SPACING))
@@ -94,6 +102,7 @@ class DashboardSettingsWidget(BaseSettingsWidget):
         form_layout.setContentsMargins(0, 0, 0, 0)
         form_layout.setSpacing(0)
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow('Display index', self.index_combo)
         form_layout.addRow(ATTR.SPACING.title(), self.spacing_edit)
         form_layout.addRow(ATTR.MARGINS.title(), self.margins_edit)
         layout = QtWidgets.QVBoxLayout(self)
@@ -114,6 +123,9 @@ class DashboardSettingsWidget(BaseSettingsWidget):
         self.node = node
 
         self.name_edit.setText(node[ATTR.NAME])
+        index = node[ATTR.DISPLAY_INDEX]
+        if index:
+            self.index_combo.setCurrentText(index)
         self.margins_edit.setValue(node[ATTR.MARGINS] or 2)
         self.spacing_edit.setValue(node[ATTR.SPACING] or 2)
 

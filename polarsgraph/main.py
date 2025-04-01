@@ -18,7 +18,7 @@ from polarsgraph.serialize import serialize_graph, deserialize_graph
 from polarsgraph.nodes.base import BaseNode
 from polarsgraph.nodeview import NodeView, IN, OUT
 from polarsgraph.panel import SettingsWidget
-from polarsgraph.display import DisplayWidget
+from polarsgraph.display import DisplayWidget, get_displays_by_index
 
 from polarsgraph.nodes.dot import DotNode, DotSettingsWidget
 from polarsgraph.nodes.load import LoadNode, LoadSettingsWidget
@@ -655,15 +655,12 @@ class PolarsGraph(QtWidgets.QMainWindow):
             self.node_view.mapToGlobal(position))
 
     # Connect shortcut
-    def connect_to_display(self, display_index=0):
+    def connect_to_display(self, display_index=1):
         """Display index is based on their names alphabetical order"""
-        display_nodes = [
-            n for n in self.graph if
-            self.graph[n].category in (DISPLAY_CATEGORY, DASHBOARD_CATEGORY)]
-        if len(display_nodes) < display_index + 1:
+        display_node_name = get_displays_by_index(self.graph).get(
+            display_index)
+        if not display_node_name:
             return
-        display_nodes.sort()  # alphabetical order
-        display_node_name = display_nodes[display_index]
         if len(self.node_view.selected_names) == 1:
             selected_node = self.graph[self.node_view.selected_names[0]]
             self.change_plug(

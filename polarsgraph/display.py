@@ -2,7 +2,7 @@ from PySide6 import QtWidgets, QtCore
 
 from polarsgraph.graph import (
     DISPLAY_CATEGORY, DASHBOARD_CATEGORY, build_node_query)
-from polarsgraph.nodes.base import BaseNode
+from polarsgraph.nodes.base import DISPLAY_INDEX_ATTR, BaseNode
 
 
 DISPLAY_CATEGORIES = DISPLAY_CATEGORY, DASHBOARD_CATEGORY
@@ -110,3 +110,34 @@ class DisplayWidget(QtWidgets.QWidget):
                 self.set_display_node(node_name)
             else:
                 self.set_display_node(None)
+
+
+def get_displays_by_index(graph):
+    """
+    Each display can have index to "auto" and are assigned an index by
+    alphabetical order.
+    """
+    auto_values = 'auto', None
+
+    # List all displays
+    index_by_name = {
+        name: node[DISPLAY_INDEX_ATTR] for name, node in graph.items()
+        if node.category in (DISPLAY_CATEGORY, DASHBOARD_CATEGORY)}
+    # Convert str to int
+    index_by_name = {
+        n: (int(v) if v not in auto_values else v)
+        for n, v in index_by_name.items()}
+
+    # Replace auto's
+    used_indexes = list(index_by_name.values())
+    for name, index in index_by_name.items():
+        if index not in ('auto', None):
+            continue
+        for i in range(1, 10):
+            if i not in used_indexes:
+                index_by_name[name] = i
+                used_indexes.append(i)
+                break
+
+    # Revert dict
+    return {i: n for n, i in index_by_name.items()}

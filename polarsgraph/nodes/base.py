@@ -8,6 +8,7 @@ from polarsgraph.graph import BaseNode
 
 
 TRUE_WORDS = '1', 'true', 'yes'
+DISPLAY_INDEX_ATTR = 'display_index'
 
 
 class FORMAT:

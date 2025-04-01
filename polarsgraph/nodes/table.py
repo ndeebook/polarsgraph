@@ -15,7 +15,7 @@ from polarsgraph.log import logger
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.nodes.base import (
-    BaseNode, BaseSettingsWidget, BaseDisplay)
+    DISPLAY_INDEX_ATTR, BaseNode, BaseSettingsWidget, BaseDisplay)
 
 
 TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
@@ -27,9 +27,7 @@ BGCOLOR_COLUMN_SUFFIX = '~color'
 class ATTR:
     NAME = 'name'
     COLUMNS_WIDTHS = 'columns_widths'
-    DEFAULT_TEXT_COLOR = 'text_default_color'
-    DEFAULT_BACKGROUND_COLOR = 'default_background_color'
-    DISPLAY_RULES = 'display_rules'
+    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
 
 
 class TableNode(BaseNode):
@@ -68,8 +66,15 @@ class TableSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 
+        self.index_combo = QtWidgets.QComboBox()
+        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
+        self.index_combo.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.index_combo, ATTR.DISPLAY_INDEX))
+
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow('Display index', self.index_combo)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
 
@@ -77,6 +82,9 @@ class TableSettingsWidget(BaseSettingsWidget):
         self.blockSignals(True)
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
+        index = node[ATTR.DISPLAY_INDEX]
+        if index:
+            self.index_combo.setCurrentText(index)
         self.input_table: pl.LazyFrame = input_tables[0]
         self.blockSignals(False)
 
