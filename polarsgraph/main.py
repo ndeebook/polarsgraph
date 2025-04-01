@@ -657,7 +657,6 @@ class PolarsGraph(QtWidgets.QMainWindow):
     # Connect shortcut
     def connect_to_display(self, display_index=1):
         """Display index is based on their names alphabetical order"""
-        print(get_displays_by_index(self.graph))
         display_node_name = get_displays_by_index(self.graph).get(
             display_index)
         if not display_node_name:
