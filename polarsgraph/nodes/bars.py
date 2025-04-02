@@ -129,8 +129,10 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         # Get widget dimensions
-        margin = 10
         rect = self.rect()
+        margin = 10
+        title_offset = 10
+        legend_offset = 24
 
         # Background
         painter.fillRect(rect, COLOR['bg'])
@@ -143,20 +145,19 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         except BaseException:
             painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter, 'Error')
             return
-        title_offset = 10
         title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
         painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter, title)
 
         # BG Lines
-        rect.adjust(margin, margin + title_offset, -margin, -margin)
-        bar_height = rect.height() / (len(self.dataframe) + 2)
-        legend_height = bar_height * 2
+        bg_rect = rect.adjusted(
+            margin, margin + title_offset, -margin, -margin - legend_offset)
+        bar_height = bg_rect.height() / len(self.dataframe)
 
         line_positions = 0, 0.25, 0.5, 0.75, 1.0
         painter.setPen(QtGui.QPen(COLOR['bg_lines'], .5))
-        bottom = rect.bottom() - legend_height
+        bottom = bg_rect.bottom()
         for pos in line_positions:
-            x = rect.left() + pos * rect.width()
+            x = bg_rect.left() + pos * bg_rect.width()
             painter.drawLine(x, rect.top(), x, bottom)
             if pos == 0:
                 continue
@@ -172,14 +173,15 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         # Legend
         colors = get_bars_colors(
             self.dataframe.columns[1:], self.node[ATTR.COLORS])
-        y = rect.bottom() - legend_height + margin * 2
+        y = rect.bottom() - legend_offset + margin / 2
         width = rect.width() / len(colors) - margin
         painter.setPen(Qt.NoPen)
         for i, (label, color) in enumerate(colors.items()):
             x = margin + i * (width + margin)
             painter.setPen(Qt.NoPen)
             painter.setBrush(color)
-            legend_rect = QtCore.QRectF(x, y, width, bar_height * .7)
+            legend_rect = QtCore.QRectF(
+                x, y, width, legend_offset - margin)
             painter.drawRect(legend_rect)
             painter.setPen(COLOR['text'])
             painter.drawText(legend_rect, Qt.AlignCenter, label)
