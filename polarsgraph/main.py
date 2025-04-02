@@ -212,6 +212,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
             (file_menu, '-----', None, None),
             (file_menu, 'Save', self.save, 'ctrl+s'),
             (file_menu, 'Save as...', self.prompt_save, 'shift+ctrl+s'),
+            (file_menu, 'Incremental save', self.incremental_save, 'shift+alt+s'),
             (
                 file_menu,
                 'Export selected...',
@@ -567,6 +568,12 @@ class PolarsGraph(QtWidgets.QMainWindow):
             return self.prompt_save()
         self.save_to_file(self.save_path)
 
+    def incremental_save(self):
+        if not self.save_path:
+            return self.prompt_save()
+        self.save_path = increment_path(self.save_path)
+        self.save_to_file(self.save_path)
+
     def open_file(self, path, import_=False):
         with open(path, 'r') as f:
             graph = deserialize_graph(f.read())
@@ -701,3 +708,17 @@ class GraphSettings(BaseNode):
 
     def __init__(self, settings=None):
         super().__init__(settings)
+
+
+def increment_path(path):
+    path, ext = os.path.splitext(path)
+    version = ''
+    for char in reversed(path):
+        if not char.isdigit():
+            break
+        version = f'{char}{version}'
+    if not version:
+        return f'{path}.001{ext}'
+    size = len(version)
+    new_version = str(int(version) + 1).zfill(size)
+    return f'{path[:-size]}{new_version}{ext}'
