@@ -174,10 +174,10 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         colors = get_bars_colors(
             self.dataframe.columns[1:], self.node[ATTR.COLORS])
         y = rect.bottom() - legend_offset + margin / 2
-        width = rect.width() / len(colors) - margin
+        width = (rect.width() - 200) / len(colors) - margin
         painter.setPen(Qt.NoPen)
         for i, (label, color) in enumerate(colors.items()):
-            x = margin + i * (width + margin)
+            x = 100 + i * (width + margin)
             painter.setPen(Qt.NoPen)
             painter.setBrush(color)
             legend_rect = QtCore.QRectF(
