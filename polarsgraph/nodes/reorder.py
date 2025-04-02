@@ -133,7 +133,7 @@ class ReorderableListWidget(QtWidgets.QWidget):
 
         main_layout = QtWidgets.QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(QtWidgets.QLabel('New Columns Order:'))
+        main_layout.addWidget(QtWidgets.QLabel('Columns Order:'))
         main_layout.addLayout(list_layout)
         main_layout.addLayout(buttons_layout)
         main_layout.addWidget(QtWidgets.QLabel('Deleted Columns:'))

@@ -330,7 +330,10 @@ class PolarsGraph(QtWidgets.QMainWindow):
             # Rename connections but remove connections not part of clipboard
             for name, settings in graph.items():
                 inputs = settings.get('inputs') or []
-                for i, (node_name, conn_index) in enumerate(inputs or []):
+                for i, input_ in enumerate(inputs or []):
+                    if not input_:
+                        continue
+                    node_name, conn_index = input_
                     new_name = f'{node_name}{suffix}'
                     if new_name in graph:
                         inputs[i] = [new_name, conn_index]
@@ -603,7 +606,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
             f'{CLIPBOARD_PREFIX}{self.serialize_graph(selected=True)}')
 
     def paste(self):
-        clipboard = QtWidgets.QApplication.clipboard().text()
+        clipboard = QtWidgets.QApplication.clipboard().text().strip()
         if clipboard.startswith(CLIPBOARD_PREFIX):
             self.load_graph(deserialize_graph(clipboard), add=True)
 
