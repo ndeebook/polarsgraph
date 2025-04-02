@@ -1,5 +1,3 @@
-from functools import partial
-
 from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
@@ -59,15 +57,8 @@ class NodeView(QtWidgets.QWidget):
         self.select_position: QtCore.QPointF = None
         self.move_start_positions = dict()
 
-        self.add_menu = QtWidgets.QMenu()
-        for node_type in get_sorted_node_types(types):
-            if node_type == '_separator':
-                self.add_menu.addSeparator()
-                continue
-            action = QtGui.QAction(node_type, self)
-            action.triggered.connect(
-                partial(self.create_requested.emit, node_type))
-            self.add_menu.addAction(action)
+        self.add_menu = NewNodeMenu(sorted(types), self)
+        self.add_menu.create_requested.connect(self.create_requested)
 
     def clear(self):
         self.nodes_bboxes.clear()
@@ -408,6 +399,54 @@ class NodeView(QtWidgets.QWidget):
         if self.select_position is None:
             return
         return self.viewportmapper.to_units_coords(self.select_position)
+
+
+class NewNodeMenu(QtWidgets.QMenu):
+    create_requested = QtCore.Signal(str)
+
+    def __init__(self, types, parent=None):
+        super().__init__(parent=parent)
+
+        self.types = types
+
+        self.type_edit = QtWidgets.QLineEdit()
+        self.type_edit.returnPressed.connect(self.emit_from_line_edit)
+
+        self.seq_completer = QtWidgets.QCompleter(types, self)
+        self.seq_completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.seq_completer.setCompletionMode(
+            QtWidgets.QCompleter.PopupCompletion)
+        self.type_edit.setCompleter(self.seq_completer)
+
+        self.types_list = QtWidgets.QListWidget(
+            minimumWidth=120, minimumHeight=160)
+        self.types_list.addItems(types)
+        self.types_list.itemClicked.connect(self.emit_from_list)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(4)
+        layout.addWidget(self.type_edit)
+        layout.addWidget(self.types_list)
+
+    def showEvent(self, event):
+        self.type_edit.setSelection(0, 99)
+        self.type_edit.setFocus()
+        return super().showEvent(event)
+
+    def emit_from_line_edit(self):
+        type_ = self.type_edit.text()
+        if type_ not in self.types:
+            type_ = [t for t in self.types if t.startswith(type_)]
+            if not type_:
+                return
+            type_ = type_[0]
+        self.create_requested.emit(type_)
+        self.close()
+
+    def emit_from_list(self):
+        self.create_requested.emit(self.types_list.currentItem().text())
+        self.close()
 
 
 def paint_node(
