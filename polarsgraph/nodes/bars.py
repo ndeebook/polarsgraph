@@ -21,6 +21,7 @@ COLOR = dict(
 class ATTR:
     NAME = 'name'
     TITLE = 'title'
+    COLORS = 'colors'
 
 
 class BarsNode(BaseNode):
@@ -148,11 +149,12 @@ class CustomStackedBarChart(QtWidgets.QWidget):
 
         # BG Lines
         rect.adjust(margin, margin + title_offset, -margin, -margin)
-        bar_height = rect.height() / (len(self.dataframe))
+        bar_height = rect.height() / (len(self.dataframe) + 2)
+        legend_height = bar_height * 2
 
         line_positions = 0, 0.25, 0.5, 0.75, 1.0
         painter.setPen(QtGui.QPen(COLOR['bg_lines'], .5))
-        bottom = rect.bottom()
+        bottom = rect.bottom() - legend_height
         for pos in line_positions:
             x = rect.left() + pos * rect.width()
             painter.drawLine(x, rect.top(), x, bottom)
@@ -167,8 +169,22 @@ class CustomStackedBarChart(QtWidgets.QWidget):
                 alignment = Qt.AlignCenter
             painter.drawText(pos_rect, alignment, f'{int(max_value * pos)}')
 
+        # Legend
+        colors = get_bars_colors(
+            self.dataframe.columns[1:], self.node[ATTR.COLORS])
+        y = rect.bottom() - legend_height + margin * 2
+        width = rect.width() / len(colors) - margin
+        painter.setPen(Qt.NoPen)
+        for i, (label, color) in enumerate(colors.items()):
+            x = margin + i * (width + margin)
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(color)
+            legend_rect = QtCore.QRectF(x, y, width, bar_height * .7)
+            painter.drawRect(legend_rect)
+            painter.setPen(COLOR['text'])
+            painter.drawText(legend_rect, Qt.AlignCenter, label)
+
         # Draw each row as a horizontal stacked bar
-        colors = get_bars_colors(len(self.dataframe.columns))
         for i, row in enumerate(self.dataframe.iter_rows(named=True)):
             y = title_offset + margin + i * bar_height
             x = margin
@@ -178,8 +194,8 @@ class CustomStackedBarChart(QtWidgets.QWidget):
                 width = (value / max_value) * rect.width()
 
                 # Set color for the bar segment
-                painter.setBrush(colors[j])
                 painter.setPen(Qt.NoPen)
+                painter.setBrush(colors[column])
 
                 # Draw bar segment
                 bar_rect = QtCore.QRectF(x, y, width, bar_height * .7)
@@ -209,6 +225,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
                     bar_rect, Qt.AlignRight | Qt.AlignVCenter, total)
 
 
+@lru_cache()
 def get_next_hue(previous_hue):
     hue = random.randint(0, 255)
     while abs(previous_hue - hue) < 100:
@@ -216,13 +233,14 @@ def get_next_hue(previous_hue):
     return hue
 
 
-@lru_cache()
-def get_bars_colors(count):
+def get_bars_colors(names, colors=None):
     previous_hue = 100
-    colors = []
-    for _ in range(count):
+    colors = colors or {}
+    for name in names:
+        if name in colors:
+            continue
         hue = get_next_hue(previous_hue)
-        colors.append(QtGui.QColor.fromHsv(hue, 122, 122))
+        colors[name] = QtGui.QColor.fromHsv(hue, 122, 122)
         previous_hue = hue
     return colors
 
