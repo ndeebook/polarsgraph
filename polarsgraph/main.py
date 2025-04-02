@@ -1,4 +1,5 @@
 import os
+import sys
 import uuid
 import traceback
 from datetime import datetime as Datetime
@@ -283,8 +284,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
         if graph:
             self.load_graph(graph)
             self.add_undo()
-        # else:
-        #     self.open_autosave()
+        elif '--dev' in sys.argv:
+            self.open_autosave()
 
     @property
     def save_path(self):
