@@ -89,7 +89,7 @@ types = {
 
 LOCAL_DIR = os.path.expanduser('~/.polarsgraph')
 os.makedirs(LOCAL_DIR, exist_ok=True)
-AUTOSAVE_PATH = f'{LOCAL_DIR}/.autosave'
+AUTOSAVE_PATH = f'{LOCAL_DIR}/.autosave.pg'
 
 GRAPH_SETTINGS_KEY = '_graph_settings'
 TITLE = 'PolarsGraph'
@@ -719,7 +719,12 @@ def increment_path(path):
             break
         version = f'{char}{version}'
     if not version:
-        return f'{path}.001{ext}'
+        return increment_path(f'{path}.000{ext}')
     size = len(version)
-    new_version = str(int(version) + 1).zfill(size)
-    return f'{path[:-size]}{new_version}{ext}'
+    next_version = int(version) + 1
+    # Increment until file does not exist
+    path = f'{path[:-size]}{str(next_version).zfill(size)}{ext}'
+    while os.path.exists(path):
+        next_version += 1
+        path = f'{path[:-size]}{str(next_version).zfill(size)}{ext}'
+    return path
