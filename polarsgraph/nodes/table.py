@@ -7,6 +7,8 @@ CSV Example:
 The `format` node does this but it can be implemented with new nodes
 """
 
+import os
+
 import polars as pl
 from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
@@ -119,8 +121,11 @@ class TableDisplay(BaseDisplay):
         save_image_button = QtWidgets.QPushButton(
             'image', icon=icon, clicked=self.save_image)
         icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.EditCopy)
-        clipboard_text_button = QtWidgets.QPushButton(
+        clipboard_csv_button = QtWidgets.QPushButton(
             'csv', icon=icon, clicked=self.csv_to_clipboard)
+        icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.EditCopy)
+        clipboard_ascii_button = QtWidgets.QPushButton(
+            'text', icon=icon, clicked=self.ascii_to_clipboard)
         icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.DocumentSave)
         save_button = QtWidgets.QPushButton(
             'table', icon=icon, clicked=self.export_dataframe)
@@ -133,7 +138,8 @@ class TableDisplay(BaseDisplay):
         bottom_layout.addStretch()
         bottom_layout.addWidget(resize_button)
         bottom_layout.addWidget(clipboard_image_button)
-        bottom_layout.addWidget(clipboard_text_button)
+        bottom_layout.addWidget(clipboard_csv_button)
+        bottom_layout.addWidget(clipboard_ascii_button)
         bottom_layout.addWidget(save_image_button)
         bottom_layout.addWidget(save_button)
 
@@ -192,6 +198,24 @@ class TableDisplay(BaseDisplay):
         for row in df.to_dicts():
             string += '\n' + '\t'.join(str(v) for v in row.values())
         QtWidgets.QApplication.clipboard().setText(string)
+
+    def ascii_to_clipboard(self):
+        df = get_table_without_color_columns(self.table_model.dataframe)
+        settings = {
+            'POLARS_FMT_MAX_ROWS': '300',
+            'POLARS_FMT_MAX_COLS': '50',
+            'POLARS_FMT_TABLE_WIDTH': '160'}
+        for k, v in settings.items():
+            os.environ[k] = v
+        text = str(df).replace('null', '    ')
+        text = text.split('\n')
+        del text[4]  # --- separators
+        del text[3]  # column types
+        del text[0]  # shape: (2, 4)
+        text = '\n'.join(text)
+        for k in settings:
+            os.environ.pop(k)
+        QtWidgets.QApplication.clipboard().setText(text)
 
     def record_column_width(self, column, oldWidth, newWidth):
         if not self.node[ATTR.COLUMNS_WIDTHS]:
