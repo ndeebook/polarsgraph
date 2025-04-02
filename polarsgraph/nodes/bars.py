@@ -172,6 +172,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         for i, row in enumerate(self.dataframe.iter_rows(named=True)):
             y = title_offset + margin + i * bar_height
             x = margin
+            total_width = 0
             for j, column in enumerate(self.dataframe.columns[1:]):
                 value = row[column] or 0
                 width = (value / max_value) * rect.width()
@@ -184,6 +185,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
                 bar_rect = QtCore.QRectF(x, y, width, bar_height * .7)
                 painter.drawRect(bar_rect)
                 x += width
+                total_width += width
 
             # Draw label
             label = row[self.dataframe.columns[0]]
@@ -201,7 +203,8 @@ class CustomStackedBarChart(QtWidgets.QWidget):
                 painter.drawText(
                     bar_rect, Qt.AlignLeft | Qt.AlignVCenter, f'({total})')
             else:
-                bar_rect.setWidth(width - margin)
+                bar_rect = QtCore.QRectF(
+                    0, y, total_width - margin/2, bar_height * .7)
                 painter.drawText(
                     bar_rect, Qt.AlignRight | Qt.AlignVCenter, total)
 
