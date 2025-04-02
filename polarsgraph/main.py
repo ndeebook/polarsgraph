@@ -25,12 +25,13 @@ from polarsgraph.nodes.load import LoadNode, LoadSettingsWidget
 from polarsgraph.nodes.sort import SortNode, SortSettingsWidget
 from polarsgraph.nodes.join import JoinNode, JoinSettingsWidget
 from polarsgraph.nodes.group import GroupNode, GroupSettingsWidget
+from polarsgraph.nodes.pivot import PivotNode, PivotSettingsWidget
 from polarsgraph.nodes.derive import DeriveNode, DeriveSettingsWidget
 from polarsgraph.nodes.filter import FilterNode, FilterSettingsWidget
 from polarsgraph.nodes.format import FormatNode, FormatSettingsWidget
 from polarsgraph.nodes.rename import RenameNode, RenameSettingsWidget
-from polarsgraph.nodes.reorder import ReorderNode, ReorderSettingsWidget
 from polarsgraph.nodes.switch import SwitchNode, SwitchSettingsWidget
+from polarsgraph.nodes.reorder import ReorderNode, ReorderSettingsWidget
 from polarsgraph.nodes.backdrop import BackdropNode, BackdropSettingsWidget
 from polarsgraph.nodes.constant import (
     ConstantNode, ConstantSettingsWidget)
@@ -56,6 +57,7 @@ types = {
     # Manipulators
     SortNode.type: {'type': SortNode, 'widget': SortSettingsWidget},
     JoinNode.type: {'type': JoinNode, 'widget': JoinSettingsWidget},
+    PivotNode.type: {'type': PivotNode, 'widget': PivotSettingsWidget},
     GroupNode.type: {'type': GroupNode, 'widget': GroupSettingsWidget},
     DeriveNode.type: {'type': DeriveNode, 'widget': DeriveSettingsWidget},
     FilterNode.type: {'type': FilterNode, 'widget': FilterSettingsWidget},
