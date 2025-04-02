@@ -173,7 +173,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
             y = title_offset + margin + i * bar_height
             x = margin
             for j, column in enumerate(self.dataframe.columns[1:]):
-                value = row[column]
+                value = row[column] or 0
                 width = (value / max_value) * rect.width()
 
                 # Set color for the bar segment
