@@ -300,8 +300,6 @@ class PolarsGraph(QtWidgets.QMainWindow):
         if graph:
             self.load_graph(graph)
             self.add_undo()
-        elif '--dev' in sys.argv:
-            self.open_autosave()
 
     @property
     def save_path(self):
@@ -573,12 +571,21 @@ class PolarsGraph(QtWidgets.QMainWindow):
             datetime=Datetime.now().isoformat()))
         return serialize_graph(self.graph, settings_node)
 
+    def _add_to_recents(self, filepath):
+        recents = get_preference(RECENTS_PREF) or []
+        filepath = filepath.replace('\\', '/')
+        if filepath in recents:
+            recents.remove(filepath)
+        recents.insert(0, filepath)
+        set_preference(RECENTS_PREF, recents[:16])
+
     def save_to_file(self, path, selected=False, set_current=True):
         content = self.serialize_graph(selected=selected)
         with open(path, 'w') as f:
             f.write(content)
         if set_current:
             self.save_path = path
+            self._add_to_recents(self.save_path)
 
     def save(self):
         if not self.save_path:
@@ -590,16 +597,10 @@ class PolarsGraph(QtWidgets.QMainWindow):
             return self.prompt_save()
         self.save_path = increment_path(self.save_path)
         self.save_to_file(self.save_path)
+        self._add_to_recents(self.save_path)
 
     def open_file(self, filepath, import_=False):
-        # Update Recents files
-        recents = get_preference(RECENTS_PREF) or []
-        filepath = filepath.replace('\\', '/')
-        if filepath in recents:
-            recents.remove(filepath)
-        recents.insert(0, filepath)
-        set_preference(RECENTS_PREF, recents[:16])
-
+        self._add_to_recents(filepath)
         # Open
         with open(filepath, 'r') as f:
             graph = deserialize_graph(f.read())
