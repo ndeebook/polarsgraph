@@ -76,7 +76,11 @@ class GroupNode(BaseNode):
             elif agg_name == NULL_LABEL:
                 agg_expr = pl.lit(None).alias(col_name)
             elif agg_name:
-                agg_expr = getattr(pl.col(col_name), agg_name)()
+                col = pl.col(col_name)
+                if schema[col_name] == pl.Boolean and agg_name == 'mean':
+                    # Count None's as False
+                    df = df.with_columns(col.replace(None, False).name.keep())
+                agg_expr = getattr(col, agg_name)()
             else:
                 agg_expr = None
 
