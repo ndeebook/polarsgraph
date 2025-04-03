@@ -141,7 +141,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         try:
             totals = self.dataframe.select(
                 self.dataframe.columns[1:]).sum_horizontal()
-            max_value = get_next_big_value(totals.max())
+            max_value = get_graph_end_value(totals.max())
         except BaseException:
             painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter, 'Error')
             return
@@ -255,10 +255,18 @@ def auto_round(value):
     return int(value)
 
 
-def get_next_big_value(value):
-    factor = 1
-    step = 10
-    while value > 1:
-        factor *= step
-        value /= step
-    return math.ceil(value * step) * factor / step
+def get_graph_end_value(max_value):
+    if max_value < 0:
+        return -get_graph_end_value(-max_value)
+    if max_value > 1:
+        size = len(str(math.ceil(max_value)))
+        step = 10 ** (size - 2)
+    else:
+        step = 1
+        while max_value * step < 1:
+            step *= 10
+        step = 1 / step
+    result = int(max_value / step) * step
+    while result <= max_value * 1.01:
+        result += step
+    return result
