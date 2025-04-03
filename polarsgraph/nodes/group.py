@@ -92,7 +92,8 @@ class GroupNode(BaseNode):
         # Round
         decimals = self[ATTR.ROUND]
         if decimals not in (None, ''):
-            for column, data_type in schema.items():
+            # Collect schema again because .mean() can turn int/bool into float
+            for column, data_type in df.collect_schema().items():
                 if data_type not in (pl.Float32, pl.Float64):
                     continue
                 df = df.with_columns(
