@@ -1,8 +1,10 @@
 import os
 import sys
 import uuid
+import json
 import traceback
 from datetime import datetime as Datetime
+from functools import partial
 
 from PySide6 import QtWidgets, QtGui
 from PySide6.QtCore import Qt
@@ -90,6 +92,8 @@ types = {
 LOCAL_DIR = os.path.expanduser('~/.polarsgraph')
 os.makedirs(LOCAL_DIR, exist_ok=True)
 AUTOSAVE_PATH = f'{LOCAL_DIR}/.autosave.pg'
+PREFS_PATH = f'{LOCAL_DIR}/.prefs'
+RECENTS_PREF = 'recents'
 
 GRAPH_SETTINGS_KEY = '_graph_settings'
 TITLE = 'PolarsGraph'
@@ -202,18 +206,24 @@ class PolarsGraph(QtWidgets.QMainWindow):
         help_menu = QtWidgets.QMenu('Help', self)
         menubar.addMenu(help_menu)
 
+        open_recent_label = 'Open recent'
         menu_cfg = (
             (file_menu, 'New', self.prompt_new, 'ctrl+n'),
             (file_menu, 'Open...', self.prompt_open, 'ctrl+o'),
+            (file_menu, open_recent_label, None, None),
             (
                 file_menu,
                 'Import...',
                 lambda: self.prompt_open(import_=True),
                 None),
-            (file_menu, '-----', None, None),
+            (file_menu, None, None, '-------'),
             (file_menu, 'Save', self.save, 'ctrl+s'),
             (file_menu, 'Save as...', self.prompt_save, 'shift+ctrl+s'),
-            (file_menu, 'Incremental save', self.incremental_save, 'shift+alt+s'),
+            (
+                file_menu,
+                'Incremental save',
+                self.incremental_save,
+                'shift+alt+s'),
             (
                 file_menu,
                 'Export selected...',
@@ -221,14 +231,20 @@ class PolarsGraph(QtWidgets.QMainWindow):
                 None),
             (edit_menu, 'Copy', self.copy, 'ctrl+c'),
             (edit_menu, 'Paste', self.paste, 'ctrl+v'),
-            (edit_menu, '-----', None, None),
+            (edit_menu, None, None, '-------'),
             (edit_menu, 'Undo', self.undo, 'ctrl+z'),
             (edit_menu, 'Redo', self.redo, 'ctrl+y'),
             (help_menu, 'Shortcuts', self.show_shortcuts, None),
         )
         for menu, label, func, shortcut_key in menu_cfg:
-            if func is None:
+            if label is None:
                 menu.addSeparator()
+                continue
+            if label == open_recent_label:
+                self.open_recent_menu = QtWidgets.QMenu(
+                    open_recent_label, self)
+                menu.addMenu(self.open_recent_menu)
+                self.open_recent_menu.aboutToShow.connect(self.fill_recent)
                 continue
             action = QtGui.QAction(label, self)
             action.triggered.connect(func)
@@ -575,11 +591,20 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.save_path = increment_path(self.save_path)
         self.save_to_file(self.save_path)
 
-    def open_file(self, path, import_=False):
-        with open(path, 'r') as f:
+    def open_file(self, filepath, import_=False):
+        # Update Recents files
+        recents = get_preference(RECENTS_PREF) or []
+        filepath = filepath.replace('\\', '/')
+        if filepath in recents:
+            recents.remove(filepath)
+        recents.insert(0, filepath)
+        set_preference(RECENTS_PREF, recents[:16])
+
+        # Open
+        with open(filepath, 'r') as f:
             graph = deserialize_graph(f.read())
         self.load_graph(graph, add=import_)
-        self.save_path = path
+        self.save_path = filepath
 
     def prompt_open(self, import_=False):
         filepath, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -587,6 +612,14 @@ class PolarsGraph(QtWidgets.QMainWindow):
         if not filepath:
             return
         self.open_file(filepath, import_=import_)
+
+    def fill_recent(self):
+        self.open_recent_menu.clear()
+        recents = get_preference(RECENTS_PREF) or []
+        for path in recents:
+            action = QtGui.QAction(path, self)
+            action.triggered.connect(partial(self.open_file, path))
+            self.open_recent_menu.addAction(action)
 
     def prompt_new(self):
         prompt = QtWidgets.QMessageBox(
@@ -709,6 +742,25 @@ class GraphSettings(BaseNode):
 
     def __init__(self, settings=None):
         super().__init__(settings)
+
+
+def get_preferences():
+    try:
+        with open(PREFS_PATH, 'r') as f:
+            return json.load(f)
+    except BaseException:
+        return {}
+
+
+def get_preference(key):
+    return get_preferences().get(key)
+
+
+def set_preference(key, value):
+    prefs = get_preferences()
+    prefs[key] = value
+    with open(PREFS_PATH, 'w') as f:
+        json.dump(prefs, f)
 
 
 def increment_path(path):
