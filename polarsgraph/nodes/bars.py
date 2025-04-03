@@ -1,5 +1,6 @@
 import math
 import random
+import traceback
 from functools import lru_cache
 
 import polars as pl
@@ -233,6 +234,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
             max_value = get_graph_end_value(totals.max())
         except BaseException:
             painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter, 'Error')
+            print(traceback.format_exc())
             return
         title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
         painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter, title)
