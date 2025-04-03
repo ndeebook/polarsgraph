@@ -34,7 +34,8 @@ class PivotNode(BaseNode):
         self.tables['table'] = df.pivot(
             values=values_column,
             index=index_column,
-            columns=column_column
+            columns=column_column,
+            aggregate_function='sum',
         ).lazy()
 
 
