@@ -15,6 +15,17 @@ EMPTY_LABEL = 'empty'
 CUSTOM_VALUE_LABEL = '[custom]'
 NULL_LABEL = 'null (no value)'
 
+DATATYPE_DEFAULT_AGG = {
+    pl.String: 'n_unique',
+    pl.Null: 'min',
+    pl.Date: 'min',
+    pl.Datetime: 'min',
+    pl.UInt32: 'sum',
+    pl.Int64: 'sum',
+    pl.Float64: 'sum',
+    pl.Boolean: 'sum',  # == count True's
+}
+
 
 class ATTR:
     NAME = 'name'
@@ -187,15 +198,6 @@ class GroupSettingsWidget(BaseSettingsWidget):
         self.column_agg_table.blockSignals(True)
         self.column_agg_table.setRowCount(len(columns))
 
-        datatype_default_agg = {
-            pl.String: 'n_unique',
-            pl.Null: 'min',
-            pl.Date: 'min',
-            pl.UInt32: 'sum',
-            pl.Int64: 'sum',
-            pl.Float64: 'sum',
-            pl.Boolean: 'sum',  # == count True's
-        }
         settings_aggs = self.node[ATTR.COLUMNS_AGGREGATIONS] or {}
         for i, (column, datatype) in enumerate(columns.items()):
             # Add column name
@@ -211,7 +213,8 @@ class GroupSettingsWidget(BaseSettingsWidget):
             if column in settings_aggs:
                 agg_combo.setCurrentText(settings_aggs[column])
             else:
-                agg_combo.setCurrentText(datatype_default_agg[datatype])
+                agg_combo.setCurrentText(
+                    DATATYPE_DEFAULT_AGG.get(datatype, 'min'))
             agg_combo.currentTextChanged.connect(
                 self._handle_aggregations_change)
             self.column_agg_table.setCellWidget(i, 1, agg_combo)
