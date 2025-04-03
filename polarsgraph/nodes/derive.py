@@ -42,6 +42,7 @@ EXAMPLES_TEXT = """
 @replace_string({column_name}, "old value", "new value")
 @replace_int({column_name}, 1, 2)
 @replace_float({column_name}, 0.999, 1.0)
+@replace_bool({column_name}, true, none)
 
 @remove_nans({column_name})
 @remove_infs({column_name})
@@ -85,12 +86,13 @@ OPERATOR_MAGIC_METHODS = {
 }
 
 
+re_bool = r'null|none|true|false'
 re_column = r'\{[^\}]*\}'
 re_number = r'-?\d+\.\d+|-?\d+'
 re_function = r'@\w+'
 re_string = r'"[^"]*"'
 re_operator = r'[+\-*/(),]|==|!=|<=|>=|>|<'
-re_tokens = re_column, re_number, re_function, re_string, re_operator
+re_tokens = re_bool, re_column, re_number, re_function, re_string, re_operator
 token_pattern = re.compile(r'\s*' + '|'.join(re_tokens) + r'\s*')
 
 
@@ -369,6 +371,9 @@ def func_formula_to_polars(function_name, tokens):
             return column.replace(float(value), float(new_value))
         elif function_name == 'replace_int':
             return column.replace(int(value), int(new_value))
+        elif function_name == 'replace_bool':
+            value, new_value = [parse_bool(v) for v in (value, new_value)]
+            return column.replace(value, new_value)
     if function_name == 'remove_nans':
         column: pl.Expr = token_to_value(tokens[0])
         return column.fill_nan(None)
@@ -412,6 +417,15 @@ def token_to_value(token):
         return pl.lit(float(token))
     else:  # Integer
         return pl.lit(int(token))
+
+
+def parse_bool(text):
+    text = text.lower()
+    if text in ('none', 'null'):
+        return None
+    if text in ('true', '1'):
+        return True
+    return False
 
 
 if __name__ == '__main__':
