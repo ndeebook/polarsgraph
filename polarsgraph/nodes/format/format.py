@@ -141,7 +141,7 @@ class FormatSettingsWidget(BaseSettingsWidget):
             initial=QtGui.QColor(start_color))
         if not color.isValid():
             return
-        self.node[attribute] = color.name()
+        self.node[attribute] = color.name().upper()
         self.set_label_color_from_settings()
         self.emit_changed()
 

@@ -152,7 +152,7 @@ class BarsSettingsWidget(BaseSettingsWidget):
         if not color.isValid():
             return
         self.colors_table.item(row_index, 1).setBackground(color)
-        self.colors_table.item(row_index, 1).setText(color.name())
+        self.colors_table.item(row_index, 1).setText(color.name().upper())
         self.set_colors_from_table()
 
 

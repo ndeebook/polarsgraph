@@ -154,7 +154,7 @@ class ColorStepsWidget(QtWidgets.QWidget):
         color_item = QtWidgets.QTableWidgetItem()
         color_item.setFlags(color_item.flags() ^ Qt.ItemIsEditable)
         color_item.setBackground(color)
-        color_item.setText(color.name().upper())
+        color_item.setText(color.name().upper().upper())
         self.table.setItem(row_index, 0, color_item)
 
     def set_color_info(self):
@@ -187,7 +187,7 @@ class ColorStepsWidget(QtWidgets.QWidget):
         color = QtWidgets.QColorDialog.getColor()
         if color.isValid():
             self.table.item(row_index, 0).setBackground(color)
-            self.table.item(row_index, 0).setText(color.name())
+            self.table.item(row_index, 0).setText(color.name().upper())
         self.set_color_info()
 
     def get_settings(self):
@@ -250,7 +250,7 @@ class ColorMapWidget(QtWidgets.QWidget):
         color_item = QtWidgets.QTableWidgetItem()
         color_item.setFlags(color_item.flags() ^ Qt.ItemIsEditable)
         color_item.setBackground(color)
-        color_item.setText(color.name().upper())
+        color_item.setText(color.name().upper().upper())
         self.table.setItem(row_index, 1, color_item)
 
     def set_color_info(self):
@@ -284,7 +284,7 @@ class ColorMapWidget(QtWidgets.QWidget):
         color = QtWidgets.QColorDialog.getColor()
         if color.isValid():
             self.table.item(row_index, 1).setBackground(color)
-            self.table.item(row_index, 1).setText(color.name())
+            self.table.item(row_index, 1).setText(color.name().upper())
         self.set_color_info()
 
     def get_settings(self):
