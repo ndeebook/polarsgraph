@@ -17,8 +17,12 @@ class ATTR:
 
 OPEN_FUNCTIONS = {
     'xlsx': pl.read_excel,
+    'ods': pl.read_ods,
     'csv': pl.read_csv,
+    'parquet': pl.read_parquet,
+    'json': pl.read_json,
 }
+MASK = ' '.join([f'*.{ext}' for ext in OPEN_FUNCTIONS])
 
 
 class LoadNode(BaseNode):
@@ -97,7 +101,7 @@ class LoadSettingsWidget(BaseSettingsWidget):
 
     def _browse(self):
         filepath, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, 'Open spreadsheet', '', '*.xlsx *.csv')
+            self, 'Open spreadsheet', '', MASK)
         if not filepath:
             return
         self.path_edit.setText(filepath)
