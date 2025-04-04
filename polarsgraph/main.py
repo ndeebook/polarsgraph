@@ -153,6 +153,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.node_view.nodes_selected.connect(self.set_panel_node)
         self.node_view.plug_changes_requested.connect(self.change_plug)
         self.node_view.create_requested.connect(self.create_node)
+        self.node_view.create_load_requested.connect(self.create_load)
         self.node_view.delete_requested.connect(self.delete_nodes)
         self.node_view.node_double_clicked.connect(
             self.settings_widget.show_error)
@@ -435,7 +436,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         # Define create position
         inject_position = (
             self.node_view.select_position and
-            (not settings or not settings['position']))
+            (not settings or not settings.get('position')))
         if inject_position:
             if settings is None:
                 settings = {}
@@ -471,6 +472,9 @@ class PolarsGraph(QtWidgets.QMainWindow):
             self.display_widget.fill_combo()
 
         return node
+
+    def create_load(self, path):
+        self.create_node('load', settings=dict(path=path))
 
     def toggle_disable_selected(self):
         if not self.node_view.selected_names:

@@ -6,8 +6,9 @@ from polarsgraph.graph import (
     BACKDROP_CATEGORY,
     CATEGORY_INPUT_TYPE, CATEGORY_OUTPUT_TYPE, DYNAMIC_PLUG_COUNT)
 from polarsgraph.nodes.base import BaseNode
-from polarsgraph.viewportmapper import ViewportMapper
+from polarsgraph.nodes.load import OPEN_FUNCTIONS
 from polarsgraph.display import get_displays_by_index
+from polarsgraph.viewportmapper import ViewportMapper
 
 
 BACKGROUND_COLOR = QtGui.QColor('#1E1E1E')
@@ -29,6 +30,7 @@ class NodeView(QtWidgets.QWidget):
     node_double_clicked = QtCore.Signal(str)
     plug_changes_requested = QtCore.Signal(dict, dict)
     create_requested = QtCore.Signal(str)
+    create_load_requested = QtCore.Signal(str)
     delete_requested = QtCore.Signal(list)
 
     def __init__(
@@ -39,6 +41,8 @@ class NodeView(QtWidgets.QWidget):
             origin=(0, 0)):
 
         super().__init__()
+
+        self.setAcceptDrops(True)
 
         self.types = types
         self.graph: dict[str, BaseNode] = graph
@@ -208,6 +212,22 @@ class NodeView(QtWidgets.QWidget):
         if event.buttons() == Qt.LeftButton:
             self.select(event.position(), event.modifiers())
         return super().mousePressEvent(event)
+
+    def dragEnterEvent(self, event):
+        mimedata = event.mimeData()
+        if not mimedata.hasUrls():
+            return False
+        accept = any(
+            url.path().lower().endswith(tuple(OPEN_FUNCTIONS))
+            for url in mimedata.urls())
+        if accept:
+            event.accept()
+
+    def dropEvent(self, event):
+        filepaths = [url.toLocalFile() for url in event.mimeData().urls()]
+        for path in filepaths:
+            self.create_load_requested.emit(path)
+        return super().dropEvent(event)
 
     @property
     def zoom(self):
