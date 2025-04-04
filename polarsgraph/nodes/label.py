@@ -11,6 +11,7 @@ from polarsgraph.nodes.base import (
 
 class ATTR:
     NAME = 'name'
+    HARDCODED_TEXT = 'hardcoded_text'
     SOURCE_COLUMN = 'source_column'
     SOURCE_ROW = 'source_row'
     FORMAT = 'format'
@@ -32,6 +33,10 @@ class LabelNode(BaseNode):
         # Update display
         if not self.display_widget:
             return
+
+        hardcoded_text = self[ATTR.HARDCODED_TEXT]
+        if hardcoded_text:
+            return self.display_widget.set_label(hardcoded_text)
 
         source_column_name = self[ATTR.SOURCE_COLUMN]
         source_row = self[ATTR.SOURCE_ROW]
@@ -60,6 +65,12 @@ class LabelSettingsWidget(BaseSettingsWidget):
         super().__init__()
 
         # Widgets
+        self.text_edit = QtWidgets.QLineEdit(
+            placeholderText='(Leave empty to use linked value)')
+        self.text_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(
+                self.text_edit, ATTR.HARDCODED_TEXT))
+
         self.source_column_edit = QtWidgets.QComboBox()
         self.source_column_edit.currentTextChanged.connect(
             lambda: self.combobox_to_settings(
@@ -79,6 +90,7 @@ class LabelSettingsWidget(BaseSettingsWidget):
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow('text', self.text_edit)
         form_layout.addRow('source column', self.source_column_edit)
         form_layout.addRow('source row', self.row_edit)
         form_layout.addRow('format', self.format_combo)
