@@ -70,6 +70,8 @@ class BarsSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 
+        self.input_table = None
+
         # Widgets
         self.title_edit = QtWidgets.QLineEdit()
         self.title_edit.editingFinished.connect(
@@ -83,16 +85,7 @@ class BarsSettingsWidget(BaseSettingsWidget):
         self.colors_table.cellChanged.connect(self.set_colors_from_table)
         self.colors_table.cellClicked.connect(self.edit_color)
 
-        add_button = QtWidgets.QPushButton(
-            'add', clicked=self.add_column)
-        remove_button = QtWidgets.QPushButton(
-            'remove', clicked=self.remove_selected_rows)
-
         # Layout
-        buttons_layout = QtWidgets.QHBoxLayout()
-        buttons_layout.addWidget(add_button)
-        buttons_layout.addWidget(remove_button)
-
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
@@ -100,18 +93,17 @@ class BarsSettingsWidget(BaseSettingsWidget):
         layout.addLayout(form_layout)
         layout.addWidget(QtWidgets.QLabel('Colors:'))
         layout.addWidget(self.colors_table)
-        layout.addLayout(buttons_layout)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
+        self.input_table: pl.LazyFrame = input_tables[0]
         self.name_edit.setText(node[ATTR.NAME])
         self.title_edit.setText(node[ATTR.TITLE] or '')
         self.populate_color_table()
         self.blockSignals(False)
 
     def _add_row(self, row_index, column='', color=None):
-        self.colors_table.blockSignals(True)
         try:
             color = color or DEFAULT_COLORS[row_index]
         except IndexError:
@@ -126,15 +118,23 @@ class BarsSettingsWidget(BaseSettingsWidget):
         column_item2.setBackground(QtGui.QColor(color))
 
         self.colors_table.setItem(row_index, 1, column_item2)
-        self.colors_table.blockSignals(False)
 
     def populate_color_table(self):
         self.colors_table.blockSignals(True)
+
         colors = self.node[ATTR.COLORS] or {}
-        self.colors_table.setRowCount(len(colors))
-        for i, (column, color) in enumerate(colors.items()):
-            self._add_row(i, column, color)
+
+        if self.input_table is None:
+            columns = []
+        else:
+            columns = self.input_table.collect_schema().names()[1:]
+
+        self.colors_table.setRowCount(len(columns))
+        for i, column in enumerate(columns):
+            self._add_row(i, column, colors.get(column))
+
         self.colors_table.blockSignals(False)
+        self.set_colors_from_table()
 
     def set_colors_from_table(self):
         colors = {}
@@ -154,17 +154,6 @@ class BarsSettingsWidget(BaseSettingsWidget):
         self.colors_table.item(row_index, 1).setBackground(color)
         self.colors_table.item(row_index, 1).setText(color.name())
         self.set_colors_from_table()
-
-    def add_column(self):
-        count = self.colors_table.rowCount()
-        self.colors_table.setRowCount(count + 1)
-        self._add_row(count)
-
-    def remove_selected_rows(self):
-        for index in self.colors_table.selectedIndexes():
-            column = self.colors_table.item(index.row(), 0).text()
-            self.node[ATTR.COLORS].pop(column, None)
-        self.populate_color_table()
 
 
 class BarsDisplay(BaseDisplay):
