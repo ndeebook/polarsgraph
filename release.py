@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 
-version = '0.4'
+version = '0.5'
 
 
 main_path = os.path.normpath(

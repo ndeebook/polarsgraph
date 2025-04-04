@@ -57,7 +57,7 @@ class NodeView(QtWidgets.QWidget):
         self.select_position: QtCore.QPointF = None
         self.move_start_positions = dict()
 
-        self.add_menu = NewNodeMenu(sorted(types), self)
+        self.add_menu = NewNodeMenu(types, self)
         self.add_menu.create_requested.connect(self.create_requested)
 
     def clear(self):
@@ -407,7 +407,14 @@ class NewNodeMenu(QtWidgets.QMenu):
     def __init__(self, types, parent=None):
         super().__init__(parent=parent)
 
-        self.types = types
+        # List nodes with their types
+        self.types = []
+        for name, type_ in types.items():
+            category = type_["type"].category
+            if category != 'manipulate':
+                name = f'{name}  ({category})'
+            self.types.append(name)
+        self.types.sort()
 
         self.type_edit = QtWidgets.QLineEdit()
         self.type_edit.returnPressed.connect(self.emit_from_line_edit)
@@ -419,8 +426,8 @@ class NewNodeMenu(QtWidgets.QMenu):
         self.type_edit.setCompleter(self.seq_completer)
 
         self.types_list = QtWidgets.QListWidget(
-            minimumWidth=120, minimumHeight=160)
-        self.types_list.addItems(types)
+            minimumWidth=160, minimumHeight=200)
+        self.types_list.addItems(self.types)
         self.types_list.itemClicked.connect(self.emit_from_list)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -445,7 +452,8 @@ class NewNodeMenu(QtWidgets.QMenu):
         self.close()
 
     def emit_from_list(self):
-        self.create_requested.emit(self.types_list.currentItem().text())
+        type_ = self.types_list.currentItem().text().split()[0]
+        self.create_requested.emit(type_)
         self.close()
 
 
