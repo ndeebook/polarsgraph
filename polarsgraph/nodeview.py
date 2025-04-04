@@ -447,7 +447,7 @@ class NewNodeMenu(QtWidgets.QMenu):
             type_ = [t for t in self.types if t.startswith(type_)]
             if not type_:
                 return
-            type_ = type_[0]
+            type_ = type_[0].split()[0]
         self.create_requested.emit(type_)
         self.close()
 
