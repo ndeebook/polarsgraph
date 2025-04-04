@@ -274,7 +274,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
             total_width = 0
             for j, column in enumerate(self.dataframe.columns[1:]):
                 value = row[column] or 0
-                width = (value / max_value) * rect.width()
+                width = (value / max_value) * bg_rect.width()
 
                 # Set color for the bar segment
                 painter.setPen(Qt.NoPen)
