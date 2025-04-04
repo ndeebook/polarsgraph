@@ -273,6 +273,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
             ('8', lambda: self.connect_to_display(8), 'Show 8th display'),
             ('9', lambda: self.connect_to_display(9), 'Show 9th display'),
 
+            ('`', self.node_view.show_add_node_menu, 'New node menu'),
+            ('²', self.node_view.show_add_node_menu, 'New node menu'),  # FR
             ('n', self.node_view.show_add_node_menu, 'New node menu'),
 
             ('c', lambda: self.create_node('concatenate'), 'Create Concatenate'),
