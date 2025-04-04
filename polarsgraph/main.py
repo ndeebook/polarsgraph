@@ -90,7 +90,7 @@ types = {
 
 LOCAL_DIR = os.path.expanduser('~/.polarsgraph')
 os.makedirs(LOCAL_DIR, exist_ok=True)
-AUTOSAVE_PATH = f'{LOCAL_DIR}/.autosave.pg'
+DEFAULT_AUTOSAVE_PATH = f'{LOCAL_DIR}/.autosave.pg'
 PREFS_PATH = f'{LOCAL_DIR}/.prefs'
 RECENTS_PREF = 'recents'
 
@@ -112,6 +112,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.graph = dict()
         self.undo_stack = UndoStack()
         self._save_path = None
+        self.autosave_path = DEFAULT_AUTOSAVE_PATH
 
         self.shortcuts_list = []
 
@@ -586,6 +587,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
             f.write(content)
         if set_current:
             self.save_path = path
+            self.autosave_path = f'{path}~'
             self._add_to_recents(self.save_path)
 
     def save(self):
@@ -635,6 +637,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
             return False
         self.load_graph({})
         self.save_path = None
+        self.autosave_path = DEFAULT_AUTOSAVE_PATH
         self.undo_stack.clear()
 
     def prompt_save(self, selected=False):
@@ -658,13 +661,9 @@ class PolarsGraph(QtWidgets.QMainWindow):
     # Autosave
     def autosave(self, record_undo=True):
         logger.debug('autosave')
-        self.save_to_file(AUTOSAVE_PATH, set_current=False)
+        self.save_to_file(self.autosave_path, set_current=False)
         if record_undo:
             self.add_undo()
-
-    def open_autosave(self):
-        if os.path.exists(AUTOSAVE_PATH):
-            self.open_file(AUTOSAVE_PATH)
 
     def closeEvent(self, event):
         self.autosave()
