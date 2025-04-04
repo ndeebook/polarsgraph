@@ -1,16 +1,13 @@
 # PolarsGraph
 
-User interface for Polars (open-source library for data manipulation).
+Open source software for non-programmers to manipulate multiple related tables and visualize their content.
 
-The goal is to be able to manipulate and visualize tables easily for non-programmers.\
-It's a node-based interface to:
- - Load (open)
- - Manipulate (transform, modify, ...)
- - Visualize (display)
+By default it reads xlsx and csv files. \
+Programmers can also add their own nodes to Load, Manipulate or Visualize data.
 
 ![PolarsGraph Screenshot](PolarsGraph_screenshot.png)
 
 ### Stack:
 - Python
-- Polars
-- PySide6 (Qt6)
+- Polars: open-source library for data manipulation
+- PySide6: Python bindings for Qt6
