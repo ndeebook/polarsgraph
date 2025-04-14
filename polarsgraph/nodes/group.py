@@ -82,7 +82,8 @@ class GroupNode(BaseNode):
                     df = df.with_columns(col.replace(None, False).name.keep())
                 agg_expr = getattr(col, agg_name)()
             else:
-                agg_expr = None
+                # Column not configured, delete it
+                continue
 
             agg_exprs.append(agg_expr)
 
