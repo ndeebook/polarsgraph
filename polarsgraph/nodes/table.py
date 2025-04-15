@@ -24,6 +24,8 @@ TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
 
 
 BGCOLOR_COLUMN_SUFFIX = '~color'
+BLACK = QtGui.QColor('black')
+WHITE = QtGui.QColor('white')
 
 
 class ATTR:
@@ -108,7 +110,8 @@ class TableDisplay(BaseDisplay):
         self.table_view.horizontalHeader().sectionResized.connect(
             self.record_column_width)
 
-        self.table_model = PolarsLazyFrameModel()
+        self.table_model = PolarsLazyFrameModel(
+            dark_theme=self.palette().color(QtGui.QPalette.Base).valueF() < .3)
         self.table_view.setModel(self.table_model)
 
         self.table_details_label = QtWidgets.QLabel()
@@ -225,8 +228,11 @@ class TableDisplay(BaseDisplay):
 
 
 class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
-    def __init__(self, parent=None):
+    def __init__(self, dark_theme=False, parent=None):
         super().__init__(parent)
+
+        self.dark_theme = dark_theme
+        self.default_text_color = Qt.white if dark_theme else Qt.black
 
         self.dataframe = pl.DataFrame()
         self.column_count = 0
@@ -269,31 +275,40 @@ class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
     def columnCount(self, *_):
         return self.column_count
 
+    def _get_bg_color(self, row, col):
+        color_col = self.bgcolor_column_indexes.get(col)
+        if color_col is None:
+            return
+        color = self.dataframe[row, color_col]
+        if color:
+            return QtGui.QColor(color)
+
     def data(self, index, role):
         if not index.isValid():
             return
 
-        if role == Qt.TextAlignmentRole:
-            return Qt.AlignCenter
+        if role == Qt.ItemDataRole.TextAlignmentRole:
+            return Qt.AlignmentFlag.AlignCenter
 
         row, col = index.row(), index.column()
 
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             value = self.dataframe[row, col]
             if value is None:
                 return ''
             return str(value)
 
-        if role == Qt.BackgroundRole:
-            color_col = self.bgcolor_column_indexes.get(col)
-            if color_col is not None:
-                color = self.dataframe[row, color_col]
-                if color:
-                    return QtGui.QColor(color)
-            # elif self.text_colors_df is not None:
-            #     color = self.text_colors_df[row, col]
-            #     if color:
-            #         return QtGui.QColor(color)
+        if role == Qt.ItemDataRole.BackgroundRole:
+            return self._get_bg_color(row, col)
+
+        elif role == Qt.ItemDataRole.ForegroundRole:
+            bg_color = self._get_bg_color(row, col)
+            if not bg_color:
+                return self.default_text_color
+            if bg_color.valueF() < .5:
+                return WHITE
+            else:
+                return BLACK
 
 
 def export_df_to_file(df: pl.DataFrame, path: str):
