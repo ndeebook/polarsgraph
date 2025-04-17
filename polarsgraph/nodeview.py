@@ -405,7 +405,10 @@ class NodeView(QtWidgets.QWidget):
         self.update()
 
     def show_add_node_menu(self, position=None):
-        self.add_menu.popup(position or QtGui.QCursor.pos())
+        # self.add_menu.popup(position or QtGui.QCursor.pos())
+        # popup() broken with PySide 6.9 ?
+        self.add_menu.show()
+        self.add_menu.move(position or QtGui.QCursor.pos())
 
     def delete_selected_nodes(self):
         self.delete_requested.emit(self.selected_names)
