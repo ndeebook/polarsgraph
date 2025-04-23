@@ -163,6 +163,7 @@ def make_chart(
     for values in dataframe.iter_rows():
         label, value, *_ = values
         ratio = value / total
+        label = f'{label} ({round(ratio * 100, 1)}%)'
         try:
             slice_ = series.append(label, ratio)
         except TypeError as e:
