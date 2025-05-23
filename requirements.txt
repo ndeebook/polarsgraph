@@ -3,5 +3,3 @@ xlsxwriter==3.2.2
 fastexcel==0.13.0
 
 PySide6==6.9
-
-pyyaml==5.1
