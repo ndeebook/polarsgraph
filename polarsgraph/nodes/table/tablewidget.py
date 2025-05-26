@@ -1,12 +1,3 @@
-"""
-The cells colors are defined by columns with same name + `~color` suffix
-CSV Example:
-    Value,Value~color
-    .6,#5512BE
-
-The `format` node does this but it can be implemented with new nodes
-"""
-
 import os
 
 import polars as pl
@@ -14,83 +5,20 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
 from polarsgraph.log import logger
-from polarsgraph.graph import DISPLAY_CATEGORY
-from polarsgraph.nodes import GREEN as DEFAULT_COLOR
-from polarsgraph.nodes.base import (
-    DISPLAY_INDEX_ATTR, BaseNode, BaseSettingsWidget, BaseDisplay)
+from polarsgraph.nodes.base import DISPLAY_INDEX_ATTR, BaseNode, BaseDisplay
 
 
 TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
-
-
-BGCOLOR_COLUMN_SUFFIX = '~color'
 BLACK = QtGui.QColor('black')
 WHITE = QtGui.QColor('white')
+
+BGCOLOR_COLUMN_SUFFIX = '~color'
 
 
 class ATTR:
     NAME = 'name'
     COLUMNS_WIDTHS = 'columns_widths'
     DISPLAY_INDEX = DISPLAY_INDEX_ATTR
-
-
-class TableNode(BaseNode):
-    type = 'table'
-    category = DISPLAY_CATEGORY
-    inputs = 'table',
-    outputs = 'widget',
-    default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        super().__init__(settings)
-
-        self._display_widget = None
-
-    def _build_query(self, tables):
-        df: pl.LazyFrame = tables[0]
-        if df is None:
-            return self.clear()
-
-        # Update display
-        if not self.display_widget:
-            return
-        self.display_widget.set_table(df.collect())
-
-    def clear(self):
-        self.display_widget.set_table(pl.DataFrame())
-
-    @property
-    def display_widget(self):
-        if not self._display_widget:
-            self._display_widget = TableDisplay(self)
-        return self._display_widget
-
-
-class TableSettingsWidget(BaseSettingsWidget):
-    def __init__(self):
-        super().__init__()
-
-        self.index_combo = QtWidgets.QComboBox()
-        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
-        self.index_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.index_combo, ATTR.DISPLAY_INDEX))
-
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Display index', self.index_combo)
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
-
-    def set_node(self, node, input_tables):
-        self.blockSignals(True)
-        self.node = node
-        self.name_edit.setText(node[ATTR.NAME])
-        index = node[ATTR.DISPLAY_INDEX]
-        if index:
-            self.index_combo.setCurrentText(index)
-        self.input_table: pl.LazyFrame = input_tables[0]
-        self.blockSignals(False)
 
 
 class TableDisplay(BaseDisplay):
@@ -311,6 +239,14 @@ class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
                 return BLACK
 
 
+def prompt_save_df(df, parent=None):
+    filepath, result = QtWidgets.QFileDialog.getSaveFileName(
+        parent, 'Export', filter='(*.xlsx *.parquet, *.pickle)')
+    if not result:
+        return
+    export_df_to_file(df, filepath)
+
+
 def export_df_to_file(df: pl.DataFrame, path: str):
     df = get_table_without_color_columns(df)
     logger.debug(path)
@@ -333,12 +269,12 @@ def export_df_to_file(df: pl.DataFrame, path: str):
         QtWidgets.QApplication.restoreOverrideCursor()
 
 
-def prompt_save_df(df, parent=None):
-    filepath, result = QtWidgets.QFileDialog.getSaveFileName(
-        parent, 'Export', filter='(*.xlsx *.parquet, *.pickle)')
-    if not result:
-        return
-    export_df_to_file(df, filepath)
+def get_table_without_color_columns(df):
+    if isinstance(df, pl.LazyFrame):
+        df = df.collect()
+    color_columns = [
+        c for c in df.columns if c.endswith(BGCOLOR_COLUMN_SUFFIX)]
+    return df.drop(color_columns)
 
 
 def get_table_size(table: QtWidgets.QTableView):
@@ -366,13 +302,6 @@ def get_table_size(table: QtWidgets.QTableView):
     return QtCore.QSize(width, height)
 
 
-def fit_columns_to_headers(table: QtWidgets.QTableView):
-    header = table.horizontalHeader()
-    for column in range(header.count()):
-        header_width = header.sectionSizeHint(column)
-        table.setColumnWidth(column, header_width)
-
-
 def index_or_none(list_: list, value):
     try:
         return list_.index(value)
@@ -382,11 +311,3 @@ def index_or_none(list_: list, value):
 
 def get_bgcolor_name(column):
     return f'{column}{BGCOLOR_COLUMN_SUFFIX}'
-
-
-def get_table_without_color_columns(df):
-    if isinstance(df, pl.LazyFrame):
-        df = df.collect()
-    color_columns = [
-        c for c in df.columns if c.endswith(BGCOLOR_COLUMN_SUFFIX)]
-    return df.drop(color_columns)
