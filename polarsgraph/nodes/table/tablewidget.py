@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 
 from polarsgraph.log import logger
 from polarsgraph.nodes.base import DISPLAY_INDEX_ATTR, BaseNode, BaseDisplay
+from polarsgraph.nodes.table.tableau import Tableau
 
 
 TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
@@ -37,6 +38,7 @@ class TableDisplay(BaseDisplay):
         self.table_view.setHorizontalScrollMode(mode)
         self.table_view.horizontalHeader().sectionResized.connect(
             self.record_column_width)
+        self.tableau = Tableau()
 
         self.table_model = PolarsLazyFrameModel(
             dark_theme=self.palette().color(QtGui.QPalette.Base).valueF() < .3)
@@ -78,6 +80,7 @@ class TableDisplay(BaseDisplay):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.table_view)
         layout.addWidget(self.bottom_widget)
+        layout.addWidget(self.tableau)
 
     def set_table(self, table: pl.DataFrame):
         if table is None:
@@ -95,6 +98,10 @@ class TableDisplay(BaseDisplay):
         for i, column_name in enumerate(self.columns):
             if column_name in saved_sizes:
                 self.table_view.setColumnWidth(i, saved_sizes[column_name])
+
+        # New widget
+        self.tableau.set_table(table)
+        self.tableau.set_column_sizes(saved_sizes)
 
     def set_board_mode(self, board_enabled: bool):
         self.bottom_widget.setVisible(not board_enabled)
