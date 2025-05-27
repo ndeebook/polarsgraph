@@ -3,7 +3,7 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
 
-LINE_HEIGHT = 24
+ROW_HEIGHT = 24
 DEFAULT_COL_WIDTH = 80
 MINIMUM_COL_WIDTH = 24
 
@@ -13,8 +13,12 @@ BGCOLOR_COLUMN_SUFFIX = '~color'
 class Tableau(QtWidgets.QWidget):
     columns_resized = QtCore.Signal()
 
-    def __init__(self, table=None):
-        super().__init__()
+    def __init__(self, table=None, parent=None):
+        super().__init__(parent)
+
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding)
 
         self.setMouseTracking(True)
         self.font_ = self.font()
@@ -22,7 +26,6 @@ class Tableau(QtWidgets.QWidget):
 
         self.get_colors()
 
-        self.setMinimumHeight(120)
         self._vertical_scroll = 0
         self._horizontal_scroll = 0
         self.row_number_offset = 0
@@ -63,6 +66,21 @@ class Tableau(QtWidgets.QWidget):
         text_rect = self.metrics.boundingRect(
             rect, Qt.AlignmentFlag.AlignCenter, last_label)
         self.vertical_header_width = max(24, text_rect.width() + 4)
+
+    def get_table_size(self):
+        self.compute_headers_sizes()
+        h = self.horizontal_header_height + self.row_count * ROW_HEIGHT
+        columns_widths = [
+            self.column_sizes.get(c, DEFAULT_COL_WIDTH)
+            for c in self.df.columns]
+        w = self.vertical_header_width + sum(columns_widths)
+        return w, h
+
+    def set_vertical_scroll(self, value):
+        self._vertical_scroll = value
+
+    def set_horizontal_scroll(self, value):
+        self._horizontal_scroll = value
 
     def _paint(self, painter: QtGui.QPainter):
         self.compute_headers_sizes()
@@ -120,9 +138,9 @@ class Tableau(QtWidgets.QWidget):
                 continue
             r = QtCore.QRect(
                 0,
-                self.horizontal_header_height + LINE_HEIGHT * rowidx,
+                self.horizontal_header_height + ROW_HEIGHT * rowidx,
                 self.vertical_header_width,
-                LINE_HEIGHT)
+                ROW_HEIGHT)
             painter.drawText(r, Qt.AlignmentFlag.AlignCenter, str(value))
 
         # Paint cells
@@ -134,9 +152,9 @@ class Tableau(QtWidgets.QWidget):
             for rowidx in range(self.row_count):
                 value = self.df[rowidx, colidx]
                 x = self.vertical_header_width + sum(columns_widths)
-                y = self.horizontal_header_height + LINE_HEIGHT * rowidx
-                ys.append(y + LINE_HEIGHT)
-                height = LINE_HEIGHT
+                y = self.horizontal_header_height + ROW_HEIGHT * rowidx
+                ys.append(y + ROW_HEIGHT)
+                height = ROW_HEIGHT
                 # Text
                 r = QtCore.QRect(x, y, width, height)
                 painter.drawText(
@@ -222,10 +240,54 @@ class Tableau(QtWidgets.QWidget):
         self.HEADER_COLOR = header_palette.color(QtGui.QPalette.Button)
 
 
+class TableauWithScroll(QtWidgets.QWidget):
+    columns_resized = QtCore.Signal()
+
+    def __init__(self, table=None):
+        super().__init__()
+
+        self.tableau = Tableau(parent=self)
+        self.set_column_sizes = self.tableau.set_column_sizes
+
+        self.vertical_scroll = QtWidgets.QScrollBar(Qt.Orientation.Vertical)
+        self.vertical_scroll.valueChanged.connect(
+            self.tableau.set_vertical_scroll)
+        self.horizontal_scroll = QtWidgets.QScrollBar(
+            Qt.Orientation.Horizontal)
+        self.horizontal_scroll.valueChanged.connect(
+            self.tableau.set_horizontal_scroll)
+
+        layout = QtWidgets.QGridLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.tableau, 0, 0)
+        layout.addWidget(self.vertical_scroll, 0, 1)
+        layout.addWidget(self.horizontal_scroll, 1, 0)
+
+        self.set_table(table)
+
+    def set_table(self, table):
+        self.tableau.set_table(table)
+        self.adjust_scrollbars()
+
+    def resizeEvent(self, event):
+        self.adjust_scrollbars()
+        return super().resizeEvent(event)
+
+    def adjust_scrollbars(self):
+        content_width, content_height = self.tableau.get_table_size()
+        widget_width, widget_height = self.size().toTuple()
+        self.horizontal_scroll.setVisible(content_width > widget_width)
+        self.horizontal_scroll.setMaximum(content_width - widget_width)
+        self.vertical_scroll.setVisible(content_height > widget_height)
+        self.vertical_scroll.setMaximum(content_height - widget_height)
+
+
 if __name__ == '__main__':
     import os
     app = QtWidgets.QApplication([])
-    tableau = Tableau(pl.read_ods(os.path.expandvars('$SAMPLES/sample.ods')))
+    df = pl.read_ods(os.path.expandvars('$SAMPLES/sample.ods'))
+    tableau = TableauWithScroll(df)
     tableau.set_column_sizes(dict(z=30))
     tableau.show()
     app.exec()
