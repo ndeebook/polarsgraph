@@ -78,9 +78,11 @@ class Tableau(QtWidgets.QWidget):
 
     def set_vertical_scroll(self, value):
         self._vertical_scroll = value
+        self.update()
 
     def set_horizontal_scroll(self, value):
         self._horizontal_scroll = value
+        self.update()
 
     def _paint(self, painter: QtGui.QPainter):
         self.compute_headers_sizes()
@@ -93,9 +95,45 @@ class Tableau(QtWidgets.QWidget):
         if self.df is None:
             return
 
+        # Paint cells
+        painter.setPen(self.TEXT_COLOR)
+        columns_widths = []
+        ys = []
+        rows_offset = int(self._vertical_scroll / ROW_HEIGHT)
+        pixels_offset = self._vertical_scroll % ROW_HEIGHT
+        for colidx, colname in enumerate(self.df.columns):
+            width = self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
+            for rowidx in range(self.row_count):
+                if rowidx < rows_offset:
+                    continue
+                value = self.df[rowidx, colidx]
+                rowidx -= rows_offset
+                x = self.vertical_header_width + sum(columns_widths)
+                y = (
+                    self.horizontal_header_height
+                    + ROW_HEIGHT * rowidx
+                    - pixels_offset)
+                ys.append(y + ROW_HEIGHT)
+                height = ROW_HEIGHT
+                # Text
+                r = QtCore.QRect(x, y, width, height)
+                painter.drawText(
+                    r.adjusted(1, 1, -1, -1),
+                    Qt.AlignmentFlag.AlignCenter,
+                    str(value))
+            columns_widths.append(width)
+
+        # vertical lines
+        painter.setPen(self.GRID_COLOR)
+        x2 = sum(columns_widths) + self.vertical_header_width
+        for y in ys:
+            r = QtCore.QRect(x, y, width, height)
+            painter.drawLine(self.vertical_header_width, y, x2, y)
+
         # horizontal header
         r = QtCore.QRect(rect)
         r.setHeight(self.horizontal_header_height)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(self.HEADER_COLOR)
         painter.drawRect(r)
 
@@ -142,33 +180,6 @@ class Tableau(QtWidgets.QWidget):
                 self.vertical_header_width,
                 ROW_HEIGHT)
             painter.drawText(r, Qt.AlignmentFlag.AlignCenter, str(value))
-
-        # Paint cells
-        painter.setPen(self.TEXT_COLOR)
-        columns_widths = []
-        ys = []
-        for colidx, colname in enumerate(self.df.columns):
-            width = self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
-            for rowidx in range(self.row_count):
-                value = self.df[rowidx, colidx]
-                x = self.vertical_header_width + sum(columns_widths)
-                y = self.horizontal_header_height + ROW_HEIGHT * rowidx
-                ys.append(y + ROW_HEIGHT)
-                height = ROW_HEIGHT
-                # Text
-                r = QtCore.QRect(x, y, width, height)
-                painter.drawText(
-                    r.adjusted(1, 1, -1, -1),
-                    Qt.AlignmentFlag.AlignCenter,
-                    str(value))
-            columns_widths.append(width)
-
-        # vertical lines
-        painter.setPen(self.GRID_COLOR)
-        x2 = sum(columns_widths) + self.vertical_header_width
-        for y in ys:
-            r = QtCore.QRect(x, y, width, height)
-            painter.drawLine(self.vertical_header_width, y, x2, y)
 
     def get_separator_column_under_cursor(self, pos) -> str:
         for i, rect in enumerate(self.columns_separators):
@@ -249,9 +260,11 @@ class TableauWithScroll(QtWidgets.QWidget):
         self.tableau = Tableau(parent=self)
         self.set_column_sizes = self.tableau.set_column_sizes
 
-        self.vertical_scroll = QtWidgets.QScrollBar(Qt.Orientation.Vertical)
+        self.vertical_scroll = QtWidgets.QScrollBar(
+            Qt.Orientation.Vertical)
         self.vertical_scroll.valueChanged.connect(
             self.tableau.set_vertical_scroll)
+
         self.horizontal_scroll = QtWidgets.QScrollBar(
             Qt.Orientation.Horizontal)
         self.horizontal_scroll.valueChanged.connect(
@@ -278,9 +291,13 @@ class TableauWithScroll(QtWidgets.QWidget):
         content_width, content_height = self.tableau.get_table_size()
         widget_width, widget_height = self.size().toTuple()
         self.horizontal_scroll.setVisible(content_width > widget_width)
-        self.horizontal_scroll.setMaximum(content_width - widget_width)
+        self.horizontal_scroll.setMaximum(
+            content_width - widget_width + self.vertical_scroll.width())
+        self.horizontal_scroll.setMinimum(0)
         self.vertical_scroll.setVisible(content_height > widget_height)
-        self.vertical_scroll.setMaximum(content_height - widget_height)
+        self.vertical_scroll.setMaximum(
+            content_height - widget_height + self.horizontal_scroll.height())
+        self.vertical_scroll.setMinimum(0)
 
 
 if __name__ == '__main__':
