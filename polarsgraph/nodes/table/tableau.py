@@ -85,7 +85,12 @@ class Tableau(QtWidgets.QWidget):
         self.update()
 
     def _paint(self, painter: QtGui.QPainter):
+        # Collect main sizes
         self.compute_headers_sizes()
+        column_sizes = [
+            self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
+            for colname in self.df.columns]
+
         rect = self.rect()
 
         # Background
@@ -98,36 +103,44 @@ class Tableau(QtWidgets.QWidget):
         # Paint cells
         painter.setPen(self.TEXT_COLOR)
         columns_widths = []
-        ys = []
+        rows_y = dict()
+        columns_x = dict()
         rows_offset = int(self._vertical_scroll / ROW_HEIGHT)
         pixels_offset = self._vertical_scroll % ROW_HEIGHT
-        for colidx, colname in enumerate(self.df.columns):
-            width = self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
-            for rowidx in range(self.row_count):
-                if rowidx < rows_offset:
-                    continue
-                value = self.df[rowidx, colidx]
-                rowidx -= rows_offset
-                x = self.vertical_header_width + sum(columns_widths)
+        widget_width = rect.width()
+        for col_index, colname in enumerate(self.df.columns):
+            col_width = column_sizes[col_index]
+            x = (
+                self.vertical_header_width
+                + sum(columns_widths)
+                - self._horizontal_scroll)
+            is_column_invisible = x > widget_width and (x + col_width) < 0
+            if is_column_invisible:
+                continue
+            columns_x[col_index] = x
+            for row_index in range(self.row_count):
+                if row_index < rows_offset:
+                    continue  # row not visible
+                value = self.df[row_index, col_index]
+                visual_row_index = row_index - rows_offset
                 y = (
                     self.horizontal_header_height
-                    + ROW_HEIGHT * rowidx
+                    + ROW_HEIGHT * visual_row_index
                     - pixels_offset)
-                ys.append(y + ROW_HEIGHT)
-                height = ROW_HEIGHT
+                rows_y[row_index] = y
                 # Text
-                r = QtCore.QRect(x, y, width, height)
+                r = QtCore.QRect(x, y, col_width, ROW_HEIGHT)
                 painter.drawText(
                     r.adjusted(1, 1, -1, -1),
                     Qt.AlignmentFlag.AlignCenter,
                     str(value))
-            columns_widths.append(width)
+            columns_widths.append(col_width)
 
-        # vertical lines
+        # horizontal lines
         painter.setPen(self.GRID_COLOR)
         x2 = sum(columns_widths) + self.vertical_header_width
-        for y in ys:
-            r = QtCore.QRect(x, y, width, height)
+        for y in rows_y.values():
+            y += ROW_HEIGHT
             painter.drawLine(self.vertical_header_width, y, x2, y)
 
         # horizontal header
@@ -142,21 +155,24 @@ class Tableau(QtWidgets.QWidget):
         self.columns_separators.clear()
         separator_vertical_margin = 4
         separator_selection_margin = 4
-        for colname in self.df.columns:
-            x = self.vertical_header_width + sum(columns_widths)
-            width = self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
-            r = QtCore.QRect(x, 0, width, self.horizontal_header_height)
+        pixels_offset = self._horizontal_scroll % ROW_HEIGHT
+        for col_index, colname in enumerate(self.df.columns):
+            if col_index not in columns_x:
+                continue
+            x = columns_x[col_index]
+            col_width = self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
+            r = QtCore.QRect(x, 0, col_width, self.horizontal_header_height)
             painter.setPen(self.HEADER_TEXT)
             painter.drawText(r, Qt.AlignmentFlag.AlignCenter, colname)
-            columns_widths.append(width)
+            columns_widths.append(col_width)
             painter.setPen(self.BACKGROUND_COLOR)
             painter.drawLine(
-                x + width,
+                x + col_width,
                 separator_vertical_margin,
-                x + width,
+                x + col_width,
                 self.horizontal_header_height - separator_vertical_margin)
             self.columns_separators.append(QtCore.QRectF(
-                x + width - separator_selection_margin,
+                x + col_width - separator_selection_margin,
                 0,
                 separator_selection_margin * 2,
                 self.horizontal_header_height))
@@ -170,13 +186,15 @@ class Tableau(QtWidgets.QWidget):
 
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(self.HEADER_TEXT)
-        for rowidx in range(self.row_count):
-            value = rowidx - self.row_number_offset + 1
+        for row_index in range(self.row_count):
+            if row_index not in rows_y:
+                continue
+            value = row_index - self.row_number_offset + 1
             if value < 1:
                 continue
             r = QtCore.QRect(
                 0,
-                self.horizontal_header_height + ROW_HEIGHT * rowidx,
+                rows_y[row_index],
                 self.vertical_header_width,
                 ROW_HEIGHT)
             painter.drawText(r, Qt.AlignmentFlag.AlignCenter, str(value))
@@ -290,10 +308,12 @@ class TableauWithScroll(QtWidgets.QWidget):
     def adjust_scrollbars(self):
         content_width, content_height = self.tableau.get_table_size()
         widget_width, widget_height = self.size().toTuple()
+
         self.horizontal_scroll.setVisible(content_width > widget_width)
         self.horizontal_scroll.setMaximum(
             content_width - widget_width + self.vertical_scroll.width())
         self.horizontal_scroll.setMinimum(0)
+
         self.vertical_scroll.setVisible(content_height > widget_height)
         self.vertical_scroll.setMaximum(
             content_height - widget_height + self.horizontal_scroll.height())
