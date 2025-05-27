@@ -77,12 +77,12 @@ class Tableau(QtWidgets.QWidget):
         painter.setBrush(Qt.BrushStyle.NoBrush)
         columns_widths = []
         separator_margin = 4
-        for rowidx, title in enumerate(self.df.columns):
+        for colname in self.df.columns:
             x = self.vertical_header_width + sum(columns_widths)
-            width = DEFAULT_COL_WIDTH
+            width = self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
             r = QtCore.QRect(x, 0, width, self.horizontal_header_height)
             painter.setPen(self.HEADER_TEXT)
-            painter.drawText(r, Qt.AlignmentFlag.AlignCenter, title)
+            painter.drawText(r, Qt.AlignmentFlag.AlignCenter, colname)
             columns_widths.append(width)
             painter.setPen(self.BACKGROUND_COLOR)
             painter.drawLine(
@@ -115,13 +115,13 @@ class Tableau(QtWidgets.QWidget):
         painter.setPen(self.TEXT_COLOR)
         columns_widths = []
         ys = []
-        for colidx in range(self.column_count):
+        for colidx, colname in enumerate(self.df.columns):
+            width = self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
             for rowidx in range(self.row_count):
                 value = self.df[rowidx, colidx]
                 x = self.vertical_header_width + sum(columns_widths)
                 y = self.horizontal_header_height + LINE_HEIGHT * rowidx
                 ys.append(y + LINE_HEIGHT)
-                width = DEFAULT_COL_WIDTH
                 height = LINE_HEIGHT
                 # Text
                 r = QtCore.QRect(x, y, width, height)
@@ -150,8 +150,9 @@ class Tableau(QtWidgets.QWidget):
             if not c.endswith(BGCOLOR_COLUMN_SUFFIX)])
         self.row_count = self.df.height
 
-    def set_column_sizes(self, sizes):
-        self.column_sizes = sizes
+    def set_column_sizes(self, column_sizes):
+        self.column_sizes = column_sizes
+        self.update()
 
     def get_colors(self):
         table = QtWidgets.QTableView()
@@ -169,5 +170,6 @@ if __name__ == '__main__':
     import os
     app = QtWidgets.QApplication([])
     tableau = Tableau(pl.read_ods(os.path.expandvars('$SAMPLES/sample.ods')))
+    tableau.set_column_sizes(dict(z=30))
     tableau.show()
     app.exec()
