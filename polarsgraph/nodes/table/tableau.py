@@ -17,37 +17,69 @@ class Tableau(QtWidgets.QWidget):
         self.setMinimumHeight(120)
         self._vertical_scroll = 0
         self._horizontal_scroll = 0
+        self.row_number_offset = 1
         self.column_sizes: dict = {}
 
         self.df: pl.DataFrame
         self.set_table(table)
 
     def paintEvent(self, _):
+        painter = QtGui.QPainter(self)
+        try:
+            self._paint(painter)
+        finally:
+            painter.end()
+
+    def _paint(self, painter: QtGui.QPainter):
         rect = self.rect()
 
         # Background
-        painter = QtGui.QPainter(self)
         painter.setBrush(self.BACKGROUND_COLOR)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRect(rect)
         if self.df is None:
             return
 
+        # header sizes
+        vertical_header_width = 24  # TODO: compute based on texts widths
+        horizontal_header_height = 24  # TODO: compute based on texts heights
+
         # horizontal header
         r = QtCore.QRect(rect)
-        horizontal_header_height = 20  # TODO: compute based on texts heights
         r.setHeight(horizontal_header_height)
         painter.setBrush(self.HEADER_COLOR)
         painter.drawRect(r)
 
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(self.HEADER_TEXT)
+        columns_widths = []
+        for rowidx, title in enumerate(self.df.columns):
+            x = vertical_header_width + sum(columns_widths)
+            width = 40
+            r = QtCore.QRect(x, 0, width, horizontal_header_height)
+            painter.drawText(r, Qt.AlignmentFlag.AlignCenter, title)
+            columns_widths.append(40)
+
         # vertical header
         r = QtCore.QRect(rect)
-        vertical_header_width = 20  # TODO: compute based on texts widths
         r.setWidth(vertical_header_width)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(self.HEADER_COLOR)
         painter.drawRect(r)
 
-        # fill
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(self.HEADER_TEXT)
+        for rowidx in range(self.row_count):
+            r = QtCore.QRect(
+                0,
+                horizontal_header_height + LINE_HEIGHT * rowidx,
+                vertical_header_width,
+                LINE_HEIGHT)
+            painter.drawText(
+                r, Qt.AlignmentFlag.AlignCenter,
+                str(rowidx + self.row_number_offset))
+
+        # Paint cells
         painter.setPen(self.TEXT_COLOR)
         columns_widths = []
         ys = []
