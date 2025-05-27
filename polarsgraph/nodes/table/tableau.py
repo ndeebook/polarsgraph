@@ -301,10 +301,6 @@ class TableauWithScroll(QtWidgets.QWidget):
         self.tableau.set_table(table)
         self.adjust_scrollbars()
 
-    def resizeEvent(self, event):
-        self.adjust_scrollbars()
-        return super().resizeEvent(event)
-
     def adjust_scrollbars(self):
         content_width, content_height = self.tableau.get_table_size()
         widget_width, widget_height = self.size().toTuple()
@@ -318,6 +314,16 @@ class TableauWithScroll(QtWidgets.QWidget):
         self.vertical_scroll.setMaximum(
             content_height - widget_height + self.horizontal_scroll.height())
         self.vertical_scroll.setMinimum(0)
+
+    def resizeEvent(self, event):
+        r = super().resizeEvent(event)
+        QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
+        return r
+
+    def showEvent(self, event):
+        r = super().showEvent(event)
+        QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
+        return r
 
 
 if __name__ == '__main__':
