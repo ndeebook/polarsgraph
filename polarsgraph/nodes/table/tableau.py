@@ -276,6 +276,7 @@ class TableauWithScroll(QtWidgets.QWidget):
         super().__init__()
 
         self.tableau = Tableau(parent=self)
+        self.tableau.columns_resized.connect(self.adjust_scrollbars)
         self.set_column_sizes = self.tableau.set_column_sizes
 
         self.vertical_scroll = QtWidgets.QScrollBar(
