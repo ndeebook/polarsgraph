@@ -10,8 +10,12 @@ BGCOLOR_COLUMN_SUFFIX = '~color'
 
 
 class Tableau(QtWidgets.QWidget):
+    columns_resized = QtCore.Signal()
+
     def __init__(self, table=None):
         super().__init__()
+
+        self.setMouseTracking(True)
 
         self.get_colors()
 
@@ -32,6 +36,8 @@ class Tableau(QtWidgets.QWidget):
         self.HEADER_COLOR: QtGui.QColor
 
         self.columns_separators: list[QtCore.QRect] = []
+        self.selected_column: int | None = None
+        self._column_resized = False
 
     def paintEvent(self, _):
         painter = QtGui.QPainter(self)
@@ -76,7 +82,9 @@ class Tableau(QtWidgets.QWidget):
 
         painter.setBrush(Qt.BrushStyle.NoBrush)
         columns_widths = []
-        separator_margin = 4
+        self.columns_separators.clear()
+        separator_vertical_margin = 4
+        separator_selection_margin = 2
         for colname in self.df.columns:
             x = self.vertical_header_width + sum(columns_widths)
             width = self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
@@ -87,9 +95,14 @@ class Tableau(QtWidgets.QWidget):
             painter.setPen(self.BACKGROUND_COLOR)
             painter.drawLine(
                 x + width,
-                separator_margin,
+                separator_vertical_margin,
                 x + width,
-                self.horizontal_header_height - separator_margin)
+                self.horizontal_header_height - separator_vertical_margin)
+            self.columns_separators.append(QtCore.QRectF(
+                x + width - separator_selection_margin,
+                0,
+                separator_selection_margin * 2,
+                self.horizontal_header_height))
 
         # vertical header
         r = QtCore.QRect(rect)
@@ -137,6 +150,46 @@ class Tableau(QtWidgets.QWidget):
         for y in ys:
             r = QtCore.QRect(x, y, width, height)
             painter.drawLine(self.vertical_header_width, y, x2, y)
+
+    def get_separator_column_under_cursor(self, pos) -> str:
+        for i, rect in enumerate(self.columns_separators):
+            if rect.contains(pos):
+                return self.df.columns[i]
+
+    def set_cursor(self, pos):
+        if self.get_separator_column_under_cursor(pos):
+            QtWidgets.QApplication.setOverrideCursor(
+                Qt.CursorShape.SizeHorCursor)
+        else:
+            QtWidgets.QApplication.restoreOverrideCursor()
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+        # Drag:
+        if self.selected_column:
+            pos = event.position()
+            delta = self.drag_start.x() - pos.x()
+            current_width = self.column_sizes.get(
+                self.selected_column, DEFAULT_COL_WIDTH)
+            self.column_sizes[self.selected_column] = current_width - delta
+            self.drag_start = pos
+            self._column_resized = True
+            self.update()
+            return
+        # Mouse Hover:
+        self.set_cursor(event.position())
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent):
+        pos = event.position()
+        self.selected_column = self.get_separator_column_under_cursor(pos)
+        self.drag_start = pos
+        return super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self.selected_column = None
+        if self._column_resized:
+            self.columns_resized.emit()
+            self._column_resized = False
+        return super().mouseReleaseEvent(event)
 
     def set_table(self, table: pl.DataFrame):
         self.df = table
