@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt
 
 LINE_HEIGHT = 24
 DEFAULT_COL_WIDTH = 80
+MINIMUM_COL_WIDTH = 24
 
 BGCOLOR_COLUMN_SUFFIX = '~color'
 
@@ -16,6 +17,8 @@ class Tableau(QtWidgets.QWidget):
         super().__init__()
 
         self.setMouseTracking(True)
+        self.font_ = self.font()
+        self.metrics = QtGui.QFontMetrics(self.font_)
 
         self.get_colors()
 
@@ -47,19 +50,17 @@ class Tableau(QtWidgets.QWidget):
             painter.end()
 
     def compute_headers_sizes(self):
-        font = self.font()
-        metrics = QtGui.QFontMetrics(font)
         rect = self.rect()
 
         # Horizontal header size
         max_height = max([
-            metrics.boundingRect(rect, Qt.AlignCenter, c).height()
+            self.metrics.boundingRect(rect, Qt.AlignCenter, c).height()
             for c in self.df.columns])
         self.horizontal_header_height = max(24, max_height + 4)
 
         # vertical header size
         last_label = str(self.row_count + self.row_number_offset - 1)
-        text_rect = metrics.boundingRect(
+        text_rect = self.metrics.boundingRect(
             rect, Qt.AlignmentFlag.AlignCenter, last_label)
         self.vertical_header_width = max(24, text_rect.width() + 4)
 
@@ -84,7 +85,7 @@ class Tableau(QtWidgets.QWidget):
         columns_widths = []
         self.columns_separators.clear()
         separator_vertical_margin = 4
-        separator_selection_margin = 2
+        separator_selection_margin = 4
         for colname in self.df.columns:
             x = self.vertical_header_width + sum(columns_widths)
             width = self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
@@ -170,8 +171,10 @@ class Tableau(QtWidgets.QWidget):
             delta = self.drag_start.x() - pos.x()
             current_width = self.column_sizes.get(
                 self.selected_column, DEFAULT_COL_WIDTH)
-            self.column_sizes[self.selected_column] = current_width - delta
-            self.drag_start = pos
+            new_width = max(current_width - delta, MINIMUM_COL_WIDTH)
+            self.column_sizes[self.selected_column] = new_width
+            if new_width != MINIMUM_COL_WIDTH:
+                self.drag_start = pos
             self._column_resized = True
             self.update()
             return
