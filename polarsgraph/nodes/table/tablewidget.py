@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt
 
 from polarsgraph.log import logger
 from polarsgraph.nodes.base import DISPLAY_INDEX_ATTR, BaseNode, BaseDisplay
-from polarsgraph.nodes.table.tableau import Tableau
+from polarsgraph.nodes.table.tableau import TableauWithScroll
 
 
 TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
@@ -31,22 +31,11 @@ class TableDisplay(BaseDisplay):
         self.columns = None
 
         # Widgets
-        self.table_view = QtWidgets.QTableView()
-        self.table_view.setStyleSheet(TABLE_HANDLE_CSS)
-        mode = QtWidgets.QHeaderView.ScrollPerPixel
-        self.table_view.setVerticalScrollMode(mode)
-        self.table_view.setHorizontalScrollMode(mode)
-        self.table_view.horizontalHeader().sectionResized.connect(
-            self.record_column_width)
-        self.tableau = Tableau()
-
-        self.table_model = PolarsLazyFrameModel(
-            dark_theme=self.palette().color(QtGui.QPalette.Base).valueF() < .3)
-        self.table_view.setModel(self.table_model)
+        self.tableau = TableauWithScroll()
 
         self.table_details_label = QtWidgets.QLabel()
         resize_button = QtWidgets.QPushButton(
-            '⇔ columns', clicked=self.table_view.resizeColumnsToContents)
+            '⇔ columns', clicked=self.tableau.resize_columns_to_contents)
         icon = QtGui.QIcon.fromTheme(QtGui.QIcon.ThemeIcon.EditCopy)
         clipboard_image_button = QtWidgets.QPushButton(
             'image', icon=icon, clicked=self.image_to_clipboard)
@@ -78,46 +67,38 @@ class TableDisplay(BaseDisplay):
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.table_view)
-        layout.addWidget(self.bottom_widget)
         layout.addWidget(self.tableau)
+        layout.addWidget(self.bottom_widget)
 
     def set_table(self, table: pl.DataFrame):
         if table is None:
             self.table_details_label.setText('')
-            return self.table_model.set_dataframe(pl.DataFrame())
-        columns_count = self.table_model.set_dataframe(table)
+            return self.tableau.set_table(pl.DataFrame())
+        columns_count = len(table.columns)
 
         # Label
         self.table_details_label.setText(
             f'{table.height} x {columns_count}')
 
-        # Recover saved columns sizes (by column name):
-        self.columns = table.schema.names()
-        saved_sizes = self.node[ATTR.COLUMNS_WIDTHS] or {}
-        for i, column_name in enumerate(self.columns):
-            if column_name in saved_sizes:
-                self.table_view.setColumnWidth(i, saved_sizes[column_name])
-
         # New widget
         self.tableau.set_table(table)
-        self.tableau.set_column_sizes(saved_sizes)
+        self.tableau.set_column_sizes(self.node[ATTR.COLUMNS_WIDTHS] or {})
 
     def set_board_mode(self, board_enabled: bool):
         self.bottom_widget.setVisible(not board_enabled)
 
     def export_dataframe(self):
-        if self.table_model.dataframe is None:
+        if self.tableau.tableau.df is None:
             return QtWidgets.QMessageBox.warning(
                 self, 'Empty', 'No Table to export',
                 QtWidgets.QMessageBox.Ok)
-        prompt_save_df(self.table_model.dataframe, self)
+        prompt_save_df(self.tableau.tableau.df, self)
 
     def get_pixmap(self):
-        size = get_table_size(self.table_view)
+        size = get_table_size(self.tableau)
         size.setHeight(size.height())
         pixmap = QtGui.QPixmap(size)
-        self.table_view.render(pixmap)
+        self.tableau.render(pixmap)
         return pixmap
 
     def save_image(self):
@@ -131,14 +112,14 @@ class TableDisplay(BaseDisplay):
         QtWidgets.QApplication.clipboard().setPixmap(self.get_pixmap())
 
     def csv_to_clipboard(self):
-        df = get_table_without_color_columns(self.table_model.dataframe)
+        df = get_table_without_color_columns(self.tableau.tableau.df)
         string = '\t'.join(df.columns)
         for row in df.to_dicts():
             string += '\n' + '\t'.join(str(v) for v in row.values())
         QtWidgets.QApplication.clipboard().setText(string)
 
     def ascii_to_clipboard(self):
-        df = get_table_without_color_columns(self.table_model.dataframe)
+        df = get_table_without_color_columns(self.tableau.tableau.df)
         settings = {
             'POLARS_FMT_MAX_ROWS': '300',
             'POLARS_FMT_MAX_COLS': '50',
@@ -160,90 +141,6 @@ class TableDisplay(BaseDisplay):
             self.node[ATTR.COLUMNS_WIDTHS] = {}
         column_name = self.columns[column]
         self.node[ATTR.COLUMNS_WIDTHS][column_name] = newWidth
-
-
-class PolarsLazyFrameModel(QtCore.QAbstractTableModel):
-    def __init__(self, dark_theme=False, parent=None):
-        super().__init__(parent)
-
-        self.dark_theme = dark_theme
-        self.default_text_color = Qt.white if dark_theme else Qt.black
-
-        self.dataframe = pl.DataFrame()
-        self.column_count = 0
-        self.row_count = 0
-        self.bgcolor_column_indexes = dict()
-
-    def set_dataframe(self, dataframe: pl.DataFrame):
-        self.layoutAboutToBeChanged.emit()
-
-        self.dataframe = dataframe
-
-        # Columns and Rows counts
-        self.column_count = len([
-            c for c in self.dataframe.columns
-            if not c.endswith(BGCOLOR_COLUMN_SUFFIX)])
-        self.row_count = self.dataframe.height
-
-        # Cache existing color columns
-        columns = dataframe.columns
-        self.bgcolor_column_indexes = {
-            columns.index(c): index_or_none(columns, get_bgcolor_name(c))
-            for c in columns}
-
-        self.layoutChanged.emit()
-
-        return self.column_count
-
-    def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Vertical:
-                return str(section + 1)
-            if orientation == Qt.Horizontal:
-                return self.dataframe.columns[section]
-        elif role == Qt.TextAlignmentRole:
-            return Qt.AlignCenter
-
-    def rowCount(self, *_):
-        return self.row_count
-
-    def columnCount(self, *_):
-        return self.column_count
-
-    def _get_bg_color(self, row, col):
-        color_col = self.bgcolor_column_indexes.get(col)
-        if color_col is None:
-            return
-        color = self.dataframe[row, color_col]
-        if color:
-            return QtGui.QColor(color)
-
-    def data(self, index, role):
-        if not index.isValid():
-            return
-
-        if role == Qt.ItemDataRole.TextAlignmentRole:
-            return Qt.AlignmentFlag.AlignCenter
-
-        row, col = index.row(), index.column()
-
-        if role == Qt.ItemDataRole.DisplayRole:
-            value = self.dataframe[row, col]
-            if value is None:
-                return ''
-            return str(value)
-
-        if role == Qt.ItemDataRole.BackgroundRole:
-            return self._get_bg_color(row, col)
-
-        elif role == Qt.ItemDataRole.ForegroundRole:
-            bg_color = self._get_bg_color(row, col)
-            if not bg_color:
-                return self.default_text_color
-            if bg_color.valueF() < .5:
-                return WHITE
-            else:
-                return BLACK
 
 
 def prompt_save_df(df, parent=None):

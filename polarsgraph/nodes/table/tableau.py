@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 ROW_HEIGHT = 24
 DEFAULT_COL_WIDTH = 80
 MINIMUM_COL_WIDTH = 24
+AUTO_SIZE_MARGIN = 16
 
 BGCOLOR_COLUMN_SUFFIX = '~color'
 
@@ -17,14 +18,14 @@ class Tableau(QtWidgets.QWidget):
         super().__init__(parent)
 
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
-            QtWidgets.QSizePolicy.Policy.MinimumExpanding)
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding)
 
         self.setMouseTracking(True)
         self.font_ = self.font()
         self.metrics = QtGui.QFontMetrics(self.font_)
 
-        self.get_colors()
+        self.get_palette_colors()
 
         self._vertical_scroll = 0
         self._horizontal_scroll = 0
@@ -56,6 +57,8 @@ class Tableau(QtWidgets.QWidget):
             painter.end()
 
     def compute_headers_sizes(self):
+        if not self.df.columns:
+            return
         rect = self.rect()
 
         # Horizontal header size
@@ -71,6 +74,8 @@ class Tableau(QtWidgets.QWidget):
         self.vertical_header_width = max(24, text_rect.width() + 4)
 
     def get_table_size(self):
+        if not self.df.columns:
+            return 0, 0
         self.compute_headers_sizes()
         h = self.horizontal_header_height + self.row_count * ROW_HEIGHT
         columns_widths = [
@@ -116,6 +121,14 @@ class Tableau(QtWidgets.QWidget):
 
         return y
 
+    def _get_bg_color(self, row, col):
+        color_col = self.bgcolor_column_indexes.get(col)
+        if color_col:
+            color = self.df[row, color_col]
+            if color:
+                return QtGui.QColor(color)
+        return self.BACKGROUND_COLOR
+
     def _paint(self, painter: QtGui.QPainter):
         # Collect main sizes
         self.compute_headers_sizes()
@@ -130,7 +143,7 @@ class Tableau(QtWidgets.QWidget):
         painter.setBrush(self.BACKGROUND_COLOR)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRect(rect)
-        if self.df is None:
+        if self.df is None or not self.df.columns:
             return
 
         # Paint cells
@@ -153,7 +166,7 @@ class Tableau(QtWidgets.QWidget):
                 r = QtCore.QRect(x, y, col_width, ROW_HEIGHT)
                 # Background
                 painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(self.BACKGROUND_COLOR)
+                painter.setBrush(self._get_bg_color(row_index, col_index))
                 painter.drawRect(r)
                 # Text
                 painter.setPen(self.TEXT_COLOR)
@@ -254,6 +267,10 @@ class Tableau(QtWidgets.QWidget):
         else:
             QtWidgets.QApplication.restoreOverrideCursor()
 
+    def leaveEvent(self, event):
+        QtWidgets.QApplication.restoreOverrideCursor()
+        return super().leaveEvent(event)
+
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
         # Drag:
         if self.selected_column_separator:
@@ -286,6 +303,7 @@ class Tableau(QtWidgets.QWidget):
         return super().mouseReleaseEvent(event)
 
     def set_table(self, table: pl.DataFrame):
+        table = table if table is not None else pl.DataFrame()
         self.df = table
         if table is None:
             self.column_count = 0
@@ -297,11 +315,27 @@ class Tableau(QtWidgets.QWidget):
             if not c.endswith(BGCOLOR_COLUMN_SUFFIX)])
         self.row_count = self.df.height
 
+        columns = table.columns
+        self.bgcolor_column_indexes = {
+            columns.index(c): index_or_none(columns, get_bgcolor_name(c))
+            for c in columns}
+
+    def resize_columns_to_contents(self):
+        sizes = dict()
+        for col_index, col_name in enumerate(self.df.columns):
+            max_cell_width = max([
+                self.metrics.boundingRect(str(self.df[row, col_index])).width()
+                for row in range(self.row_count)])
+            sizes[col_name] = max([
+                self.metrics.boundingRect(col_name).width(),
+                max_cell_width]) + AUTO_SIZE_MARGIN
+        self.set_column_sizes(sizes)
+
     def set_column_sizes(self, column_sizes):
         self.column_sizes = column_sizes
         self.update()
 
-    def get_colors(self):
+    def get_palette_colors(self):
         table = QtWidgets.QTableView()
         palette = table.palette()
         self.TEXT_COLOR = palette.color(QtGui.QPalette.Text)
@@ -321,7 +355,6 @@ class TableauWithScroll(QtWidgets.QWidget):
 
         self.tableau = Tableau(parent=self)
         self.tableau.columns_resized.connect(self.adjust_scrollbars)
-        self.set_column_sizes = self.tableau.set_column_sizes
 
         self.vertical_scroll = QtWidgets.QScrollBar(
             Qt.Orientation.Vertical)
@@ -366,6 +399,14 @@ class TableauWithScroll(QtWidgets.QWidget):
     def set_frozen_rows(self, count):
         self.tableau.frozen_rows = count
 
+    def resize_columns_to_contents(self):
+        self.tableau.resize_columns_to_contents()
+        QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
+
+    def set_column_sizes(self, sizes):
+        self.tableau.set_column_sizes(sizes)
+        QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
+
     def resizeEvent(self, event):
         r = super().resizeEvent(event)
         QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
@@ -375,6 +416,17 @@ class TableauWithScroll(QtWidgets.QWidget):
         r = super().showEvent(event)
         QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
         return r
+
+
+def index_or_none(list_: list, value):
+    try:
+        return list_.index(value)
+    except ValueError:
+        return
+
+
+def get_bgcolor_name(column):
+    return f'{column}{BGCOLOR_COLUMN_SUFFIX}'
 
 
 if __name__ == '__main__':
