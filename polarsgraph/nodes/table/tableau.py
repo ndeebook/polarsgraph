@@ -211,7 +211,7 @@ class Tableau(QtWidgets.QWidget):
             painter.setPen(self.HEADER_TEXT)
             painter.drawText(r, Qt.AlignmentFlag.AlignCenter, colname)
             # Separator
-            painter.setPen(self.BACKGROUND_COLOR)
+            painter.setPen(self.HEADER_SEPARATOR_COLOR)
             painter.drawLine(
                 x + col_width,
                 separator_vertical_margin,
@@ -348,13 +348,22 @@ class Tableau(QtWidgets.QWidget):
     def get_palette_colors(self):
         table = QtWidgets.QTableView()
         palette = table.palette()
-        self.TEXT_COLOR = palette.color(QtGui.QPalette.Text)
-        self.BACKGROUND_COLOR = palette.color(QtGui.QPalette.Base)
-        self.GRID_COLOR = palette.color(QtGui.QPalette.Mid)
 
-        header_palette = table.horizontalHeader().palette()
-        self.HEADER_TEXT = header_palette.color(QtGui.QPalette.ButtonText)
-        self.HEADER_COLOR = header_palette.color(QtGui.QPalette.Button)
+        self.TEXT_COLOR = palette.color(QtGui.QPalette.ColorRole.Text)
+        self.BACKGROUND_COLOR = palette.color(QtGui.QPalette.ColorRole.Base)
+
+        dark_theme = self.BACKGROUND_COLOR.valueF() < .3
+        if dark_theme:
+            self.GRID_COLOR = QtGui.QColor('#282828')
+            self.HEADER_TEXT = QtGui.QColor('#ffffff')
+            self.HEADER_COLOR = QtGui.QColor('#3c3c3c')
+            self.HEADER_SEPARATOR_COLOR = QtGui.QColor('#2d2d2d')
+        else:
+            self.BACKGROUND_COLOR = QtGui.QColor('#FFFFFF')
+            self.GRID_COLOR = QtGui.QColor('#EEEEEE')
+            self.HEADER_TEXT = QtGui.QColor('#000000')
+            self.HEADER_COLOR = QtGui.QColor('#DDDDDD')
+            self.HEADER_SEPARATOR_COLOR = QtGui.QColor('#AAAAAA')
 
 
 class TableauWithScroll(QtWidgets.QWidget):
