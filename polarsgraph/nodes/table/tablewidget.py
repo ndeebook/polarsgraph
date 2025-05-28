@@ -20,6 +20,9 @@ class ATTR:
     NAME = 'name'
     COLUMNS_WIDTHS = 'columns_widths'
     DISPLAY_INDEX = DISPLAY_INDEX_ATTR
+    FROZEN_COLUMNS = 'frozen_columns'
+    FROZEN_ROWS = 'frozen_rows'
+    ROWS_NUMBER_OFFSET = 'rows_number_offset'
 
 
 class TableDisplay(BaseDisplay):
@@ -83,6 +86,9 @@ class TableDisplay(BaseDisplay):
         # New widget
         self.tableau.set_table(table)
         self.tableau.set_column_sizes(self.node[ATTR.COLUMNS_WIDTHS] or {})
+        self.tableau.set_frozen_columns(self.node[ATTR.FROZEN_COLUMNS])
+        self.tableau.set_frozen_rows(self.node[ATTR.FROZEN_ROWS])
+        self.tableau.set_rows_number_offset(self.node[ATTR.ROWS_NUMBER_OFFSET])
 
     def set_board_mode(self, board_enabled: bool):
         self.bottom_widget.setVisible(not board_enabled)

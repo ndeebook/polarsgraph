@@ -59,9 +59,28 @@ class TableSettingsWidget(BaseSettingsWidget):
             lambda: self.combobox_to_settings(
                 self.index_combo, ATTR.DISPLAY_INDEX))
 
+        self.frozen_columns_spinbox = QtWidgets.QSpinBox(maximum=99)
+        self.frozen_columns_spinbox.valueChanged.connect(
+            lambda: self.spinbox_to_settings(
+                self.frozen_columns_spinbox, ATTR.FROZEN_COLUMNS))
+
+        self.frozen_rows_spinbox = QtWidgets.QSpinBox(maximum=99)
+        self.frozen_rows_spinbox.valueChanged.connect(
+            lambda: self.spinbox_to_settings(
+                self.frozen_rows_spinbox, ATTR.FROZEN_ROWS))
+
+        self.rows_number_offset_spinbox = QtWidgets.QSpinBox(maximum=99)
+        self.rows_number_offset_spinbox.valueChanged.connect(
+            lambda: self.spinbox_to_settings(
+                self.rows_number_offset_spinbox, ATTR.ROWS_NUMBER_OFFSET))
+
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         form_layout.addRow('Display index', self.index_combo)
+        form_layout.addRow('Frozen columns', self.frozen_columns_spinbox)
+        form_layout.addRow('Frozen rows', self.frozen_rows_spinbox)
+        form_layout.addRow(
+            'Rows number offset', self.rows_number_offset_spinbox)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
 

@@ -251,8 +251,10 @@ class Tableau(QtWidgets.QWidget):
         # header corner
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(self.HEADER_COLOR)
-        painter.drawRect(
-            0, 0, self.vertical_header_width, self.horizontal_header_height)
+        corner_height = (
+            self.horizontal_header_height
+            + ROW_HEIGHT * self.row_number_offset)
+        painter.drawRect(0, 0, self.vertical_header_width, corner_height)
 
     def get_separator_column_under_cursor(self, pos) -> str:
         for i, rect in self.columns_separators.items():
@@ -393,10 +395,16 @@ class TableauWithScroll(QtWidgets.QWidget):
         self.vertical_scroll.setMinimum(0)
 
     def set_frozen_columns(self, count):
-        self.tableau.frozen_columns = count
+        self.tableau.frozen_columns = count or 0
+        self.update()
 
     def set_frozen_rows(self, count):
-        self.tableau.frozen_rows = count
+        self.tableau.frozen_rows = count or 0
+        self.update()
+
+    def set_rows_number_offset(self, offset):
+        self.tableau.row_number_offset = offset or 0
+        self.update()
 
     def resize_columns_to_contents(self):
         self.tableau.resize_columns_to_contents()
