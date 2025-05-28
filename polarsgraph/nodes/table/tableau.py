@@ -29,8 +29,8 @@ class Tableau(QtWidgets.QWidget):
         self._vertical_scroll = 0
         self._horizontal_scroll = 0
         self.row_number_offset = 0
-        self.fixed_columns = 0
-        self.fixed_rows = 0
+        self.frozen_columns = 0
+        self.frozen_rows = 0
 
         self.column_sizes: dict = {}
         self._column_sizes: list = []
@@ -90,8 +90,8 @@ class Tableau(QtWidgets.QWidget):
     def _get_column_x(self, column_index, viewport_width):
         x = self.vertical_header_width + sum(self._column_sizes[:column_index])
 
-        # if not fixed, offset by scroll:
-        if column_index >= self.fixed_columns:
+        # if not frozen, offset by scroll:
+        if column_index >= self.frozen_columns:
             x -= self._horizontal_scroll
 
         # check if column is visible:
@@ -104,8 +104,8 @@ class Tableau(QtWidgets.QWidget):
     def _get_row_y(self, row_index, viewport_height):
         y = self.horizontal_header_height + row_index * ROW_HEIGHT
 
-        # if not fixed, offset by scroll:
-        if row_index >= self.fixed_rows:
+        # if not frozen, offset by scroll:
+        if row_index >= self.frozen_rows:
             y -= self._vertical_scroll
 
         # check if row is visible:
@@ -203,8 +203,8 @@ class Tableau(QtWidgets.QWidget):
                 separator_selection_margin * 2,
                 self.horizontal_header_height)
             self.columns_separators[col_index] = selection_rect
-            # Fixed column separator
-            if col_index == self.fixed_columns - 1:
+            # Frozen columns separator
+            if col_index == self.frozen_columns - 1:
                 painter.setPen(self.GRID_COLOR)
                 y = max(rows_y.values()) + ROW_HEIGHT
                 x += self._column_sizes[col_index]
@@ -241,14 +241,6 @@ class Tableau(QtWidgets.QWidget):
         painter.setBrush(self.HEADER_COLOR)
         painter.drawRect(
             0, 0, self.vertical_header_width, self.horizontal_header_height)
-
-        # # line after fixed columns
-        # painter.setPen(self.GRID_COLOR)
-        # y = max(rows_y.values()) + ROW_HEIGHT
-        # col_index = self.fixed_columns - 1
-        # x = self._get_column_x(col_index, widget_width)
-        # x += columns_widths[col_index]
-        # painter.drawLine(x, self.horizontal_header_height, x, y)
 
     def get_separator_column_under_cursor(self, pos) -> str:
         for i, rect in self.columns_separators.items():
@@ -368,11 +360,11 @@ class TableauWithScroll(QtWidgets.QWidget):
             content_height - widget_height + self.horizontal_scroll.height())
         self.vertical_scroll.setMinimum(0)
 
-    def set_fixed_columns(self, count):
-        self.tableau.fixed_columns = count
+    def set_frozen_columns(self, count):
+        self.tableau.frozen_columns = count
 
-    def set_fixed_rows(self, count):
-        self.tableau.fixed_rows = count
+    def set_frozen_rows(self, count):
+        self.tableau.frozen_rows = count
 
     def resizeEvent(self, event):
         r = super().resizeEvent(event)
@@ -391,7 +383,7 @@ if __name__ == '__main__':
     df = pl.read_ods(os.path.expandvars('$SAMPLES/sample.ods'))
     tableau = TableauWithScroll(df)
     tableau.set_column_sizes(dict(z=30))
-    tableau.set_fixed_columns(2)
-    tableau.set_fixed_rows(2)
+    tableau.set_frozen_columns(2)
+    tableau.set_frozen_rows(2)
     tableau.show()
     app.exec()
