@@ -58,14 +58,14 @@ class Tableau(QtWidgets.QWidget):
             painter.end()
 
     def compute_headers_sizes(self):
-        if not self.df.columns:
+        if not self.columns:
             return
         rect = self.rect()
 
         # Horizontal header size
         max_height = max([
             self.metrics.boundingRect(rect, Qt.AlignCenter, c).height()
-            for c in self.df.columns])
+            for c in self.columns])
         self.horizontal_header_height = max(24, max_height + 4)
 
         # vertical header size
@@ -75,13 +75,13 @@ class Tableau(QtWidgets.QWidget):
         self.vertical_header_width = max(24, text_rect.width() + 4)
 
     def get_table_size(self):
-        if not self.df.columns:
+        if not self.columns:
             return 0, 0
         self.compute_headers_sizes()
         h = self.horizontal_header_height + self.row_count * ROW_HEIGHT
         columns_widths = [
             self.column_sizes.get(c, DEFAULT_COL_WIDTH)
-            for c in self.df.columns]
+            for c in self.columns]
         w = self.vertical_header_width + sum(columns_widths)
         return w, h
 
@@ -137,7 +137,7 @@ class Tableau(QtWidgets.QWidget):
         self.compute_headers_sizes()
         self._column_sizes = [
             self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
-            for colname in self.df.columns]
+            for colname in self.columns]
 
         rect = self.rect()
         widget_width, widget_height = rect.size().toTuple()
@@ -146,14 +146,14 @@ class Tableau(QtWidgets.QWidget):
         painter.setBrush(self.BACKGROUND_COLOR)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRect(rect)
-        if self.df is None or not self.df.columns:
+        if self.df is None or not self.columns:
             return
 
         # Paint cells
         columns_widths = []
         rows_y = dict()  # cache values for headers
         columns_x = dict()  # cache values for headers
-        for col_index, colname in reversed(list(enumerate(self.df.columns))):
+        for col_index, colname in reversed(list(enumerate(self.columns))):
             col_width = self._column_sizes[col_index]
             x = self._get_column_x(col_index, widget_width)
             if x is None:
@@ -197,7 +197,7 @@ class Tableau(QtWidgets.QWidget):
         self.columns_separators.clear()
         separator_vertical_margin = 4
         separator_selection_margin = 4
-        for col_index, colname in reversed(list(enumerate(self.df.columns))):
+        for col_index, colname in reversed(list(enumerate(self.columns))):
             # Rect
             if col_index not in columns_x:
                 continue
@@ -267,7 +267,7 @@ class Tableau(QtWidgets.QWidget):
     def get_separator_column_under_cursor(self, pos) -> str:
         for i, rect in self.columns_separators.items():
             if rect.contains(pos):
-                return self.df.columns[i]
+                return self.columns[i]
 
     def set_cursor(self, pos):
         if self.get_separator_column_under_cursor(pos):
@@ -319,9 +319,10 @@ class Tableau(QtWidgets.QWidget):
             self.row_count = 0
             return
 
-        self.column_count = len([
+        self.columns = [
             c for c in self.df.columns
-            if not c.endswith(BGCOLOR_COLUMN_SUFFIX)])
+            if not c.endswith(BGCOLOR_COLUMN_SUFFIX)]
+        self.column_count = len(self.columns)
         self.row_count = self.df.height
 
         columns = table.columns
@@ -331,7 +332,7 @@ class Tableau(QtWidgets.QWidget):
 
     def resize_columns_to_contents(self):
         sizes = dict()
-        for col_index, col_name in enumerate(self.df.columns):
+        for col_index, col_name in enumerate(self.columns):
             max_cell_width = max([
                 self.metrics.boundingRect(str(self.df[row, col_index])).width()
                 for row in range(self.row_count)])
