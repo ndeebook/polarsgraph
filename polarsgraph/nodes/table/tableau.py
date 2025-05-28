@@ -423,6 +423,17 @@ class TableauWithScroll(QtWidgets.QWidget):
         self.tableau.set_column_sizes(sizes)
         QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
 
+    def wheelEvent(self, event: QtGui.QWheelEvent):
+        offset = ROW_HEIGHT / 2
+        if event.angleDelta().y() > 0:
+            offset *= -1
+        value = max(0, min(
+            self.vertical_scroll.value() + offset,
+            self.vertical_scroll.maximum()))
+        self.vertical_scroll.setValue(value)
+        self.tableau.set_vertical_scroll(value)
+        return super().wheelEvent(event)
+
     def resizeEvent(self, event):
         r = super().resizeEvent(event)
         QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
