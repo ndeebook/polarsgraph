@@ -29,8 +29,11 @@ class Tableau(QtWidgets.QWidget):
         self._vertical_scroll = 0
         self._horizontal_scroll = 0
         self.row_number_offset = 0
+        self.fixed_columns = 0
+        self.fixed_rows = 0
 
         self.column_sizes: dict = {}
+        self._column_sizes: list = []
 
         self.df: pl.DataFrame
         self.set_table(table)
@@ -84,14 +87,44 @@ class Tableau(QtWidgets.QWidget):
         self._horizontal_scroll = value
         self.update()
 
+    def _get_column_x(self, column_index, viewport_width):
+        x = self.vertical_header_width + sum(self._column_sizes[:column_index])
+
+        # if not fixed, offset by scroll:
+        if column_index >= self.fixed_columns:
+            x -= self._horizontal_scroll
+
+        # check if column is visible:
+        if x + self._column_sizes[column_index] < 0:
+            return
+        if x > viewport_width:
+            return
+        return x
+
+    def _get_row_y(self, row_index, viewport_height):
+        y = self.horizontal_header_height + row_index * ROW_HEIGHT
+
+        # if not fixed, offset by scroll:
+        if row_index >= self.fixed_rows:
+            y -= self._vertical_scroll
+
+        # check if row is visible:
+        if y + ROW_HEIGHT < 0:
+            return
+        if y > viewport_height:
+            return
+
+        return y
+
     def _paint(self, painter: QtGui.QPainter):
         # Collect main sizes
         self.compute_headers_sizes()
-        column_sizes = [
+        self._column_sizes = [
             self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
             for colname in self.df.columns]
 
         rect = self.rect()
+        widget_width, widget_height = rect.size().toTuple()
 
         # Background
         painter.setBrush(self.BACKGROUND_COLOR)
@@ -101,47 +134,38 @@ class Tableau(QtWidgets.QWidget):
             return
 
         # Paint cells
-        painter.setPen(self.TEXT_COLOR)
         columns_widths = []
-        rows_y = dict()
-        columns_x = dict()
-        rows_offset = int(self._vertical_scroll / ROW_HEIGHT)
-        pixels_offset = self._vertical_scroll % ROW_HEIGHT
-        widget_width = rect.width()
-        for col_index, colname in enumerate(self.df.columns):
-            col_width = column_sizes[col_index]
-            x = (
-                self.vertical_header_width
-                + sum(columns_widths)
-                - self._horizontal_scroll)
-            is_column_invisible = x > widget_width and (x + col_width) < 0
-            if is_column_invisible:
+        rows_y = dict()  # cache values for headers
+        columns_x = dict()  # cache values for headers
+        for col_index, colname in reversed(list(enumerate(self.df.columns))):
+            col_width = self._column_sizes[col_index]
+            x = self._get_column_x(col_index, widget_width)
+            if x is None:
                 continue
             columns_x[col_index] = x
-            for row_index in range(self.row_count):
-                if row_index < rows_offset:
-                    continue  # row not visible
-                value = self.df[row_index, col_index]
-                visual_row_index = row_index - rows_offset
-                y = (
-                    self.horizontal_header_height
-                    + ROW_HEIGHT * visual_row_index
-                    - pixels_offset)
+            for row_index in reversed(range(self.row_count)):
+                # Rect
+                y = self._get_row_y(row_index, widget_height)
+                if y is None:
+                    continue
                 rows_y[row_index] = y
-                # Text
+                value = self.df[row_index, col_index]
                 r = QtCore.QRect(x, y, col_width, ROW_HEIGHT)
+                # Background
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(self.BACKGROUND_COLOR)
+                painter.drawRect(r)
+                # Text
+                painter.setPen(self.TEXT_COLOR)
                 painter.drawText(
                     r.adjusted(1, 1, -1, -1),
                     Qt.AlignmentFlag.AlignCenter,
                     str(value))
+                # Line under cell
+                painter.setPen(self.GRID_COLOR)
+                painter.drawLine(
+                    x, y + ROW_HEIGHT, x + col_width, y + ROW_HEIGHT)
             columns_widths.append(col_width)
-
-        # horizontal lines
-        painter.setPen(self.GRID_COLOR)
-        x2 = sum(columns_widths) + self.vertical_header_width
-        for y in rows_y.values():
-            y += ROW_HEIGHT
-            painter.drawLine(self.vertical_header_width, y, x2, y)
 
         # horizontal header
         r = QtCore.QRect(rect)
@@ -150,21 +174,23 @@ class Tableau(QtWidgets.QWidget):
         painter.setBrush(self.HEADER_COLOR)
         painter.drawRect(r)
 
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        columns_widths = []
         self.columns_separators.clear()
         separator_vertical_margin = 4
         separator_selection_margin = 4
-        pixels_offset = self._horizontal_scroll % ROW_HEIGHT
-        for col_index, colname in enumerate(self.df.columns):
+        for col_index, colname in reversed(list(enumerate(self.df.columns))):
+            # Rect
             if col_index not in columns_x:
                 continue
             x = columns_x[col_index]
             col_width = self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
             r = QtCore.QRect(x, 0, col_width, self.horizontal_header_height)
+            # Background
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRect(r)
+            # Text
             painter.setPen(self.HEADER_TEXT)
             painter.drawText(r, Qt.AlignmentFlag.AlignCenter, colname)
-            columns_widths.append(col_width)
+            # Separator
             painter.setPen(self.BACKGROUND_COLOR)
             painter.drawLine(
                 x + col_width,
@@ -184,9 +210,8 @@ class Tableau(QtWidgets.QWidget):
         painter.setBrush(self.HEADER_COLOR)
         painter.drawRect(r)
 
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(self.HEADER_TEXT)
-        for row_index in range(self.row_count):
+        for row_index in reversed(range(self.row_count)):
+            # Rect
             if row_index not in rows_y:
                 continue
             value = row_index - self.row_number_offset + 1
@@ -197,7 +222,20 @@ class Tableau(QtWidgets.QWidget):
                 rows_y[row_index],
                 self.vertical_header_width,
                 ROW_HEIGHT)
+            # Background
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRect(r)
+            # Text
+            painter.setPen(self.HEADER_TEXT)
             painter.drawText(r, Qt.AlignmentFlag.AlignCenter, str(value))
+
+        # header corner
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(self.HEADER_COLOR)
+        painter.drawRect(
+            0, 0, self.vertical_header_width, self.horizontal_header_height)
+
+        # TODO: lines after fixed columns and rows
 
     def get_separator_column_under_cursor(self, pos) -> str:
         for i, rect in enumerate(self.columns_separators):
@@ -316,6 +354,12 @@ class TableauWithScroll(QtWidgets.QWidget):
             content_height - widget_height + self.horizontal_scroll.height())
         self.vertical_scroll.setMinimum(0)
 
+    def set_fixed_columns(self, count):
+        self.tableau.fixed_columns = count
+
+    def set_fixed_rows(self, count):
+        self.tableau.fixed_rows = count
+
     def resizeEvent(self, event):
         r = super().resizeEvent(event)
         QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
@@ -333,5 +377,7 @@ if __name__ == '__main__':
     df = pl.read_ods(os.path.expandvars('$SAMPLES/sample.ods'))
     tableau = TableauWithScroll(df)
     tableau.set_column_sizes(dict(z=30))
+    tableau.set_fixed_columns(1)
+    tableau.set_fixed_rows(1)
     tableau.show()
     app.exec()
