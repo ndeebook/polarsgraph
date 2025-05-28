@@ -101,10 +101,9 @@ class TableDisplay(BaseDisplay):
         prompt_save_df(self.tableau.tableau.df, self)
 
     def get_pixmap(self):
-        size = get_table_size(self.tableau)
-        size.setHeight(size.height())
+        size = self.tableau.tableau.size()
         pixmap = QtGui.QPixmap(size)
-        self.tableau.render(pixmap)
+        self.tableau.tableau.render(pixmap)
         return pixmap
 
     def save_image(self):
@@ -185,31 +184,6 @@ def get_table_without_color_columns(df):
     color_columns = [
         c for c in df.columns if c.endswith(BGCOLOR_COLUMN_SUFFIX)]
     return df.drop(color_columns)
-
-
-def get_table_size(table: QtWidgets.QTableView):
-    """
-    table.size() includes blank space.
-    Use position of last cell + its size + header
-    """
-    # height
-    last_row = table.model().rowCount() - 1
-    height = (
-        table.rowViewportPosition(last_row) +
-        table.rowHeight(last_row) +
-        table.horizontalHeader().height())
-
-    # width
-    last_col = table.model().columnCount() - 1
-    width = (
-        table.columnViewportPosition(last_col) +
-        table.columnWidth(last_col) +
-        table.verticalHeader().width())
-
-    width = min(table.width(), width)
-    height = min(table.height(), height)
-
-    return QtCore.QSize(width, height)
 
 
 def index_or_none(list_: list, value):
