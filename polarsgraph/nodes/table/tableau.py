@@ -3,7 +3,6 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
 
-ROW_HEIGHT = 24
 DEFAULT_COL_WIDTH = 80
 MINIMUM_COL_WIDTH = 24
 AUTO_SIZE_MARGIN = 16
@@ -25,6 +24,7 @@ class Tableau(QtWidgets.QWidget):
 
         self.setMouseTracking(True)
         self.font_ = self.font()
+        self.row_height = 24
         self.metrics = QtGui.QFontMetrics(self.font_)
 
         self._vertical_scroll = 0
@@ -52,6 +52,7 @@ class Tableau(QtWidgets.QWidget):
 
     def paintEvent(self, _):
         painter = QtGui.QPainter(self)
+        painter.setFont(self.font_)
         try:
             self._paint(painter)
         finally:
@@ -78,7 +79,7 @@ class Tableau(QtWidgets.QWidget):
         if not self.columns:
             return 0, 0
         self.compute_headers_sizes()
-        h = self.horizontal_header_height + self.row_count * ROW_HEIGHT
+        h = self.horizontal_header_height + self.row_count * self.row_height
         columns_widths = [
             self.column_sizes.get(c, DEFAULT_COL_WIDTH)
             for c in self.columns]
@@ -108,14 +109,14 @@ class Tableau(QtWidgets.QWidget):
         return x
 
     def _get_row_y(self, row_index, viewport_height):
-        y = self.horizontal_header_height + row_index * ROW_HEIGHT
+        y = self.horizontal_header_height + row_index * self.row_height
 
         # if not frozen, offset by scroll:
         if row_index >= self.frozen_rows:
             y -= self._vertical_scroll
 
         # check if row is visible:
-        if y + ROW_HEIGHT < 0:
+        if y + self.row_height < 0:
             return
         if y > viewport_height:
             return
@@ -166,7 +167,7 @@ class Tableau(QtWidgets.QWidget):
                     continue
                 rows_y[row_index] = y
                 value = self.df[row_index, col_index]
-                r = QtCore.QRect(x, y, col_width, ROW_HEIGHT)
+                r = QtCore.QRect(x, y, col_width, self.row_height)
                 # Background
                 bg_color, text_color = self._get_cell_colors(
                     row_index, col_index)
@@ -184,7 +185,7 @@ class Tableau(QtWidgets.QWidget):
                 # Line under cell
                 painter.setPen(self.GRID_COLOR)
                 painter.drawLine(
-                    x, y + ROW_HEIGHT, x + col_width, y + ROW_HEIGHT)
+                    x, y + self.row_height, x + col_width, y + self.row_height)
             columns_widths.append(col_width)
 
         # horizontal header
@@ -226,7 +227,7 @@ class Tableau(QtWidgets.QWidget):
             # Frozen columns separator
             if col_index == self.frozen_columns - 1:
                 painter.setPen(self.GRID_COLOR)
-                y = max(rows_y.values()) + ROW_HEIGHT
+                y = max(rows_y.values()) + self.row_height
                 x += self._column_sizes[col_index]
                 painter.drawLine(x, self.horizontal_header_height, x, y)
 
@@ -248,7 +249,7 @@ class Tableau(QtWidgets.QWidget):
                 0,
                 rows_y[row_index],
                 self.vertical_header_width,
-                ROW_HEIGHT)
+                self.row_height)
             # Background
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRect(r)
@@ -261,7 +262,7 @@ class Tableau(QtWidgets.QWidget):
         painter.setBrush(self.HEADER_COLOR)
         corner_height = (
             self.horizontal_header_height
-            + ROW_HEIGHT * self.row_number_offset)
+            + self.row_height * self.row_number_offset)
         painter.drawRect(0, 0, self.vertical_header_width, corner_height)
 
     def get_separator_column_under_cursor(self, pos) -> str:
@@ -343,6 +344,13 @@ class Tableau(QtWidgets.QWidget):
 
     def set_column_sizes(self, column_sizes):
         self.column_sizes = column_sizes
+        self.update()
+
+    def set_font_size(self, point_size):
+        self.font_.setPointSize(point_size)
+        self.metrics = QtGui.QFontMetrics(self.font_)
+        self.row_height = max(
+            24, self.metrics.boundingRect('`°_I|⎰j,').height() + 10)
         self.update()
 
     def get_palette_colors(self):
@@ -436,8 +444,12 @@ class TableauWithScroll(QtWidgets.QWidget):
         self.tableau.set_column_sizes(sizes)
         QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
 
+    def set_font_size(self, size):
+        self.tableau.set_font_size(size)
+        QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
+
     def wheelEvent(self, event: QtGui.QWheelEvent):
-        offset = ROW_HEIGHT / 2
+        offset = self.tableau.row_height / 2
         if event.angleDelta().y() > 0:
             offset *= -1
         value = max(0, min(
@@ -477,5 +489,6 @@ if __name__ == '__main__':
     tableau.set_column_sizes(dict(z=30))
     tableau.set_frozen_columns(2)
     tableau.set_frozen_rows(2)
+    tableau.set_font_size(24)
     tableau.show()
     app.exec()
