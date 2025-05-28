@@ -45,7 +45,7 @@ class Tableau(QtWidgets.QWidget):
         self.HEADER_COLOR: QtGui.QColor
 
         self.columns_separators: dict[int, QtCore.QRect] = {}
-        self.selected_column: int | None = None
+        self.selected_column_separator: str | None = None
         self._column_resized = False
 
     def paintEvent(self, _):
@@ -203,6 +203,12 @@ class Tableau(QtWidgets.QWidget):
                 separator_selection_margin * 2,
                 self.horizontal_header_height)
             self.columns_separators[col_index] = selection_rect
+            # Fixed column separator
+            if col_index == self.fixed_columns - 1:
+                painter.setPen(self.GRID_COLOR)
+                y = max(rows_y.values()) + ROW_HEIGHT
+                x += self._column_sizes[col_index]
+                painter.drawLine(x, self.horizontal_header_height, x, y)
 
         # vertical header
         r = QtCore.QRect(rect)
@@ -236,13 +242,13 @@ class Tableau(QtWidgets.QWidget):
         painter.drawRect(
             0, 0, self.vertical_header_width, self.horizontal_header_height)
 
-        # line after fixed columns
-        painter.setPen(self.GRID_COLOR)
-        y = max(rows_y.values()) + ROW_HEIGHT
-        col_index = self.fixed_columns - 1
-        x = self._get_column_x(col_index, widget_width)
-        x += columns_widths[col_index]
-        painter.drawLine(x, self.horizontal_header_height, x, y)
+        # # line after fixed columns
+        # painter.setPen(self.GRID_COLOR)
+        # y = max(rows_y.values()) + ROW_HEIGHT
+        # col_index = self.fixed_columns - 1
+        # x = self._get_column_x(col_index, widget_width)
+        # x += columns_widths[col_index]
+        # painter.drawLine(x, self.horizontal_header_height, x, y)
 
     def get_separator_column_under_cursor(self, pos) -> str:
         for i, rect in self.columns_separators.items():
@@ -258,13 +264,13 @@ class Tableau(QtWidgets.QWidget):
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
         # Drag:
-        if self.selected_column:
+        if self.selected_column_separator:
             pos = event.position()
             delta = self.drag_start.x() - pos.x()
             current_width = self.column_sizes.get(
-                self.selected_column, DEFAULT_COL_WIDTH)
+                self.selected_column_separator, DEFAULT_COL_WIDTH)
             new_width = max(current_width - delta, MINIMUM_COL_WIDTH)
-            self.column_sizes[self.selected_column] = new_width
+            self.column_sizes[self.selected_column_separator] = new_width
             if new_width != MINIMUM_COL_WIDTH:
                 self.drag_start = pos
             self._column_resized = True
@@ -275,12 +281,13 @@ class Tableau(QtWidgets.QWidget):
 
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         pos = event.position()
-        self.selected_column = self.get_separator_column_under_cursor(pos)
+        self.selected_column_separator = (
+            self.get_separator_column_under_cursor(pos))
         self.drag_start = pos
         return super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
-        self.selected_column = None
+        self.selected_column_separator = None
         if self._column_resized:
             self.columns_resized.emit()
             self._column_resized = False
