@@ -25,8 +25,6 @@ class Tableau(QtWidgets.QWidget):
         self.font_ = self.font()
         self.metrics = QtGui.QFontMetrics(self.font_)
 
-        self.get_palette_colors()
-
         self._vertical_scroll = 0
         self._horizontal_scroll = 0
         self.row_number_offset = 0
@@ -44,6 +42,7 @@ class Tableau(QtWidgets.QWidget):
         self.GRID_COLOR: QtGui.QColor
         self.HEADER_TEXT: QtGui.QColor
         self.HEADER_COLOR: QtGui.QColor
+        self.get_palette_colors()
 
         self.columns_separators: dict[int, QtCore.QRect] = {}
         self.selected_column_separator: str | None = None
@@ -167,7 +166,7 @@ class Tableau(QtWidgets.QWidget):
                 # Background
                 painter.setPen(Qt.PenStyle.NoPen)
                 painter.setBrush(self._get_bg_color(row_index, col_index))
-                painter.drawRect(r)
+                painter.drawRect(r.adjusted(0, 0, -1, 0))
                 # Text
                 painter.setPen(self.TEXT_COLOR)
                 painter.drawText(
