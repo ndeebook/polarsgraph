@@ -235,7 +235,13 @@ class Tableau(QtWidgets.QWidget):
         painter.drawRect(
             0, 0, self.vertical_header_width, self.horizontal_header_height)
 
-        # TODO: lines after fixed columns and rows
+        # lines after fixed columns
+        painter.setPen(self.GRID_COLOR)
+        y = max(rows_y.values()) + ROW_HEIGHT
+        col_index = self.fixed_columns - 1
+        x = self._get_column_x(col_index, widget_width)
+        x += columns_widths[col_index]
+        painter.drawLine(x, self.horizontal_header_height, x, y)
 
     def get_separator_column_under_cursor(self, pos) -> str:
         for i, rect in enumerate(self.columns_separators):
@@ -377,7 +383,7 @@ if __name__ == '__main__':
     df = pl.read_ods(os.path.expandvars('$SAMPLES/sample.ods'))
     tableau = TableauWithScroll(df)
     tableau.set_column_sizes(dict(z=30))
-    tableau.set_fixed_columns(1)
-    tableau.set_fixed_rows(1)
+    tableau.set_fixed_columns(2)
+    tableau.set_fixed_rows(2)
     tableau.show()
     app.exec()
