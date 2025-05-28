@@ -88,6 +88,10 @@ class TableSettingsWidget(BaseSettingsWidget):
         self.blockSignals(True)
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
+        self.frozen_columns_spinbox.setValue(node[ATTR.FROZEN_COLUMNS] or 0)
+        self.frozen_rows_spinbox.setValue(node[ATTR.FROZEN_ROWS] or 0)
+        self.rows_number_offset_spinbox.setValue(
+            node[ATTR.ROWS_NUMBER_OFFSET] or 0)
         index = node[ATTR.DISPLAY_INDEX]
         if index:
             self.index_combo.setCurrentText(index)
