@@ -9,6 +9,8 @@ MINIMUM_COL_WIDTH = 24
 AUTO_SIZE_MARGIN = 16
 
 BGCOLOR_COLUMN_SUFFIX = '~color'
+BLACK = QtGui.QColor('black')
+WHITE = QtGui.QColor('white')
 
 
 class Tableau(QtWidgets.QWidget):
@@ -120,13 +122,15 @@ class Tableau(QtWidgets.QWidget):
 
         return y
 
-    def _get_bg_color(self, row, col):
+    def _get_cell_colors(self, row, col):
         color_col = self.bgcolor_column_indexes.get(col)
         if color_col:
             color = self.df[row, color_col]
             if color:
-                return QtGui.QColor(color)
-        return self.BACKGROUND_COLOR
+                bg_color = QtGui.QColor(color)
+                text_color = WHITE if bg_color.valueF() < .5 else BLACK
+                return bg_color, text_color
+        return self.BACKGROUND_COLOR, self.TEXT_COLOR
 
     def _paint(self, painter: QtGui.QPainter):
         # Collect main sizes
@@ -155,6 +159,7 @@ class Tableau(QtWidgets.QWidget):
             if x is None:
                 continue
             columns_x[col_index] = x
+            is_last_frozen_column = col_index != self.frozen_columns - 1
             for row_index in reversed(range(self.row_count)):
                 # Rect
                 y = self._get_row_y(row_index, widget_height)
@@ -164,11 +169,14 @@ class Tableau(QtWidgets.QWidget):
                 value = self.df[row_index, col_index]
                 r = QtCore.QRect(x, y, col_width, ROW_HEIGHT)
                 # Background
+                bg_color, text_color = self._get_cell_colors(
+                    row_index, col_index)
                 painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(self._get_bg_color(row_index, col_index))
-                painter.drawRect(r.adjusted(0, 0, -1, 0))
+                painter.setBrush(bg_color)
+                painter.drawRect(
+                    r.adjusted(0, 0, -1, 0) if is_last_frozen_column else r)
                 # Text
-                painter.setPen(self.TEXT_COLOR)
+                painter.setPen(text_color)
                 painter.drawText(
                     r.adjusted(1, 1, -1, -1),
                     Qt.AlignmentFlag.AlignCenter,
