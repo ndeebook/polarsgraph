@@ -393,14 +393,18 @@ class TableauWithScroll(QtWidgets.QWidget):
         content_width, content_height = self.tableau.get_table_size()
         widget_width, widget_height = self.size().toTuple()
 
-        self.horizontal_scroll.setVisible(content_width > widget_width)
+        scroll_width = self.vertical_scroll.width()
+        self.horizontal_scroll.setVisible(
+            content_width > widget_width - scroll_width)
         self.horizontal_scroll.setMaximum(
-            content_width - widget_width + self.vertical_scroll.width())
+            content_width - widget_width + scroll_width)
         self.horizontal_scroll.setMinimum(0)
 
-        self.vertical_scroll.setVisible(content_height > widget_height)
+        scroll_height = self.horizontal_scroll.height()
+        self.vertical_scroll.setVisible(
+            content_height > widget_height - scroll_height)
         self.vertical_scroll.setMaximum(
-            content_height - widget_height + self.horizontal_scroll.height())
+            content_height - widget_height + scroll_height)
         self.vertical_scroll.setMinimum(0)
 
     def set_frozen_columns(self, count):
