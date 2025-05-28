@@ -44,7 +44,7 @@ class Tableau(QtWidgets.QWidget):
         self.HEADER_TEXT: QtGui.QColor
         self.HEADER_COLOR: QtGui.QColor
 
-        self.columns_separators: list[QtCore.QRect] = []
+        self.columns_separators: dict[int, QtCore.QRect] = {}
         self.selected_column: int | None = None
         self._column_resized = False
 
@@ -197,11 +197,12 @@ class Tableau(QtWidgets.QWidget):
                 separator_vertical_margin,
                 x + col_width,
                 self.horizontal_header_height - separator_vertical_margin)
-            self.columns_separators.append(QtCore.QRectF(
+            selection_rect = QtCore.QRectF(
                 x + col_width - separator_selection_margin,
                 0,
                 separator_selection_margin * 2,
-                self.horizontal_header_height))
+                self.horizontal_header_height)
+            self.columns_separators[col_index] = selection_rect
 
         # vertical header
         r = QtCore.QRect(rect)
@@ -235,7 +236,7 @@ class Tableau(QtWidgets.QWidget):
         painter.drawRect(
             0, 0, self.vertical_header_width, self.horizontal_header_height)
 
-        # lines after fixed columns
+        # line after fixed columns
         painter.setPen(self.GRID_COLOR)
         y = max(rows_y.values()) + ROW_HEIGHT
         col_index = self.fixed_columns - 1
@@ -244,7 +245,7 @@ class Tableau(QtWidgets.QWidget):
         painter.drawLine(x, self.horizontal_header_height, x, y)
 
     def get_separator_column_under_cursor(self, pos) -> str:
-        for i, rect in enumerate(self.columns_separators):
+        for i, rect in self.columns_separators.items():
             if rect.contains(pos):
                 return self.df.columns[i]
 
