@@ -159,7 +159,6 @@ class Tableau(QtWidgets.QWidget):
             if x is None:
                 continue
             columns_x[col_index] = x
-            is_last_frozen_column = col_index != self.frozen_columns - 1
             for row_index in reversed(range(self.row_count)):
                 # Rect
                 y = self._get_row_y(row_index, widget_height)
@@ -172,9 +171,10 @@ class Tableau(QtWidgets.QWidget):
                 bg_color, text_color = self._get_cell_colors(
                     row_index, col_index)
                 painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(self.BACKGROUND_COLOR)
+                painter.drawRect(r)  # needed to hide frozen cells last pixels
                 painter.setBrush(bg_color)
-                painter.drawRect(
-                    r.adjusted(0, 0, -1, 0) if is_last_frozen_column else r)
+                painter.drawRect(r.adjusted(0, 0, -1, 0))
                 # Text
                 painter.setPen(text_color)
                 painter.drawText(
