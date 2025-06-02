@@ -166,7 +166,6 @@ class Tableau(QtWidgets.QWidget):
                 if y is None:
                     continue
                 rows_y[row_index] = y
-                value = self.df[row_index, col_index]
                 r = QtCore.QRect(x, y, col_width, self.row_height)
                 # Background
                 bg_color, text_color = self._get_cell_colors(
@@ -181,7 +180,7 @@ class Tableau(QtWidgets.QWidget):
                 painter.drawText(
                     r.adjusted(1, 1, -1, -1),
                     Qt.AlignmentFlag.AlignCenter,
-                    str(value))
+                    self.get_cell_string(row_index, col_index))
                 # Line under cell
                 painter.setPen(self.GRID_COLOR)
                 painter.drawLine(
@@ -265,6 +264,12 @@ class Tableau(QtWidgets.QWidget):
             + self.row_height * self.row_number_offset)
         painter.drawRect(0, 0, self.vertical_header_width, corner_height)
 
+    def get_cell_string(self, row_index, col_index):
+        value = self.df[row_index, col_index]
+        if value is None:
+            return ''
+        return str(value)
+
     def get_separator_column_under_cursor(self, pos) -> str:
         for i, rect in self.columns_separators.items():
             if rect.contains(pos):
@@ -335,7 +340,8 @@ class Tableau(QtWidgets.QWidget):
         sizes = dict()
         for col_index, col_name in enumerate(self.columns):
             max_cell_width = max([
-                self.metrics.boundingRect(str(self.df[row, col_index])).width()
+                self.metrics.boundingRect(
+                    self.get_cell_string(row, col_index)).width()
                 for row in range(self.row_count)])
             sizes[col_name] = max([
                 self.metrics.boundingRect(col_name).width(),
