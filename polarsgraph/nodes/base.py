@@ -53,7 +53,7 @@ class BaseSettingsWidget(QtWidgets.QWidget):
 
     def line_edit_to_settings(
             self,
-            line_edit: QtWidgets.QLineEdit,
+            line_edit: QtWidgets.QLineEdit | QtWidgets.QPlainTextEdit,
             attribute_name,
             data_type=str):
         try:

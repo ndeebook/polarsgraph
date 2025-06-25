@@ -1,20 +1,28 @@
 import polars as pl
-from PySide6 import QtWidgets, QtGui
+from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes.base import (
-    FORMATS, BaseNode, BaseSettingsWidget, BaseDisplay,
+    DISPLAY_INDEX_ATTR, FORMATS, BaseNode, BaseSettingsWidget, BaseDisplay,
     get_format_exp, set_combo_values_from_table_columns)
+
+
+FILL_RECT = 'fill'
+USE_FONT_SIZE = 'font size'
+DEFAULT_FONT_SIZE = 12
 
 
 class ATTR:
     NAME = 'name'
+    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
     HARDCODED_TEXT = 'hardcoded_text'
     SOURCE_COLUMN = 'source_column'
     SOURCE_ROW = 'source_row'
     FORMAT = 'format'
+    SIZE_TYPE = 'size_type'
+    FONT_SIZE = 'font_size'
 
 
 class LabelNode(BaseNode):
@@ -65,9 +73,16 @@ class LabelSettingsWidget(BaseSettingsWidget):
         super().__init__()
 
         # Widgets
-        self.text_edit = QtWidgets.QLineEdit(
+        self.index_combo = QtWidgets.QComboBox()
+        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
+        self.index_combo.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.index_combo, ATTR.DISPLAY_INDEX))
+
+        self.text_edit = QtWidgets.QPlainTextEdit(
             placeholderText='(Leave empty to use linked value)')
-        self.text_edit.editingFinished.connect(
+        self.text_edit.setMaximumHeight(200)
+        self.text_edit.textChanged.connect(
             lambda: self.line_edit_to_settings(
                 self.text_edit, ATTR.HARDCODED_TEXT))
 
@@ -87,20 +102,40 @@ class LabelSettingsWidget(BaseSettingsWidget):
             lambda: self.combobox_to_settings(
                 self.format_combo, ATTR.FORMAT))
 
+        self.size_type_combo = QtWidgets.QComboBox()
+        self.size_type_combo.addItems((FILL_RECT, USE_FONT_SIZE))
+        self.size_type_combo.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.size_type_combo, ATTR.SIZE_TYPE))
+
+        self.font_size_spinbox = QtWidgets.QSpinBox()
+        self.font_size_spinbox.valueChanged.connect(
+            lambda: self.spinbox_to_settings(
+                self.font_size_spinbox, ATTR.FONT_SIZE))
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow('Display index', self.index_combo)
         form_layout.addRow('text', self.text_edit)
+        form_layout.addRow('size type', self.size_type_combo)
+        form_layout.addRow('font size', self.font_size_spinbox)
         form_layout.addRow('source column', self.source_column_edit)
         form_layout.addRow('source row', self.row_edit)
         form_layout.addRow('format', self.format_combo)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
+        layout.addStretch()
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
+
         self.name_edit.setText(node[ATTR.NAME])
+        self.text_edit.setPlainText(node[ATTR.HARDCODED_TEXT] or '')
+        self.size_type_combo.setCurrentText(node[ATTR.SIZE_TYPE] or FILL_RECT)
+        self.font_size_spinbox.setValue(
+            node[ATTR.FONT_SIZE] or DEFAULT_FONT_SIZE)
 
         row = node[ATTR.SOURCE_ROW]
         self.row_edit.setText(str(row) if row else '0')
@@ -128,12 +163,15 @@ class LabelDisplay(BaseDisplay):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         rect = self.rect()
-        font_size = rect.height() * .5
-        alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-        font = QtGui.QFont('Verdana', font_size)
         font_family = 'Verdana'
-        font_size = get_maximum_font_size(
-            self.label, rect, alignment, font_size, font_family)
+        font_size = int(rect.height() * .5)
+        font = QtGui.QFont(font_family, font_size)
+        alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        if self.node[ATTR.SIZE_TYPE] == USE_FONT_SIZE:
+            font_size = self.node[ATTR.FONT_SIZE] or DEFAULT_FONT_SIZE
+        else:
+            font_size = get_maximum_font_size(
+                self.label, rect, alignment, font_size, font_family)
         font = QtGui.QFont(font_family, font_size)
         painter.setFont(font)
 
@@ -141,10 +179,48 @@ class LabelDisplay(BaseDisplay):
 
 
 def get_maximum_font_size(
-        text, rect, alignment, font_size=12, family='Verdana'):
+        text: str,
+        rect: QtCore.QRect,
+        alignment: Qt.AlignmentFlag,
+        font_size=DEFAULT_FONT_SIZE,
+        family: str = 'Verdana',
+        level=0):
+    # FIXME: improve this
+
+    width, height = rect.width(), rect.height()
+    if not width or not height:
+        return font_size
+    if level > 6:
+        return font_size
+
+    # print(font_size)
+    margin = 20
+    width = width - margin if width > margin else width
+    height = height - margin if height > margin else height
     font = QtGui.QFont(family, font_size)
+    next_level = level + 1
+
+    # Get text size
     metrics = QtGui.QFontMetrics(font)
     text_rect = metrics.boundingRect(rect, alignment, text)
-    w_ratio = text_rect.width() / rect.width()
-    h_ratio = text_rect.height() / rect.height()
-    return font_size / max([w_ratio, h_ratio]) - 4
+    text_width, text_height = text_rect.width(), text_rect.height()
+
+    # Check if text is bigger than rect
+    text_overflows = text_width >= width or text_height >= height
+    if text_overflows:
+        # Compute from a smaller font size to try no overflow
+        return get_maximum_font_size(
+            text, rect, alignment, font_size / 2, family, next_level)
+
+    # Compute font size from ratio of text beeing too small:
+    w_ratio = text_width / width
+    h_ratio = text_height / height
+    new_size = round(font_size / max([w_ratio, h_ratio]), 2)
+    if level == 0 or new_size / 2 > font_size:
+        # Get a more accurate size
+        return get_maximum_font_size(
+            text, rect, alignment, new_size, family, next_level)
+
+    # print(f'[{new_size}] {text_width} - {width} | {text_height} - {height}')
+
+    return int(new_size * .95)
