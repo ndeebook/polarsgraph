@@ -9,7 +9,8 @@ from PySide6.QtCore import Qt
 
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import DISPLAY_CATEGORY
-from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget, BaseDisplay
+from polarsgraph.nodes.base import (
+    DISPLAY_INDEX_ATTR, BaseNode, BaseSettingsWidget, BaseDisplay)
 
 
 COLOR = dict(
@@ -34,6 +35,7 @@ DEFAULT_COLORS = [
 class ATTR:
     NAME = 'name'
     TITLE = 'title'
+    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
     COLORS = 'colors'
 
 
@@ -73,6 +75,12 @@ class BarsSettingsWidget(BaseSettingsWidget):
         self.input_table = None
 
         # Widgets
+        self.index_combo = QtWidgets.QComboBox()
+        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
+        self.index_combo.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.index_combo, ATTR.DISPLAY_INDEX))
+
         self.title_edit = QtWidgets.QLineEdit()
         self.title_edit.editingFinished.connect(
             lambda: self.line_edit_to_settings(self.title_edit, ATTR.TITLE))
@@ -88,6 +96,7 @@ class BarsSettingsWidget(BaseSettingsWidget):
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow('Display index', self.index_combo)
         form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)

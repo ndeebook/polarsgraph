@@ -4,7 +4,8 @@ from PySide6.QtCore import Qt
 
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import DISPLAY_CATEGORY
-from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget, BaseDisplay
+from polarsgraph.nodes.base import (
+    DISPLAY_INDEX_ATTR, BaseNode, BaseSettingsWidget, BaseDisplay)
 
 
 COLOR = dict(
@@ -18,6 +19,8 @@ COLOR = dict(
 class ATTR:
     NAME = 'name'
     TITLE = 'title'
+    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
+    INVERT_AXES = 'invert_axes'
 
 
 class LinesNode(BaseNode):
@@ -54,14 +57,27 @@ class LinesSettingsWidget(BaseSettingsWidget):
         super().__init__()
 
         # Widgets
+        self.index_combo = QtWidgets.QComboBox()
+        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
+        self.index_combo.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.index_combo, ATTR.DISPLAY_INDEX))
+
         self.title_edit = QtWidgets.QLineEdit()
         self.title_edit.editingFinished.connect(
             lambda: self.line_edit_to_settings(self.title_edit, ATTR.TITLE))
+        self.invert_axes_cb = QtWidgets.QCheckBox(
+            'Invert Axes')
+        self.invert_axes_cb.checkStateChanged.connect(
+            lambda: self.checkbox_to_settings(
+                self.invert_axes_cb, ATTR.INVERT_AXES))
 
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow('Display index', self.index_combo)
         form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
+        form_layout.addRow('', self.invert_axes_cb)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
 
@@ -96,7 +112,9 @@ class LinesDisplay(BaseDisplay):
             return
         table = table.collect()
         title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
-        self.node.error = make_chart(self.chart_view, table, title)
+        invert_axes = bool(self.node[ATTR.INVERT_AXES])
+        self.node.error = make_chart(
+            self.chart_view, table, title, invert_axes)
         if self.node.error:
             self.chart_view.setVisible(False)
             self.error_label.setVisible(True)
@@ -121,7 +139,10 @@ class LinesDisplay(BaseDisplay):
 
 
 def make_chart(
-        chart_view: QtCharts.QChartView, dataframe: pl.DataFrame, title):
+        chart_view: QtCharts.QChartView,
+        dataframe: pl.DataFrame,
+        title: str,
+        invert_axes: bool = False):
     # Create the chart
     chart = QtCharts.QChart()
     chart.legend().hide()
@@ -137,6 +158,8 @@ def make_chart(
     # Sum data for each column to calculate their share in the lines
     for values in dataframe.iter_rows():
         for x, y in zip(values[::2], values[1::2]):
+            if invert_axes:
+                x, y = y, x
             try:
                 series.append(x, y)
             except TypeError as e:

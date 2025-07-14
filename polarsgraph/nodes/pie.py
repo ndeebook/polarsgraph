@@ -4,7 +4,8 @@ from PySide6.QtCore import Qt
 
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import DISPLAY_CATEGORY
-from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget, BaseDisplay
+from polarsgraph.nodes.base import (
+    DISPLAY_INDEX_ATTR, BaseNode, BaseSettingsWidget, BaseDisplay)
 
 
 COLOR = dict(
@@ -17,6 +18,7 @@ COLOR = dict(
 class ATTR:
     NAME = 'name'
     TITLE = 'title'
+    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
     START_ANGLE = 'start_angle'
     END_ANGLE = 'end_angle'
 
@@ -55,6 +57,12 @@ class PieSettingsWidget(BaseSettingsWidget):
         super().__init__()
 
         # Widgets
+        self.index_combo = QtWidgets.QComboBox()
+        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
+        self.index_combo.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.index_combo, ATTR.DISPLAY_INDEX))
+
         self.title_edit = QtWidgets.QLineEdit()
         self.title_edit.editingFinished.connect(
             lambda: self.line_edit_to_settings(self.title_edit, ATTR.TITLE))
@@ -72,6 +80,7 @@ class PieSettingsWidget(BaseSettingsWidget):
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow('Display index', self.index_combo)
         form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
         form_layout.addRow('Start angle', self.start_angle_edit)
         form_layout.addRow('End angle', self.end_angle_edit)
