@@ -66,8 +66,7 @@ class LinesSettingsWidget(BaseSettingsWidget):
         self.title_edit = QtWidgets.QLineEdit()
         self.title_edit.editingFinished.connect(
             lambda: self.line_edit_to_settings(self.title_edit, ATTR.TITLE))
-        self.invert_axes_cb = QtWidgets.QCheckBox(
-            'Invert Axes')
+        self.invert_axes_cb = QtWidgets.QCheckBox('Invert Axes')
         self.invert_axes_cb.checkStateChanged.connect(
             lambda: self.checkbox_to_settings(
                 self.invert_axes_cb, ATTR.INVERT_AXES))
@@ -145,43 +144,48 @@ def make_chart(
         invert_axes: bool = False):
     # Create the chart
     chart = QtCharts.QChart()
-    chart.legend().hide()
     chart.setTitle(title)
     chart.setBackgroundBrush(QtGui.QBrush(COLOR['bg']))
-    text_brush = QtGui.QBrush(COLOR['text'])
-    chart.setTitleBrush(text_brush)
+    chart.setTitleBrush(QtGui.QBrush(COLOR['text']))
     chart.setMargins(QtCore.QMargins(0, 0, 0, 0))
 
-    # Create the Lines Series
-    series = QtCharts.QLineSeries()
+    # Create one line series per column pair
+    num_columns = dataframe.width
+    if num_columns % 2 != 0:
+        raise ValueError(
+            'Dataframe must have an even number of columns (pairs of X,Y)')
 
-    # Sum data for each column to calculate their share in the lines
-    for values in dataframe.iter_rows():
-        for x, y in zip(values[::2], values[1::2]):
+    series_list = []
+    for col_index in range(0, num_columns, 2):
+        series = QtCharts.QLineSeries()
+        for row in dataframe.iter_rows():
+            x = row[col_index] or 0
+            y = row[col_index + 1] or 0
             if invert_axes:
                 x, y = y, x
             try:
                 series.append(x, y)
             except TypeError as e:
                 return str(e)
+        series_list.append(series)
+        chart.addSeries(series)
 
-    # Configure the axes
-    chart.addSeries(series)
-
-    # chart.createDefaultAxes()
+    # Configure the axes (shared among all series)
     axis_x = QtCharts.QValueAxis()
     axis_y = QtCharts.QValueAxis()
-    # axis_x.setTitleText("X-Axis")
-    # axis_y.setTitleText("Y-Axis")
     axis_x.setLabelsBrush(QtGui.QBrush(COLOR['axis_text']))
     axis_y.setLabelsBrush(QtGui.QBrush(COLOR['axis_text']))
     grid_pen = QtGui.QPen(COLOR['grid'])
-    grid_pen.setWidth(.5)
+    grid_pen.setWidthF(0.5)
     axis_x.setGridLinePen(grid_pen)
     axis_y.setGridLinePen(grid_pen)
     chart.addAxis(axis_x, QtCore.Qt.AlignBottom)
     chart.addAxis(axis_y, QtCore.Qt.AlignLeft)
-    series.attachAxis(axis_x)
-    series.attachAxis(axis_y)
 
+    # Attach each series to the axes
+    for series in series_list:
+        series.attachAxis(axis_x)
+        series.attachAxis(axis_y)
+
+    chart.legend().hide()
     chart_view.setChart(chart)
