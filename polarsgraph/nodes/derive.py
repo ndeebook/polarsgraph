@@ -43,6 +43,8 @@ EXAMPLES_TEXT = """
 @replace_int({column_name}, 1, 2)
 @replace_float({column_name}, 0.999, 1.0)
 @replace_bool({column_name}, true, none)
+@replace_nans({column_name}, 1.0)
+@replace_nulls({column_name}, 1.0)
 
 @remove_nans({column_name})
 @remove_infs({column_name})
@@ -360,6 +362,14 @@ def func_formula_to_polars(function_name, tokens):
     if function_name in ARGLESS_COLUMNS_METHODS:
         column = token_to_value(tokens[0])
         return getattr(column, function_name)()
+    if function_name == 'replace_nans':
+        column: pl.Expr = token_to_value(tokens[0])
+        value = float(tokens[2])
+        return column.fill_nan(value)
+    if function_name == 'replace_nulls':
+        column: pl.Expr = token_to_value(tokens[0])
+        value = float(tokens[2])
+        return column.fill_null(value)
     if function_name.startswith('replace_'):
         column: pl.Expr = token_to_value(tokens[0])
         value = tokens[2]
