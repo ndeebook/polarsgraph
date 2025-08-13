@@ -93,7 +93,7 @@ re_column = r'\{[^\}]*\}'
 re_number = r'-?\d+\.\d+|-?\d+'
 re_function = r'@\w+'
 re_string = r'"[^"]*"'
-re_operator = r'[+\-*/(),]|==|!=|<=|>=|>|<'
+re_operator = r'[+\-*/(),\|\^\&]|==|!=|<=|>=|>|<'
 re_tokens = re_bool, re_column, re_number, re_function, re_string, re_operator
 token_pattern = re.compile(r'\s*' + '|'.join(re_tokens) + r'\s*')
 
@@ -368,8 +368,8 @@ def func_formula_to_polars(function_name, tokens):
         return column.fill_nan(value)
     if function_name == 'replace_nulls':
         column: pl.Expr = token_to_value(tokens[0])
-        value = float(tokens[2])
-        return column.fill_null(value)
+        value_or_column = token_to_value(tokens[2])
+        return column.fill_null(value_or_column)
     if function_name.startswith('replace_'):
         column: pl.Expr = token_to_value(tokens[0])
         value = tokens[2]
