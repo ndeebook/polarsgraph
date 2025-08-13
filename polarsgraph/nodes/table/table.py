@@ -74,6 +74,11 @@ class TableSettingsWidget(BaseSettingsWidget):
             lambda: self.spinbox_to_settings(
                 self.rows_number_offset_spinbox, ATTR.ROWS_NUMBER_OFFSET))
 
+        self.round_digits_spinbox = QtWidgets.QSpinBox(maximum=99)
+        self.round_digits_spinbox.valueChanged.connect(
+            lambda: self.spinbox_to_settings(
+                self.round_digits_spinbox, ATTR.ROUND_FLOATS_DIGITS))
+
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         form_layout.addRow('Display index', self.index_combo)
@@ -81,6 +86,8 @@ class TableSettingsWidget(BaseSettingsWidget):
         form_layout.addRow('Frozen rows', self.frozen_rows_spinbox)
         form_layout.addRow(
             'Rows number offset', self.rows_number_offset_spinbox)
+        form_layout.addRow(
+            'Round digits count (0 = off)', self.round_digits_spinbox)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
 
@@ -92,6 +99,8 @@ class TableSettingsWidget(BaseSettingsWidget):
         self.frozen_rows_spinbox.setValue(node[ATTR.FROZEN_ROWS] or 0)
         self.rows_number_offset_spinbox.setValue(
             node[ATTR.ROWS_NUMBER_OFFSET] or 0)
+        self.round_digits_spinbox.setValue(
+            node[ATTR.ROUND_FLOATS_DIGITS] or 0)
         index = node[ATTR.DISPLAY_INDEX]
         if index:
             self.index_combo.setCurrentText(index)

@@ -1,7 +1,7 @@
 import os
 
 import polars as pl
-from PySide6 import QtWidgets, QtGui, QtCore
+from PySide6 import QtWidgets, QtGui
 from PySide6.QtCore import Qt
 
 from polarsgraph.log import logger
@@ -23,6 +23,7 @@ class ATTR:
     FROZEN_COLUMNS = 'frozen_columns'
     FROZEN_ROWS = 'frozen_rows'
     ROWS_NUMBER_OFFSET = 'rows_number_offset'
+    ROUND_FLOATS_DIGITS = 'round_floats'
 
 
 class TableDisplay(BaseDisplay):
@@ -78,6 +79,15 @@ class TableDisplay(BaseDisplay):
             self.table_details_label.setText('')
             return self.tableau.set_table(pl.DataFrame())
         columns_count = len(table.columns)
+
+        # Round
+        round_digits = self.node[ATTR.ROUND_FLOATS_DIGITS]
+        if round_digits:
+            float_cols = [
+                name for name, dtype in table.schema.items()
+                if dtype.is_float()]
+            table = table.with_columns([
+                pl.col(col).round(round_digits) for col in float_cols])
 
         # Label
         self.table_details_label.setText(
