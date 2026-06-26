@@ -32,6 +32,7 @@ class NodeView(QtWidgets.QWidget):
     create_requested = QtCore.Signal(str)
     create_load_requested = QtCore.Signal(str)
     delete_requested = QtCore.Signal(list)
+    insert_node_requested = QtCore.Signal(str, str, int, str, int)
 
     def __init__(
             self,
@@ -51,6 +52,7 @@ class NodeView(QtWidgets.QWidget):
         self.nodes_bboxes: dict[str, QtCore.QRect] = dict()
         self.backdrop_bboxes: dict[str, tuple] = dict()
         self.plugs_bboxes: dict[str, tuple] = dict()
+        self.connections_paths: dict[tuple, QtGui.QPainterPath] = dict()
 
         self.selected_names = []
 
@@ -63,6 +65,7 @@ class NodeView(QtWidgets.QWidget):
 
         self.add_menu = NewNodeMenu(types, self)
         self.add_menu.create_requested.connect(self.create_requested)
+        self.hovered_connection = None
 
     def clear(self):
         self.nodes_bboxes.clear()
@@ -145,6 +148,7 @@ class NodeView(QtWidgets.QWidget):
         painter.setBrush(Qt.BrushStyle.NoBrush)
         thickness = self.viewportmapper.to_viewport(2)
         zoom = self.viewportmapper.zoom
+        self.connections_paths.clear()
         for node in self.graph.values():
             inputs = node['inputs'] or []
             for i, plug in enumerate(inputs):
@@ -155,7 +159,38 @@ class NodeView(QtWidgets.QWidget):
                 p2 = self.plugs_bboxes[node['name']][0][i].center()
                 painter.setPen(get_connection_pen(
                     CATEGORY_INPUT_TYPE[node.category], thickness))
-                paint_connection(painter, p1, p2, OUT, zoom)
+                path = paint_connection(painter, p1, p2, OUT, zoom)
+                key = name, output_plug_index, node['name'], i
+                self.connections_paths[key] = path
+
+        # Detect node dragged over a connection and draw insertion preview
+        self.hovered_connection = None
+        if (self.dragged_object and
+                self.dragged_object['type'] == 'node' and
+                self.drag_position and
+                len(self.selected_names) == 1):
+            dragged_name = self.dragged_object['name']
+            dragged_node = self.graph.get(dragged_name)
+            node_rect = self.nodes_bboxes.get(dragged_name)
+            if not dragged_node:
+                return
+            if not (dragged_node.inputs and dragged_node.outputs):
+                return
+            for (n1, out_i, n2, in_i), path in self.connections_paths.items():
+                if dragged_name in (n1, n2):
+                    continue
+                if not path.intersects(node_rect):
+                    continue
+                self.hovered_connection = n1, out_i, n2, in_i
+                p1 = self.plugs_bboxes[n1][OUT][out_i].center()
+                p2 = self.plugs_bboxes[n2][IN][in_i].center()
+                in_plugs = self.plugs_bboxes.get(dragged_name, ([], []))[IN]
+                out_plugs = self.plugs_bboxes.get(dragged_name, ([], []))[OUT]
+                painter.setPen(QtGui.QPen(
+                    Qt.white, thickness, Qt.DashLine, Qt.RoundCap))
+                paint_connection(painter, p1, in_plugs[0].center(), OUT, zoom)
+                paint_connection(painter, out_plugs[0].center(), p2, OUT, zoom)
+                break
 
         # Draw selection rectangle
         if self.drag_position:
@@ -365,10 +400,13 @@ class NodeView(QtWidgets.QWidget):
                 under_cursor = self.get_object_under_cursor(self.drag_position)
                 self.plug_changes_requested.emit(
                     self.dragged_object, under_cursor)
-            else:
-                # Emit moved node name
-                if self.drag_position:
-                    self.nodes_position_changed.emit(self.selected_names)
+            elif self.drag_position:
+                if self.hovered_connection:
+                    src, out_idx, dest, in_idx = self.hovered_connection
+                    self.insert_node_requested.emit(
+                        self.dragged_object['name'],
+                        src, out_idx, dest, in_idx)
+                self.nodes_position_changed.emit(self.selected_names)
         elif (
                 self.drag_position and
                 self.clicked_button == Qt.MouseButton.LeftButton):
@@ -704,6 +742,7 @@ def paint_connection(
     path.moveTo(p1)
     path.cubicTo(p2, p3, p4)
     painter.drawPath(path)
+    return path
 
 
 def paint_selection_rectangle(

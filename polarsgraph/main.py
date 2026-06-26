@@ -157,6 +157,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.node_view.delete_requested.connect(self.delete_nodes)
         self.node_view.node_double_clicked.connect(
             self.settings_widget.show_error)
+        self.node_view.insert_node_requested.connect(self.insert_node)
 
         self.settings_widget.settings_changed.connect(self.set_dirty_recursive)
         self.settings_widget.settings_changed.connect(self.node_view.update)
@@ -539,6 +540,19 @@ class PolarsGraph(QtWidgets.QMainWindow):
         else:
             return
 
+        self.node_view.repaint()
+        self.update_view_widget()
+        self.set_settings_node(self.settings_widget.node)
+        self.autosave()
+
+    def insert_node(self, node_name, src_name, src_out_idx, dest_name, dest_in_idx):
+        node = self.graph[node_name]
+        src_node = self.graph[src_name]
+        dest_node = self.graph[dest_name]
+        disconnect_plug(dest_node, dest_in_idx)
+        connect_nodes(self.graph, src_node, src_out_idx, node, 0)
+        connect_nodes(self.graph, node, 0, dest_node, dest_in_idx)
+        self.set_dirty_recursive(node_name)
         self.node_view.repaint()
         self.update_view_widget()
         self.set_settings_node(self.settings_widget.node)
