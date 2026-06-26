@@ -1,5 +1,5 @@
-polars==1.26.0
-xlsxwriter==3.2.2
-fastexcel==0.13.0
+polars~=1.42.0
+xlsxwriter~=3.2.9
+fastexcel~=0.20.2
 
-PySide6==6.9
+PySide6~=6.11

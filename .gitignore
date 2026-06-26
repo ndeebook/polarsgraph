@@ -1,3 +1,6 @@
+.vscode/
+.claude/
+
 __pycache__
 *.*~
 *.ps1
