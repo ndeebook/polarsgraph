@@ -430,14 +430,13 @@ class NewNodeMenu(QtWidgets.QMenu):
     def __init__(self, types, parent=None):
         super().__init__(parent=parent)
 
-        # List nodes with their types
-        self.types = []
+        self.types_by_label = {}
         for name, type_ in types.items():
-            category = type_["type"].category
-            if category != 'manipulate':
-                name = f'{name}  ({category})'
-            self.types.append(name)
-        self.types.sort()
+            category = type_['type'].category
+            display = (
+                name if category == 'manipulate' else f'{name}  ({category})')
+            self.types_by_label[display] = name
+        self.types = sorted(self.types_by_label)
 
         self.type_edit = QtWidgets.QLineEdit()
         self.type_edit.returnPressed.connect(self.emit_from_line_edit)
@@ -465,18 +464,19 @@ class NewNodeMenu(QtWidgets.QMenu):
         return super().showEvent(event)
 
     def emit_from_line_edit(self):
-        type_ = self.type_edit.text()
-        if type_ not in self.types:
-            type_ = [t for t in self.types if t.startswith(type_)]
-            if not type_:
+        display = self.type_edit.text()
+        if display not in self.types_by_label:
+            match = next(
+                (t for t in self.types if t.startswith(display)), None)
+            if not match:
                 return
-            type_ = type_[0].split()[0]
-        self.create_requested.emit(type_)
+            display = match
+        self.create_requested.emit(self.types_by_label[display])
         self.close()
 
     def emit_from_list(self):
-        type_ = self.types_list.currentItem().text().split()[0]
-        self.create_requested.emit(type_)
+        display = self.types_list.currentItem().text()
+        self.create_requested.emit(self.types_by_label[display])
         self.close()
 
 
