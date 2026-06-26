@@ -260,8 +260,14 @@ class PolarsGraph(QtWidgets.QMainWindow):
         shortcuts = [
             ('f', self.node_view.frame_all, 'Frame node view'),
 
-            ('delete', self.node_view.delete_selected_nodes, 'Delete selected nodes'),
-            ('d', self.toggle_disable_selected, 'Toggle disable selected nodes'),
+            (
+                'delete',
+                self.node_view.delete_selected_nodes,
+                'Delete selected nodes'),
+            (
+                'd',
+                self.toggle_disable_selected,
+                'Toggle disable selected nodes'),
 
             ('y', self.connect_selected_nodes, 'Connect selected nodes'),
 
@@ -280,7 +286,10 @@ class PolarsGraph(QtWidgets.QMainWindow):
             ('²', self.node_view.show_add_node_menu, 'New node menu'),  # FR
             ('n', self.node_view.show_add_node_menu, 'New node menu'),
 
-            ('c', lambda: self.create_node('concatenate'), 'Create Concatenate'),
+            (
+                'c',
+                lambda: self.create_node('concatenate'),
+                'Create Concatenate'),
             ('x', lambda: self.create_node('derive'), 'Create Derive'),
             ('v', lambda: self.create_node('filter'), 'Create Filter'),
             ('p', lambda: self.create_node('format'), 'Create Format'),
@@ -490,17 +499,37 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.autosave()
 
     def delete_nodes(self, node_names_to_delete):
-        # Delete nodes
-        for node_name in node_names_to_delete:
-            self.graph.pop(node_name)
-        # Delete inputs pointing to deleted nodes
-        for node in self.graph.values():
-            for i, inputs in enumerate(node['inputs'] or []):
-                if not inputs:
+        for node_name_to_delete in node_names_to_delete:
+            # Preserve connections 1 input & 1 output
+            node_to_delete = self.graph[node_name_to_delete]
+            for node_input in node_to_delete['inputs']:
+                if not node_input:
                     continue
-                name = inputs[0]
-                if name in node_names_to_delete:
-                    node['inputs'][i] = None
+                src_name, src_out_idx = node_input
+                # Find output
+                for other_node in self.graph.values():
+                    if other_node['name'] == node_name_to_delete:
+                        continue
+                    for in_idx, plug in enumerate(other_node['inputs'] or []):
+                        if plug and plug[0] == node_name_to_delete:
+                            connect_nodes(
+                                self.graph,
+                                self.graph[src_name], src_out_idx,
+                                other_node, in_idx)
+
+            # Delete node
+            self.graph.pop(node_name_to_delete)
+
+            # Delete inputs pointing to deleted node
+            for other_node in self.graph.values():
+                if other_node['name'] == node_name_to_delete:
+                    continue
+                for i, inputs in enumerate(other_node['inputs'] or []):
+                    if not inputs:
+                        continue
+                    if node_name_to_delete == inputs[0]:
+                        other_node['inputs'][i] = None
+
         self.node_view.delete_nodes(node_names_to_delete)
         self.update_view_widget()
         self.autosave()
@@ -545,7 +574,11 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.set_settings_node(self.settings_widget.node)
         self.autosave()
 
-    def insert_node(self, node_name, src_name, src_out_idx, dest_name, dest_in_idx):
+    def insert_node(
+            self, node_name,
+            src_name, src_out_idx,
+            dest_name, dest_in_idx):
+
         node = self.graph[node_name]
         src_node = self.graph[src_name]
         dest_node = self.graph[dest_name]
