@@ -37,6 +37,7 @@ from polarsgraph.nodes.reorder import ReorderNode, ReorderSettingsWidget
 from polarsgraph.nodes.backdrop import BackdropNode, BackdropSettingsWidget
 from polarsgraph.nodes.constant import (
     ConstantNode, ConstantSettingsWidget)
+from polarsgraph.nodes.sql import SQLNode, SqlSettingsWidget
 from polarsgraph.nodes.concatenate import (
     ConcatenateNode, ConcatenateSettingsWidget)
 
@@ -71,6 +72,7 @@ types = {
         'type': ConcatenateNode, 'widget': ConcatenateSettingsWidget},
     ConstantNode.type: {
         'type': ConstantNode, 'widget': ConstantSettingsWidget},
+    SQLNode.type: {'type': SQLNode, 'widget': SqlSettingsWidget},
     # Displays
     PieNode.type: {'type': PieNode, 'widget': PieSettingsWidget},
     BarsNode.type: {'type': BarsNode, 'widget': BarsSettingsWidget},
