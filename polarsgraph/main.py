@@ -504,7 +504,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
         for node_name_to_delete in node_names_to_delete:
             # Preserve connections 1 input & 1 output
             node_to_delete = self.graph[node_name_to_delete]
-            for node_input in node_to_delete['inputs']:
+            for node_input in node_to_delete['inputs'] or []:
                 if not node_input:
                     continue
                 src_name, src_out_idx = node_input
