@@ -102,7 +102,9 @@ CLIPBOARD_PREFIX = '# PolarsGraph clipboard\n'
 
 
 class PolarsGraph(QtWidgets.QMainWindow):
-    def __init__(self, graph=None, extra_types=None, zoom=1.0, origin=(0, 0)):
+    def __init__(
+            self, graph=None, extra_types=None, zoom=1.0, origin=(0, 0),
+            menu_parent=None):
         super().__init__()
 
         icon = QtGui.QIcon(f'{os.path.dirname(__file__)}/polarsgraph.png')
@@ -201,14 +203,16 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.setCentralWidget(central_widget)
 
         # Create menu options
-        menubar = self.menuBar()
+        if not menu_parent:
+            menu_parent = self.menuBar()
+        self.menu_parent = menu_parent
 
         file_menu = QtWidgets.QMenu('File', self)
-        menubar.addMenu(file_menu)
+        menu_parent.addMenu(file_menu)
         edit_menu = QtWidgets.QMenu('Edit', self)
-        menubar.addMenu(edit_menu)
+        menu_parent.addMenu(edit_menu)
         help_menu = QtWidgets.QMenu('Help', self)
-        menubar.addMenu(help_menu)
+        menu_parent.addMenu(help_menu)
 
         open_recent_label = 'Open recent'
         menu_cfg = (
@@ -308,7 +312,7 @@ class PolarsGraph(QtWidgets.QMainWindow):
             ('|', lambda: self.align('vertical'), 'Align vertically'),
         ]
         for key, cmd, label in shortcuts:
-            set_shortcut(key, self, cmd)
+            set_shortcut(key, self.node_view, cmd)
             self.shortcuts_list.append((key, label))
 
         # Load graph
