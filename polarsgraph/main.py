@@ -101,10 +101,15 @@ TITLE = 'PolarsGraph'
 CLIPBOARD_PREFIX = '# PolarsGraph clipboard\n'
 
 
-class PolarsGraph(QtWidgets.QMainWindow):
+class PolarsGraph(QtWidgets.QWidget):
     def __init__(
-            self, graph=None, extra_types=None, zoom=1.0, origin=(0, 0),
-            menu_parent=None):
+            self,
+            graph=None,
+            extra_types=None,
+            zoom=1.0,
+            origin=(0, 0),
+            menubar=True):
+
         super().__init__()
 
         icon = QtGui.QIcon(f'{os.path.dirname(__file__)}/polarsgraph.png')
@@ -153,6 +158,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
         # toolbar_layout.addStretch() would disable node view interactivity
         toolbar.setMaximumWidth(size * len(buttons) + 2)
 
+        self.menubar = QtWidgets.QMenuBar()
+
         # Connections
         self.node_view.nodes_selected.connect(self.set_panel_node)
         self.node_view.plug_changes_requested.connect(self.change_plug)
@@ -195,24 +202,19 @@ class PolarsGraph(QtWidgets.QMainWindow):
         self.vertical_splitter.setHandleWidth(2)
         self.vertical_splitter.setPalette(palette)
 
-        central_widget = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(central_widget)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.vertical_splitter)
-
-        self.setCentralWidget(central_widget)
+        if menubar:
+            layout.addWidget(self.menubar)
+        layout.addWidget(self.vertical_splitter, stretch=1)
 
         # Create menu options
-        if not menu_parent:
-            menu_parent = self.menuBar()
-        self.menu_parent = menu_parent
-
         file_menu = QtWidgets.QMenu('File', self)
-        menu_parent.addMenu(file_menu)
+        self.menubar.addMenu(file_menu)
         edit_menu = QtWidgets.QMenu('Edit', self)
-        menu_parent.addMenu(edit_menu)
+        self.menubar.addMenu(edit_menu)
         help_menu = QtWidgets.QMenu('Help', self)
-        menu_parent.addMenu(help_menu)
+        self.menubar.addMenu(help_menu)
 
         open_recent_label = 'Open recent'
         menu_cfg = (
@@ -258,6 +260,8 @@ class PolarsGraph(QtWidgets.QMainWindow):
             action.triggered.connect(func)
             if shortcut_key:
                 action.setShortcut(shortcut_key)
+                action.setShortcutContext(
+                    Qt.ShortcutContext.WidgetWithChildrenShortcut)
             menu.addAction(action)
             if shortcut_key:
                 self.shortcuts_list.append((shortcut_key, label))
