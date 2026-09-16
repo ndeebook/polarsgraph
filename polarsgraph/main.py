@@ -108,7 +108,8 @@ class PolarsGraph(QtWidgets.QWidget):
             extra_types=None,
             zoom=1.0,
             origin=(0, 0),
-            menubar=True):
+            menubar=True,
+            global_shortcuts=True):
 
         super().__init__()
 
@@ -208,6 +209,15 @@ class PolarsGraph(QtWidgets.QWidget):
             layout.addWidget(self.menubar)
         layout.addWidget(self.vertical_splitter, stretch=1)
 
+        # Shortcuts
+        self.create_menus_and_shortcuts(global_shortcuts)
+
+        # Load graph
+        if graph:
+            self.load_graph(graph)
+            self.add_undo()
+
+    def create_menus_and_shortcuts(self, global_shortcuts=True):
         # Create menu options
         file_menu = QtWidgets.QMenu('File', self)
         self.menubar.addMenu(file_menu)
@@ -258,12 +268,9 @@ class PolarsGraph(QtWidgets.QWidget):
                 continue
             action = QtGui.QAction(label, self)
             action.triggered.connect(func)
-            if shortcut_key:
-                action.setShortcut(shortcut_key)
-                action.setShortcutContext(
-                    Qt.ShortcutContext.WidgetWithChildrenShortcut)
             menu.addAction(action)
-            if shortcut_key:
+            if shortcut_key and global_shortcuts:
+                action.setShortcut(shortcut_key)
                 self.shortcuts_list.append((shortcut_key, label))
 
         # Shortcuts
@@ -314,15 +321,21 @@ class PolarsGraph(QtWidgets.QWidget):
             ('b', lambda: self.create_node('backdrop'), 'Create Backdrop'),
             ('-', lambda: self.align('horizontal'), 'Align horizontally'),
             ('|', lambda: self.align('vertical'), 'Align vertically'),
+
         ]
+        if not global_shortcuts:
+            # Parent some shortcuts to nodeview. Useful if PolarsGraph is
+            # inside another app and we dont want shortcuts to be global.
+            shortcuts.extend([
+                ('ctrl+c', self.copy, 'Copy'),
+                ('ctrl+v', self.paste, 'Paste'),
+                ('ctrl+z', self.undo, 'Undo'),
+                ('ctrl+y', self.redo, 'Redo'),
+            ])
+
         for key, cmd, label in shortcuts:
             set_shortcut(key, self.node_view, cmd)
             self.shortcuts_list.append((key, label))
-
-        # Load graph
-        if graph:
-            self.load_graph(graph)
-            self.add_undo()
 
     @property
     def save_path(self):
