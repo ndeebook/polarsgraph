@@ -85,6 +85,7 @@ class LinesSettingsWidget(BaseSettingsWidget):
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
         self.title_edit.setText(node[ATTR.TITLE] or '')
+        self.invert_axes_cb.setChecked(bool(node[ATTR.INVERT_AXES]))
         self.blockSignals(False)
 
 
