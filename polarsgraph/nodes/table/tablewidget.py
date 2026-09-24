@@ -24,6 +24,7 @@ class ATTR:
     FROZEN_ROWS = 'frozen_rows'
     ROWS_NUMBER_OFFSET = 'rows_number_offset'
     ROUND_FLOATS_DIGITS = 'round_floats'
+    AUTO_RESIZE_MAX_ROWS = 'auto_resize_max_rows'
 
 
 class TableDisplay(BaseDisplay):
@@ -95,6 +96,9 @@ class TableDisplay(BaseDisplay):
 
         # New widget
         self.tableau.set_table(table)
+        max_rows = self.node[ATTR.AUTO_RESIZE_MAX_ROWS]
+        if max_rows and table.height < max_rows:
+            self.tableau.resize_columns_to_contents()
         self.tableau.set_column_sizes(self.node[ATTR.COLUMNS_WIDTHS] or {})
         self.tableau.set_frozen_columns(self.node[ATTR.FROZEN_COLUMNS])
         self.tableau.set_frozen_rows(self.node[ATTR.FROZEN_ROWS])
