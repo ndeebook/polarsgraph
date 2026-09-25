@@ -79,6 +79,9 @@ class LoadSettingsWidget(BaseSettingsWidget):
             lambda: self.line_edit_to_settings(
                 self.prefix_edit, ATTR.PREFIX))
 
+        self.reload_button = QtWidgets.QPushButton('Reload file')
+        self.reload_button.clicked.connect(self.emit_changed)
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
@@ -86,6 +89,7 @@ class LoadSettingsWidget(BaseSettingsWidget):
         form_layout.addRow(' ', self.browse_button)
         form_layout.addRow('CSV Separator', self.csv_separator_edit)
         form_layout.addRow('Columns prefix', self.prefix_edit)
+        form_layout.addRow(' ', self.reload_button)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)

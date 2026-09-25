@@ -86,10 +86,12 @@ class JoinSettingsWidget(BaseSettingsWidget):
         self.name_edit.setText(node[ATTR.NAME])
 
         left = node[ATTR.LEFT_COLUMN] or ''
-        set_combo_values_from_table_columns(self.left_column_edit, input_tables[0], left)
+        set_combo_values_from_table_columns(
+            self.left_column_edit, input_tables[0], left)
 
         right = node[ATTR.RIGHT_COLUMN] or ''
-        set_combo_values_from_table_columns(self.right_column_edit, input_tables[1], right)
+        set_combo_values_from_table_columns(
+            self.right_column_edit, input_tables[1], right)
 
         self.how_combo.setCurrentText(node[ATTR.HOW] or 'inner')
 
