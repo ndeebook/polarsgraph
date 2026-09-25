@@ -1,7 +1,7 @@
 import os
 
 import polars as pl
-from PySide6 import QtWidgets, QtGui
+from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
 from polarsgraph.log import logger
@@ -98,7 +98,8 @@ class TableDisplay(BaseDisplay):
         self.tableau.set_table(table)
         max_rows = self.node[ATTR.AUTO_RESIZE_MAX_ROWS]
         if max_rows and table.height < max_rows:
-            self.tableau.resize_columns_to_contents()
+            QtCore.QTimer.singleShot(
+                0, self.tableau.resize_columns_to_contents)
         self.tableau.set_column_sizes(self.node[ATTR.COLUMNS_WIDTHS] or {})
         self.tableau.set_frozen_columns(self.node[ATTR.FROZEN_COLUMNS])
         self.tableau.set_frozen_rows(self.node[ATTR.FROZEN_ROWS])
