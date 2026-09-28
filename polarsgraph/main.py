@@ -249,6 +249,7 @@ class PolarsGraph(QtWidgets.QWidget):
                 'Export selected...',
                 lambda: self.prompt_save(selected=True),
                 None),
+            (edit_menu, 'Cut', self.cut, 'ctrl+x'),
             (edit_menu, 'Copy', self.copy, 'ctrl+c'),
             (edit_menu, 'Paste', self.paste, 'ctrl+v'),
             (edit_menu, None, None, '-------'),
@@ -327,6 +328,7 @@ class PolarsGraph(QtWidgets.QWidget):
             # Parent some shortcuts to nodeview. Useful if PolarsGraph is
             # inside another app and we dont want shortcuts to be global.
             shortcuts.extend([
+                ('ctrl+x', self.cut, 'Cut'),
                 ('ctrl+c', self.copy, 'Copy'),
                 ('ctrl+v', self.paste, 'Paste'),
                 ('ctrl+z', self.undo, 'Undo'),
@@ -723,6 +725,10 @@ class PolarsGraph(QtWidgets.QWidget):
             filepath, selected=selected, set_current=not selected)
 
     # Copy/Paste
+    def cut(self):
+        self.copy()
+        self.delete_nodes(list(self.node_view.selected_names))
+
     def copy(self):
         QtWidgets.QApplication.clipboard().setText(
             f'{CLIPBOARD_PREFIX}{self.serialize_graph(selected=True)}')
