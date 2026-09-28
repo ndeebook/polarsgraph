@@ -7,7 +7,7 @@ import re
 
 import polars as pl
 
-from PySide6 import QtWidgets, QtGui
+from PySide6 import QtWidgets, QtGui, QtCore
 
 from polarsgraph.nodes import ORANGE as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
@@ -123,6 +123,94 @@ class DeriveNode(BaseNode):
         self.tables['table'] = table
 
 
+class ColumnCompleter(QtWidgets.QListWidget):
+    def __init__(self, editor: QtWidgets.QPlainTextEdit):
+        super().__init__()
+        self.editor = editor
+        self.column_names = []
+
+        self.setWindowFlags(
+            QtCore.Qt.WindowType.Tool |
+            QtCore.Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.setStyleSheet(
+            'QListWidget {'
+            '  background: #2d2d2d; color: #c586c0;'
+            '  border: 1px solid #555; font-family: consolas;'
+            '}')
+
+        self.itemClicked.connect(self._complete)
+        editor.textChanged.connect(self._update)
+        editor.installEventFilter(self)
+
+    def set_columns(self, names):
+        self.column_names = list(names)
+
+    def _partial(self):
+        cursor = self.editor.textCursor()
+        text = cursor.block().text()[:cursor.positionInBlock()]
+        i = text.rfind('{')
+        if i == -1 or '}' in text[i + 1:]:
+            return None
+        return text[i + 1:]
+
+    def _update(self):
+        partial = self._partial()
+        if partial is None or not self.column_names:
+            self.hide()
+            return
+        matches = [n for n in self.column_names if partial.lower() in n.lower()]
+        if not matches:
+            self.hide()
+            return
+        self.clear()
+        self.addItems(matches)
+        self.setCurrentRow(0)
+        pos = self.editor.mapToGlobal(self.editor.cursorRect().bottomLeft())
+        self.move(pos)
+        self.resize(250, min(200, self.count() * 22 + 4))
+        self.show()
+
+    def _complete(self, item=None):
+        partial = self._partial()
+        if partial is None:
+            return
+        text = (item or self.currentItem()).text()
+        cursor = self.editor.textCursor()
+        for _ in range(len(partial)):
+            cursor.deletePreviousChar()
+        cursor.insertText(text + '}')
+        self.editor.setTextCursor(cursor)
+        self.hide()
+
+    def eventFilter(self, obj, event):
+        if obj is self.editor:
+            if event.type() == QtCore.QEvent.Type.FocusOut:
+                self.hide()
+                return False
+        if obj is self.editor and self.isVisible():
+            if event.type() == QtCore.QEvent.Type.KeyPress:
+                key = event.key()
+                if key == QtCore.Qt.Key.Key_Down:
+                    self.setCurrentRow(
+                        min(self.currentRow() + 1, self.count() - 1))
+                    return True
+                if key == QtCore.Qt.Key.Key_Up:
+                    self.setCurrentRow(max(self.currentRow() - 1, 0))
+                    return True
+                if key in (
+                        QtCore.Qt.Key.Key_Return,
+                        QtCore.Qt.Key.Key_Enter,
+                        QtCore.Qt.Key.Key_Tab):
+                    self._complete()
+                    return True
+                if key == QtCore.Qt.Key.Key_Escape:
+                    self.hide()
+                    return True
+        return super().eventFilter(obj, event)
+
+
 class DeriveSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
@@ -150,6 +238,7 @@ class DeriveSettingsWidget(BaseSettingsWidget):
             'QPlainTextEdit{background-color:#333333;color:#9cdcfe}')
         self.formula_edit.setFont(editor_font)
         self.highlighter = CustomHighlighter(self.formula_edit.document())
+        self.completer = ColumnCompleter(self.formula_edit)
 
         help_label = QtWidgets.QLabel(EXAMPLES_TEXT, font=fixed_font)
         help_label.setWordWrap(True)
@@ -170,6 +259,11 @@ class DeriveSettingsWidget(BaseSettingsWidget):
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
         self.column_edit.setText(node[ATTR.COLUMN] or 'Derived column')
+        if input_tables and input_tables[0] is not None:
+            self.completer.set_columns(
+                input_tables[0].collect_schema().names())
+        else:
+            self.completer.set_columns([])
         self.formula_edit.setPlainText(node[ATTR.FORMULA] or '')
         self.blockSignals(False)
 
@@ -407,6 +501,9 @@ def get_polars_arithmetic_expression(tokens):
             # because it could be a func arg and not a pl.lit
             expression = token_to_value(expression)
         operator_name = tokens.pop(0)
+        if not tokens:
+            raise ValueError(
+                f'Incomplete formula: missing operand after "{operator_name}"')
         magic_method_name = OPERATOR_MAGIC_METHODS[operator_name]
         operator_method = getattr(expression, magic_method_name)
         content = token_to_value(tokens.pop(0))
