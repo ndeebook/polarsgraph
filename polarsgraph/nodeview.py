@@ -176,21 +176,34 @@ class NodeView(QtWidgets.QWidget):
                 return
             if not (dragged_node.inputs and dragged_node.outputs):
                 return
-            for (n1, out_i, n2, in_i), path in self.connections_paths.items():
-                if dragged_name in (n1, n2):
-                    continue
-                if not path.intersects(node_rect):
-                    continue
-                self.hovered_connection = n1, out_i, n2, in_i
-                p1 = self.plugs_bboxes[n1][OUT][out_i].center()
-                p2 = self.plugs_bboxes[n2][IN][in_i].center()
-                in_plugs = self.plugs_bboxes.get(dragged_name, ([], []))[IN]
-                out_plugs = self.plugs_bboxes.get(dragged_name, ([], []))[OUT]
-                painter.setPen(QtGui.QPen(
-                    Qt.white, thickness, Qt.DashLine, Qt.RoundCap))
-                paint_connection(painter, p1, in_plugs[0].center(), OUT, zoom)
-                paint_connection(painter, out_plugs[0].center(), p2, OUT, zoom)
-                break
+            alt_pressed = (
+                QtWidgets.QApplication.keyboardModifiers()
+                & Qt.KeyboardModifier.AltModifier)
+            inputs_connected = any(
+                key[2] == dragged_name for key in self.connections_paths)
+            outputs_connected = any(
+                key[0] == dragged_name for key in self.connections_paths)
+            plugs_connected = inputs_connected or outputs_connected
+            if alt_pressed or not plugs_connected:
+                for (n1, out_i, n2, in_i), path in self.connections_paths.items():
+                    if dragged_name in (n1, n2):
+                        continue
+                    if not path.intersects(node_rect):
+                        continue
+                    self.hovered_connection = n1, out_i, n2, in_i
+                    p1 = self.plugs_bboxes[n1][OUT][out_i].center()
+                    p2 = self.plugs_bboxes[n2][IN][in_i].center()
+                    in_plugs = self.plugs_bboxes.get(
+                        dragged_name, ([], []))[IN]
+                    out_plugs = self.plugs_bboxes.get(
+                        dragged_name, ([], []))[OUT]
+                    painter.setPen(QtGui.QPen(
+                        Qt.white, thickness, Qt.DashLine, Qt.RoundCap))
+                    paint_connection(
+                        painter, p1, in_plugs[0].center(), OUT, zoom)
+                    paint_connection(
+                        painter, out_plugs[0].center(), p2, OUT, zoom)
+                    break
 
         # Draw selection rectangle
         if self.drag_position:
