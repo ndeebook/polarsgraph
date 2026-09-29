@@ -23,6 +23,7 @@ from polarsgraph.panel import SettingsWidget
 from polarsgraph.display import DisplayWidget, get_displays_by_index
 
 from polarsgraph.nodes.dot import DotNode, DotSettingsWidget
+from polarsgraph.nodes.csv import CsvNode, CsvSettingsWidget
 from polarsgraph.nodes.load import LoadNode, LoadSettingsWidget
 from polarsgraph.nodes.sort import SortNode, SortSettingsWidget
 from polarsgraph.nodes.join import JoinNode, JoinSettingsWidget
@@ -57,6 +58,7 @@ from polarsgraph.nodes.dashboard import (
 
 types = {
     LoadNode.type: {'type': LoadNode, 'widget': LoadSettingsWidget},
+    CsvNode.type: {'type': CsvNode, 'widget': CsvSettingsWidget},
     # Manipulators
     SortNode.type: {'type': SortNode, 'widget': SortSettingsWidget},
     JoinNode.type: {'type': JoinNode, 'widget': JoinSettingsWidget},
