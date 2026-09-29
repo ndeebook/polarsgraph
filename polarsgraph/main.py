@@ -790,7 +790,8 @@ class PolarsGraph(QtWidgets.QWidget):
         display_node_name = get_displays_by_index(self.graph).get(
             display_index)
         if not display_node_name:
-            return
+            node = self.create_node('table')
+            display_node_name = node['name']
         if len(self.node_view.selected_names) == 1:
             selected_node = self.graph[self.node_view.selected_names[0]]
             self.change_plug(
