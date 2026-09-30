@@ -39,6 +39,8 @@ from polarsgraph.nodes.backdrop import BackdropNode, BackdropSettingsWidget
 from polarsgraph.nodes.constant import (
     ConstantNode, ConstantSettingsWidget)
 from polarsgraph.nodes.sql import SQLNode, SqlSettingsWidget
+from polarsgraph.nodes.daterange import (
+    DateRangeNode, DateRangeSettingsWidget)
 from polarsgraph.nodes.concatenate import (
     ConcatenateNode, ConcatenateSettingsWidget)
 
@@ -64,6 +66,8 @@ types = {
     JoinNode.type: {'type': JoinNode, 'widget': JoinSettingsWidget},
     PivotNode.type: {'type': PivotNode, 'widget': PivotSettingsWidget},
     GroupNode.type: {'type': GroupNode, 'widget': GroupSettingsWidget},
+    DateRangeNode.type: {
+        'type': DateRangeNode, 'widget': DateRangeSettingsWidget},
     DeriveNode.type: {'type': DeriveNode, 'widget': DeriveSettingsWidget},
     FilterNode.type: {'type': FilterNode, 'widget': FilterSettingsWidget},
     FormatNode.type: {'type': FormatNode, 'widget': FormatSettingsWidget},
