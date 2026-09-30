@@ -1,3 +1,4 @@
+import datetime
 import polars as pl
 from PySide6 import QtWidgets, QtGui, QtCharts, QtCore
 from PySide6.QtCore import Qt
@@ -156,12 +157,35 @@ def make_chart(
         raise ValueError(
             'Dataframe must have an even number of columns (pairs of X,Y)')
 
+    # Detect if X axis is datetime/date by inspecting the first value
+    col_names = dataframe.columns
+    x_is_datetime = False
+    datetime_format = 'dd/MM/yyyy'
+    if len(dataframe) > 0:
+        first_x = dataframe[col_names[0]][0]
+        if isinstance(first_x, datetime.datetime):
+            x_is_datetime = True
+            datetime_format = 'dd/MM/yy HH:mm'
+        elif isinstance(first_x, datetime.date):
+            x_is_datetime = True
+
+    def _to_x(value):
+        if x_is_datetime:
+            if value is None:
+                return None
+            if isinstance(value, datetime.datetime):
+                return int(value.timestamp() * 1000)
+            return int(datetime.datetime(value.year, value.month, value.day).timestamp() * 1000)
+        return value or 0
+
     series_list = []
     for col_index in range(0, num_columns, 2):
         series = QtCharts.QLineSeries()
         for row in dataframe.iter_rows():
-            x = row[col_index] or 0
+            x = _to_x(row[col_index])
             y = row[col_index + 1] or 0
+            if x is None:
+                continue
             if invert_axes:
                 x, y = y, x
             try:
@@ -172,7 +196,11 @@ def make_chart(
         chart.addSeries(series)
 
     # Configure the axes (shared among all series)
-    axis_x = QtCharts.QValueAxis()
+    if x_is_datetime and not invert_axes:
+        axis_x = QtCharts.QDateTimeAxis()
+        axis_x.setFormat(datetime_format)
+    else:
+        axis_x = QtCharts.QValueAxis()
     axis_y = QtCharts.QValueAxis()
     axis_x.setLabelsBrush(QtGui.QBrush(COLOR['axis_text']))
     axis_y.setLabelsBrush(QtGui.QBrush(COLOR['axis_text']))
