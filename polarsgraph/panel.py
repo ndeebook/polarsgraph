@@ -85,9 +85,9 @@ class SettingsWidget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(type_layout)
-        layout.addLayout(self.node_layout)
-        layout.addStretch()
+        layout.addLayout(self.node_layout, 1)
         layout.addLayout(buttons_layout)
+        layout.addSpacing(2)
 
     def set_node(self, node: BaseNode, input_tables: list[pl.LazyFrame]):
         self.node = node
