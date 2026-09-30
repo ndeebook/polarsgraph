@@ -77,9 +77,11 @@ class GroupNode(BaseNode):
                 agg_expr = pl.lit(None).alias(col_name)
             elif agg_name:
                 col = pl.col(col_name)
-                if schema[col_name] == pl.Boolean and agg_name == 'mean':
-                    # Count None's as False
-                    df = df.with_columns(col.replace(None, False).name.keep())
+                if agg_name == 'mean':
+                    if schema[col_name] == pl.Boolean:
+                        df = df.with_columns(col.replace(None, False).name.keep())
+                    elif schema[col_name].is_numeric():
+                        df = df.with_columns(col.fill_null(0).name.keep())
                 agg_expr = getattr(col, agg_name)()
             else:
                 # Column not configured, delete it

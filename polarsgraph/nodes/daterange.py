@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import polars as pl
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
@@ -49,7 +51,6 @@ class DateRangeNode(BaseNode):
             return
 
         column_aggregations = self[ATTR.COLUMNS_AGGREGATIONS] or {}
-        bool_mean_cols = []
         agg_exprs = []
         for col_name in schema.names():
             if col_name in (date_col, key_col):
@@ -67,15 +68,14 @@ class DateRangeNode(BaseNode):
                 agg_expr = pl.lit(None).alias(col_name)
             elif agg_name:
                 col = pl.col(col_name)
-                if schema[col_name] == pl.Boolean and agg_name == 'mean':
-                    bool_mean_cols.append(col_name)
                 agg_expr = getattr(col, agg_name)()
             else:
                 continue
 
             agg_exprs.append(agg_expr)
 
-        # Build full date range
+        # Build full date range starting one day before the first change
+        min_date -= timedelta(days=1)
         date_type = schema[date_col]
         if isinstance(date_type, pl.Datetime):
             all_dates = pl.datetime_range(
@@ -83,41 +83,36 @@ class DateRangeNode(BaseNode):
         else:
             all_dates = pl.date_range(
                 min_date, max_date, interval='1d', eager=True)
-
-        # As-of expand: for each date, find each entity's current value
-        # (most recent status on or before that date), then aggregate
-        dates_df = pl.DataFrame({'__date__': all_dates})
-        expanded = dates_df.join(collected, how='cross')
-        expanded = expanded.filter(
-            pl.col(date_col) <= pl.col('__date__'))
+        dates_df = pl.DataFrame({'date': all_dates})
 
         value_cols = [
             c for c in schema.names()
             if c not in (date_col, key_col)
             and column_aggregations.get(c) != DELETE_LABEL]
-        agg_last = [
-            pl.col(c).sort_by(date_col).last() for c in value_cols]
-        per_entity = (
-            expanded.group_by(['__date__', key_col]).agg(agg_last)
-            if agg_last
-            else expanded.select(['__date__', key_col]).unique())
 
-        if bool_mean_cols:
-            per_entity = per_entity.with_columns(
-                [pl.col(c).fill_null(False) for c in bool_mean_cols])
-
-        if agg_exprs:
-            result = (
-                per_entity
-                .group_by('__date__')
-                .agg(agg_exprs)
-                .rename({'__date__': date_col})
-                .sort(date_col))
-        else:
-            result = (
-                per_entity.select('__date__').unique()
-                .rename({'__date__': date_col})
-                .sort(date_col))
+        # As-of expand: cross join dates × unique keys so every entity appears
+        # on every date (weight=null→0 when no history yet), then join_asof to
+        # get the most recent value per (date, key)
+        keys_df = collected.select(key_col).unique()
+        all_pairs = dates_df.join(keys_df, how='cross').sort('date')
+        result = (
+            all_pairs
+            .join_asof(
+                collected.select(
+                    [date_col, key_col] + value_cols)
+                .sort(date_col)
+                .set_sorted(date_col),
+                left_on='date',
+                right_on=date_col,
+                by=key_col,
+                strategy='backward')
+            .with_columns([
+                pl.col(c).fill_null(0) for c in value_cols
+                if schema[c].is_numeric() or schema[c] == pl.Boolean])
+            .group_by('date')
+            .agg(pl.col('statuses.weight').mean())
+            .sort('date')
+        )
 
         self.tables['table'] = result.lazy()
 
@@ -165,7 +160,7 @@ class DateRangeSettingsWidget(BaseSettingsWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
         layout.addWidget(refresh_button)
-        layout.addWidget(self.column_agg_table)
+        layout.addWidget(self.column_agg_table, stretch=1)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
