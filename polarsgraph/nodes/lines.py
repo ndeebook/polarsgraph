@@ -22,6 +22,7 @@ class ATTR:
     TITLE = 'title'
     DISPLAY_INDEX = DISPLAY_INDEX_ATTR
     INVERT_AXES = 'invert_axes'
+    Y_MAX = 'y_max'
 
 
 class LinesNode(BaseNode):
@@ -72,12 +73,18 @@ class LinesSettingsWidget(BaseSettingsWidget):
             lambda: self.checkbox_to_settings(
                 self.invert_axes_cb, ATTR.INVERT_AXES))
 
+        self.y_max_edit = QtWidgets.QLineEdit()
+        self.y_max_edit.setPlaceholderText('auto')
+        self.y_max_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(self.y_max_edit, ATTR.Y_MAX))
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         form_layout.addRow('Display index', self.index_combo)
         form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
         form_layout.addRow('', self.invert_axes_cb)
+        form_layout.addRow('Y max', self.y_max_edit)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
 
@@ -87,6 +94,7 @@ class LinesSettingsWidget(BaseSettingsWidget):
         self.name_edit.setText(node[ATTR.NAME])
         self.title_edit.setText(node[ATTR.TITLE] or '')
         self.invert_axes_cb.setChecked(bool(node[ATTR.INVERT_AXES]))
+        self.y_max_edit.setText(str(node[ATTR.Y_MAX]) if node[ATTR.Y_MAX] is not None else '')
         self.blockSignals(False)
 
 
@@ -114,8 +122,13 @@ class LinesDisplay(BaseDisplay):
         table = table.collect()
         title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
         invert_axes = bool(self.node[ATTR.INVERT_AXES])
+        y_max_raw = self.node[ATTR.Y_MAX]
+        try:
+            y_max = float(y_max_raw) if y_max_raw not in (None, '') else None
+        except (ValueError, TypeError):
+            y_max = None
         self.node.error = make_chart(
-            self.chart_view, table, title, invert_axes)
+            self.chart_view, table, title, invert_axes, y_max)
         if self.node.error:
             self.chart_view.setVisible(False)
             self.error_label.setVisible(True)
@@ -143,7 +156,8 @@ def make_chart(
         chart_view: QtCharts.QChartView,
         dataframe: pl.DataFrame,
         title: str,
-        invert_axes: bool = False):
+        invert_axes: bool = False,
+        y_max: float = None):
     # Create the chart
     chart = QtCharts.QChart()
     chart.setTitle(title)
@@ -175,7 +189,9 @@ def make_chart(
                 return None
             if isinstance(value, datetime.datetime):
                 return int(value.timestamp() * 1000)
-            return int(datetime.datetime(value.year, value.month, value.day).timestamp() * 1000)
+            return int(
+                datetime.datetime(value.year, value.month, value.day)
+                .timestamp() * 1000)
         return value or 0
 
     series_list = []
@@ -210,6 +226,8 @@ def make_chart(
     axis_y.setGridLinePen(grid_pen)
     chart.addAxis(axis_x, QtCore.Qt.AlignBottom)
     chart.addAxis(axis_y, QtCore.Qt.AlignLeft)
+    if y_max is not None:
+        axis_y.setMax(y_max)
 
     # Attach each series to the axes
     for series in series_list:
