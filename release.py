@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 
-version = '0.6'
+version = '0.7'
 
 
 main_path = os.path.normpath(
@@ -33,13 +33,17 @@ if os.path.exists(zip_path):
 # cx_Freeze
 print('Packaging with cx_Freeze...\n')
 os.makedirs(release_dir)
+subprocess.check_call(
+    [sys.executable, '-m', 'pip', 'install', 'cx_freeze==8.7.1'])
 cxfreeze_path = f'{os.path.dirname(sys.executable)}/Scripts/cxfreeze.exe'
-subprocess.check_call([
+cmd = [
     cxfreeze_path,
     '--script', main_path,
     '--target-dir', release_dir,
-    '--base', 'Win32GUI',
-    '--target-name', 'PolarsGraph'])
+    '--base', 'gui',
+    '--target-name', 'PolarsGraph']
+print(' '.join(cmd))
+subprocess.check_call(cmd)
 
 shutil.copy2('LICENSE', release_dir)
 shutil.copy2('README.md', release_dir)
