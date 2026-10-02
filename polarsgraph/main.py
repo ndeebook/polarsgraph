@@ -547,6 +547,7 @@ class PolarsGraph(QtWidgets.QWidget):
                                 self.graph,
                                 self.graph[src_name], src_out_idx,
                                 other_node, in_idx)
+                            self.set_dirty_recursive(other_node['name'])
 
             # Delete node
             self.graph.pop(node_name_to_delete)
@@ -585,6 +586,7 @@ class PolarsGraph(QtWidgets.QWidget):
         # Handle cases
         if not plug_out:  # disconnecting plug in
             disconnect_plug(self.graph[plug_in['name']], plug_in['index'])
+            self.set_dirty_recursive(plug_in['name'])
         elif plug_in:  # connecting two plugs
             target_node_name = plug_in['name']
             target_node = self.graph[target_node_name]
@@ -629,6 +631,7 @@ class PolarsGraph(QtWidgets.QWidget):
             self.graph,
             self.graph[self.node_view.selected_names[0]], 0,
             self.graph[self.node_view.selected_names[1]], 0)
+        self.set_dirty_recursive(self.node_view.selected_names[1])
         self.node_view.repaint()
         self.update_view_widget()
         self.set_settings_node(self.settings_widget.node)
