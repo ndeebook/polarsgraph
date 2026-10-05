@@ -337,6 +337,8 @@ class Tableau(QtWidgets.QWidget):
             for c in columns}
 
     def resize_columns_to_contents(self):
+        if not self.row_count:
+            return
         sizes = dict()
         for col_index, col_name in enumerate(self.columns):
             max_cell_width = max([
