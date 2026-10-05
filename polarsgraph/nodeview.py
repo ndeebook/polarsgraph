@@ -106,7 +106,10 @@ class NodeView(QtWidgets.QWidget):
         self.frame_all(subgraph_change=True)
 
     def exit_subgraph(self):
-        name = self.current_graph_stack.pop()
+        try:
+            name = self.current_graph_stack.pop()
+        except IndexError:
+            return
         if name:
             self.breadcrumb_button.setText(f'▲  {name}')
         else:
@@ -315,8 +318,11 @@ class NodeView(QtWidgets.QWidget):
 
     def mouseDoubleClickEvent(self, event):
         under_cursor = self.get_object_under_cursor(event.position())
-        if under_cursor and under_cursor['type'] == 'node':
-            self.node_double_clicked.emit(under_cursor['name'])
+        if under_cursor:
+            if under_cursor['type'] == 'node':
+                self.node_double_clicked.emit(under_cursor['name'])
+        else:
+            self.exit_subgraph()
         return super().mouseDoubleClickEvent(event)
 
     def mousePressEvent(self, event):
