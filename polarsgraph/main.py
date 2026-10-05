@@ -24,6 +24,7 @@ from polarsgraph.display import DisplayWidget, get_displays_by_index
 
 from polarsgraph.nodes.dot import DotNode, DotSettingsWidget
 from polarsgraph.nodes.csv import CsvNode, CsvSettingsWidget
+from polarsgraph.nodes.sql import SQLNode, SqlSettingsWidget
 from polarsgraph.nodes.load import LoadNode, LoadSettingsWidget
 from polarsgraph.nodes.sort import SortNode, SortSettingsWidget
 from polarsgraph.nodes.join import JoinNode, JoinSettingsWidget
@@ -36,9 +37,12 @@ from polarsgraph.nodes.switch import SwitchNode, SwitchSettingsWidget
 from polarsgraph.nodes.groupby import GroupByNode, GroupSettingsWidget
 from polarsgraph.nodes.reorder import ReorderNode, ReorderSettingsWidget
 from polarsgraph.nodes.backdrop import BackdropNode, BackdropSettingsWidget
+from polarsgraph.nodes.subgraph import (
+    SubgraphNode, SubgraphSettingsWidget,
+    InputNode, InputSettingsWidget,
+    OutputNode, OutputSettingsWidget)
 from polarsgraph.nodes.constant import (
     ConstantNode, ConstantSettingsWidget)
-from polarsgraph.nodes.sql import SQLNode, SqlSettingsWidget
 from polarsgraph.nodes.daterange import (
     DateRangeNode, DateRangeSettingsWidget)
 from polarsgraph.nodes.concatenate import (
@@ -91,8 +95,12 @@ types = {
     # Backdrop
     BackdropNode.type: {
         'type': BackdropNode, 'widget': BackdropSettingsWidget},
-    # Dot
+    # Flow
     DotNode.type: {'type': DotNode, 'widget': DotSettingsWidget},
+    SubgraphNode.type: {
+        'type': SubgraphNode, 'widget': SubgraphSettingsWidget},
+    InputNode.type: {'type': InputNode, 'widget': InputSettingsWidget},
+    OutputNode.type: {'type': OutputNode, 'widget': OutputSettingsWidget},
 }
 
 
@@ -174,7 +182,7 @@ class PolarsGraph(QtWidgets.QWidget):
         self.node_view.create_load_requested.connect(self.create_load)
         self.node_view.delete_requested.connect(self.delete_nodes)
         self.node_view.node_double_clicked.connect(
-            self.settings_widget.show_error)
+            self.on_node_double_clicked)
         self.node_view.insert_node_requested.connect(self.insert_node)
 
         self.settings_widget.settings_changed.connect(self.set_dirty_recursive)
@@ -376,6 +384,7 @@ class PolarsGraph(QtWidgets.QWidget):
 
         if not add:
             self.graph = dict()
+            self.node_view.reset_context_to_root()
             self.node_view.clear()
         else:
             """
@@ -446,6 +455,13 @@ class PolarsGraph(QtWidgets.QWidget):
         if not add:
             self.node_view.frame_all()
 
+    def on_node_double_clicked(self, node_name):
+        node = self.graph.get(node_name)
+        if node and node.type == 'subgraph':
+            self.node_view.enter_subgraph(node_name)
+        else:
+            self.settings_widget.show_error()
+
     def set_settings_node(self, node: BaseNode):
         input_tables = []
         if (
@@ -492,6 +508,10 @@ class PolarsGraph(QtWidgets.QWidget):
             settings=settings,
             auto_increment=auto_increment)
 
+        # Assign to current subgraph context if inside one
+        if self.node_view.current_subgraph and node_type != 'subgraph':
+            node['parent'] = self.node_view.current_subgraph
+
         if node_type == 'backdrop':
             # Size backdrop based on selection
             nodes = [self.graph[n] for n in self.node_view.selected_names]
@@ -530,6 +550,13 @@ class PolarsGraph(QtWidgets.QWidget):
         self.autosave()
 
     def delete_nodes(self, node_names_to_delete):
+        for name in list(node_names_to_delete):
+            node = self.graph.get(name)
+            if node and node.type == 'subgraph':
+                node_names_to_delete.extend(
+                    n for n, node in self.graph.items()
+                    if node['parent'] == name)
+
         for node_name_to_delete in node_names_to_delete:
             # Preserve connections 1 input & 1 output
             node_to_delete = self.graph[node_name_to_delete]
@@ -689,7 +716,6 @@ class PolarsGraph(QtWidgets.QWidget):
 
     def open_file(self, filepath, import_=False):
         self._add_to_recents(filepath)
-        # Open
         with open(filepath, 'r') as f:
             graph = deserialize_graph(f.read())
         self.load_graph(graph, add=import_)

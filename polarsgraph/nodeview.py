@@ -67,11 +67,58 @@ class NodeView(QtWidgets.QWidget):
         self.add_menu.create_requested.connect(self.create_requested)
         self.hovered_connection = None
 
+        self.current_subgraph = None
+        self.current_graph_stack = []
+        self.breadcrumb_button = QtWidgets.QPushButton('▲', self)
+        self.breadcrumb_button.setFixedHeight(20)
+        self.breadcrumb_button.hide()
+        self.breadcrumb_button.clicked.connect(self.exit_subgraph)
+        self.breadcrumb_button.adjustSize()
+
     def clear(self):
         self.nodes_bboxes.clear()
         self.plugs_bboxes.clear()
         self.backdrop_bboxes.clear()
         self.selected_names.clear()
+
+    def _context_node_names(self):
+        for name, node in self.graph.items():
+            if node['parent'] == self.current_subgraph:
+                yield name
+
+    def reset_context_to_root(self):
+        self.current_subgraph = None
+        self.current_graph_stack.clear()
+
+    def _move_breadcrumb(self):
+        btn = self.breadcrumb_button
+        btn.adjustSize()
+        btn.move(self.width() - btn.width() - 4, 4)
+
+    def enter_subgraph(self, name):
+        self.current_graph_stack.append(name)
+        self.current_subgraph = name
+        self.clear()
+        self.breadcrumb_button.setText(f'▲  {name}')
+        self._move_breadcrumb()
+        self.breadcrumb_button.show()
+        self.frame_all(ignore_selection=True)
+
+    def exit_subgraph(self):
+        exited = (
+            self.current_graph_stack.pop() if self.current_graph_stack
+            else None)
+        self.current_subgraph = (
+            self.current_graph_stack[-1] if self.current_graph_stack else None)
+        self.clear()
+        if self.current_subgraph:
+            self.breadcrumb_button.setText(f'▲  {self.current_subgraph}')
+        else:
+            self.breadcrumb_button.hide()
+        if exited:
+            self.selected_names = [exited]
+            self.nodes_selected.emit(self.selected_names)
+        self.frame_all(ignore_selection=True)
 
     def set_graph(self, graph):
         self.graph = graph
@@ -97,15 +144,25 @@ class NodeView(QtWidgets.QWidget):
             self.selected_names.remove(old_name)
             self.selected_names.append(new_name)
 
+        # Keep subgraph stack in sync if a subgraph is renamed
+        self.current_graph_stack = [
+            new_name if n == old_name else n for n in self.current_graph_stack]
+        if self.current_subgraph == old_name:
+            self.current_subgraph = new_name
+            self.breadcrumb_button.setText(f'▲  {new_name}')
+
         self.update()
 
-    def frame_all(self):
-        if self.selected_names:
+    def frame_all(self, ignore_selection=False):
+        context_names = self._context_node_names()
+        if self.selected_names and not ignore_selection:
             rects = [
                 rect for name, rect in self.nodes_bboxes.items()
-                if name in self.selected_names]
+                if name in self.selected_names and name in context_names]
         else:
-            rects = list(self.nodes_bboxes.values())
+            rects = [
+                rect for name, rect in self.nodes_bboxes.items()
+                if name in context_names]
         if not rects:
             return
         rect = rects[0]
@@ -123,8 +180,10 @@ class NodeView(QtWidgets.QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRect(self.rect())
 
+        context_names = set(self._context_node_names())
+
         # Draw backdrops first
-        for name in sorted(list(self.graph)):
+        for name in sorted(context_names):
             node = self.graph[name]
             if node.category != BACKDROP_CATEGORY:
                 continue
@@ -135,7 +194,7 @@ class NodeView(QtWidgets.QWidget):
         # Draw nodes
         display_indexes = {
             i: d for d, i in get_displays_by_index(self.graph).items()}
-        for name in sorted(list(self.graph)):
+        for name in sorted(context_names):
             node = self.graph[name]
             if node.category == BACKDROP_CATEGORY:
                 continue
@@ -149,18 +208,21 @@ class NodeView(QtWidgets.QWidget):
         thickness = self.viewportmapper.to_viewport(2)
         zoom = self.viewportmapper.zoom
         self.connections_paths.clear()
-        for node in self.graph.values():
+        for node_name in context_names:
+            node = self.graph[node_name]
             inputs = node['inputs'] or []
             for i, plug in enumerate(inputs):
                 if plug is None:
                     continue
                 name, output_plug_index = plug
+                if name not in context_names:
+                    continue  # skip connections that cross context boundaries
                 p1 = self.plugs_bboxes[name][1][output_plug_index].center()
-                p2 = self.plugs_bboxes[node['name']][0][i].center()
+                p2 = self.plugs_bboxes[node_name][0][i].center()
                 painter.setPen(get_connection_pen(
                     CATEGORY_INPUT_TYPE[node.category], thickness))
                 path = paint_connection(painter, p1, p2, OUT, zoom)
-                key = name, output_plug_index, node['name'], i
+                key = name, output_plug_index, node_name, i
                 self.connections_paths[key] = path
 
         # Detect node dragged over a connection and draw insertion preview
@@ -224,11 +286,18 @@ class NodeView(QtWidgets.QWidget):
                 paint_connection(
                     painter, plug_pos, self.drag_position, side, zoom)
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape and self.current_graph_stack:
+            self.exit_subgraph()
+        return super().keyPressEvent(event)
+
     def resizeEvent(self, event):
         self.viewportmapper.viewsize = event.size()
         size = (event.size() - event.oldSize()) / 2
         offset = QtCore.QPointF(size.width(), size.height())
         self.viewportmapper.origin -= offset
+        if self.breadcrumb_button.isVisible():
+            self._move_breadcrumb()
         self.repaint()
 
     def wheelEvent(self, event):
@@ -537,14 +606,22 @@ def paint_node(
         node: BaseNode,
         display_index: int,
         selected: bool):
+
     name = node['name']
     pos = node['position']
-    if node.inputs == DYNAMIC_PLUG_COUNT:
+
+    if node.type == 'subgraph':
+        inputs = node['inputs'] or []
+    elif node.inputs == DYNAMIC_PLUG_COUNT:
         inputs = [n for n in node['inputs'] if n]
         inputs = [f'{node.input_plug_name(i)}' for i in range(len(inputs) + 1)]
     else:
         inputs = node.inputs or []
-    outputs = node.outputs or []
+
+    if node.type == 'subgraph':
+        outputs = node['outputs'] or []
+    else:
+        outputs = node.outputs or []
 
     pos = viewportmapper.to_viewport_coords(pos)
     x = pos.x()
@@ -628,7 +705,7 @@ def paint_node(
     else:
         painter.setBrush(PLUG_COLOR)
     output_coords = []
-    for i, output_text in enumerate(node.outputs):
+    for i, output_text in enumerate(outputs):
         output_text = '' if output_text in DEFAULT_PLUG_NAMES else output_text
         px = x + node_width
         py = y + title_height + plug_height / 2 + title_height * i
