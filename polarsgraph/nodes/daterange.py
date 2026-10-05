@@ -8,7 +8,7 @@ from polarsgraph.nodes import PINK as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import (
     BaseNode, BaseSettingsWidget, set_combo_values_from_table_columns)
-from polarsgraph.nodes.group import (
+from polarsgraph.nodes.groupby import (
     DATATYPE_DEFAULT_AGG, DELETE_LABEL, NULL_LABEL, CUSTOM_VALUE_LABEL)
 
 

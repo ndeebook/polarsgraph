@@ -27,13 +27,13 @@ from polarsgraph.nodes.csv import CsvNode, CsvSettingsWidget
 from polarsgraph.nodes.load import LoadNode, LoadSettingsWidget
 from polarsgraph.nodes.sort import SortNode, SortSettingsWidget
 from polarsgraph.nodes.join import JoinNode, JoinSettingsWidget
-from polarsgraph.nodes.group import GroupNode, GroupSettingsWidget
 from polarsgraph.nodes.pivot import PivotNode, PivotSettingsWidget
 from polarsgraph.nodes.derive import DeriveNode, DeriveSettingsWidget
 from polarsgraph.nodes.filter import FilterNode, FilterSettingsWidget
 from polarsgraph.nodes.format import FormatNode, FormatSettingsWidget
 from polarsgraph.nodes.rename import RenameNode, RenameSettingsWidget
 from polarsgraph.nodes.switch import SwitchNode, SwitchSettingsWidget
+from polarsgraph.nodes.groupby import GroupByNode, GroupSettingsWidget
 from polarsgraph.nodes.reorder import ReorderNode, ReorderSettingsWidget
 from polarsgraph.nodes.backdrop import BackdropNode, BackdropSettingsWidget
 from polarsgraph.nodes.constant import (
@@ -65,7 +65,7 @@ types = {
     SortNode.type: {'type': SortNode, 'widget': SortSettingsWidget},
     JoinNode.type: {'type': JoinNode, 'widget': JoinSettingsWidget},
     PivotNode.type: {'type': PivotNode, 'widget': PivotSettingsWidget},
-    GroupNode.type: {'type': GroupNode, 'widget': GroupSettingsWidget},
+    GroupByNode.type: {'type': GroupByNode, 'widget': GroupSettingsWidget},
     DateRangeNode.type: {
         'type': DateRangeNode, 'widget': DateRangeSettingsWidget},
     DeriveNode.type: {'type': DeriveNode, 'widget': DeriveSettingsWidget},
@@ -317,7 +317,7 @@ class PolarsGraph(QtWidgets.QWidget):
             ('x', lambda: self.create_node('derive'), 'Create Derive'),
             ('v', lambda: self.create_node('filter'), 'Create Filter'),
             ('p', lambda: self.create_node('format'), 'Create Format'),
-            ('g', lambda: self.create_node('group'), 'Create Group'),
+            ('g', lambda: self.create_node('groupby'), 'Create Group'),
             ('j', lambda: self.create_node('join'), 'Create Join'),
             ('r', lambda: self.create_node('rename'), 'Create Rename'),
             ('o', lambda: self.create_node('reorder'), 'Create Reorder'),

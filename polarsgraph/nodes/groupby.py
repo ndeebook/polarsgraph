@@ -37,8 +37,8 @@ class ATTR:
     CUSTOM_VALUE = 'custom_value'
 
 
-class GroupNode(BaseNode):
-    type = 'group'
+class GroupByNode(BaseNode):
+    type = 'groupby'
     category = MANIPULATE_CATEGORY
     inputs = 'table',
     outputs = 'table',

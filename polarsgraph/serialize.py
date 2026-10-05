@@ -4,6 +4,7 @@ from copy import deepcopy
 from PySide6 import QtGui, QtCore
 
 from polarsgraph.log import logger
+from polarsgraph.version import version
 
 
 def dump(data, depth=0, indent=' ' * 4):
@@ -66,7 +67,7 @@ def deserialize_node(text):
 
 
 def serialize_graph(graph, settings=None):
-    content = ''
+    content = f'# PolarsGraph v{".".join([str(v) for v in version])}\n'
     nodes = list(graph.values())
     if settings:
         nodes.append(settings)
@@ -78,11 +79,21 @@ def serialize_graph(graph, settings=None):
 
 
 def deserialize_graph(text):
-    # Split text into nodes
+    lines = text.split('\n')
+
+    # Get version
+    if lines[0].startswith('# PolarsGraph'):
+        header = lines.pop(0)
+        file_version = header.split(' v')[-1].split('.')
+        file_version = tuple(int(v) for v in version)
+    else:
+        file_version = 0, 7
+
+    # Parse nodes
     nodes = []
     in_node = False
     current_node = ''
-    for line in text.split('\n'):
+    for line in lines:
         if line == '{':
             in_node = True
         elif line == '}':
@@ -94,7 +105,16 @@ def deserialize_graph(text):
 
     # Deserialize nodes
     nodes = [deserialize_node(n) for n in nodes]
+    if file_version < version:
+        _conform_old_nodes(nodes, file_version)
     return {n['name']: n for n in nodes}
+
+
+def _conform_old_nodes(nodes, file_version):
+    if file_version < (0, 8):
+        for node in nodes:
+            if node['type'] == 'group':
+                node['type'] = 'groupby'
 
 
 if __name__ == '__main__':
