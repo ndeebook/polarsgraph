@@ -67,7 +67,6 @@ class NodeView(QtWidgets.QWidget):
         self.add_menu.create_requested.connect(self.create_requested)
         self.hovered_connection = None
 
-        self.current_subgraph = None
         self.current_graph_stack = []
         self.breadcrumb_button = QtWidgets.QPushButton('▲', self)
         self.breadcrumb_button.setFixedHeight(20)
@@ -82,12 +81,15 @@ class NodeView(QtWidgets.QWidget):
         self.selected_names.clear()
 
     def _context_node_names(self):
+        try:
+            current_subgraph = self.current_graph_stack[-1]
+        except IndexError:
+            current_subgraph = None
         for name, node in self.graph.items():
-            if node['parent'] == self.current_subgraph:
+            if node['parent'] == current_subgraph:
                 yield name
 
     def reset_context_to_root(self):
-        self.current_subgraph = None
         self.current_graph_stack.clear()
 
     def _move_breadcrumb(self):
@@ -97,28 +99,20 @@ class NodeView(QtWidgets.QWidget):
 
     def enter_subgraph(self, name):
         self.current_graph_stack.append(name)
-        self.current_subgraph = name
         self.clear()
         self.breadcrumb_button.setText(f'▲  {name}')
         self._move_breadcrumb()
         self.breadcrumb_button.show()
-        self.frame_all(ignore_selection=True)
+        self.frame_all(subgraph_change=True)
 
     def exit_subgraph(self):
-        exited = (
-            self.current_graph_stack.pop() if self.current_graph_stack
-            else None)
-        self.current_subgraph = (
-            self.current_graph_stack[-1] if self.current_graph_stack else None)
-        self.clear()
-        if self.current_subgraph:
-            self.breadcrumb_button.setText(f'▲  {self.current_subgraph}')
+        name = self.current_graph_stack.pop()
+        if name:
+            self.breadcrumb_button.setText(f'▲  {name}')
         else:
             self.breadcrumb_button.hide()
-        if exited:
-            self.selected_names = [exited]
-            self.nodes_selected.emit(self.selected_names)
-        self.frame_all(ignore_selection=True)
+        self.clear()
+        self.frame_all(subgraph_change=True)
 
     def set_graph(self, graph):
         self.graph = graph
@@ -147,15 +141,17 @@ class NodeView(QtWidgets.QWidget):
         # Keep subgraph stack in sync if a subgraph is renamed
         self.current_graph_stack = [
             new_name if n == old_name else n for n in self.current_graph_stack]
-        if self.current_subgraph == old_name:
-            self.current_subgraph = new_name
+        if self.current_graph_stack[-1] == old_name:
+            self.current_graph_stack[-1] = new_name
             self.breadcrumb_button.setText(f'▲  {new_name}')
 
         self.update()
 
-    def frame_all(self, ignore_selection=False):
-        context_names = self._context_node_names()
-        if self.selected_names and not ignore_selection:
+    def frame_all(self, subgraph_change=False):
+        if subgraph_change:
+            self.repaint()  # update bboxes
+        context_names = list(self._context_node_names())
+        if self.selected_names and not subgraph_change:
             rects = [
                 rect for name, rect in self.nodes_bboxes.items()
                 if name in self.selected_names and name in context_names]
@@ -164,7 +160,7 @@ class NodeView(QtWidgets.QWidget):
                 rect for name, rect in self.nodes_bboxes.items()
                 if name in context_names]
         if not rects:
-            return
+            return self.update()
         rect = rects[0]
         for other_rect in rects[1:]:
             rect = rect.united(other_rect)

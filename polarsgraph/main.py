@@ -509,8 +509,8 @@ class PolarsGraph(QtWidgets.QWidget):
             auto_increment=auto_increment)
 
         # Assign to current subgraph context if inside one
-        if self.node_view.current_subgraph and node_type != 'subgraph':
-            node['parent'] = self.node_view.current_subgraph
+        if self.node_view.current_graph_stack and node_type != 'subgraph':
+            node['parent'] = self.node_view.current_graph_stack[-1]
 
         if node_type == 'backdrop':
             # Size backdrop based on selection
