@@ -107,10 +107,11 @@ class NodeView(QtWidgets.QWidget):
 
     def exit_subgraph(self):
         try:
-            name = self.current_graph_stack.pop()
+            self.current_graph_stack.pop()
         except IndexError:
             return
-        if name:
+        if self.current_graph_stack:
+            name = self.current_graph_stack[-1]
             self.breadcrumb_button.setText(f'▲  {name}')
         else:
             self.breadcrumb_button.hide()
