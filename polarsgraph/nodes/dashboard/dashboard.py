@@ -39,9 +39,9 @@ class DashboardNode(BaseNode):
 
     def _build_query(self, tables):
         for i, table in enumerate(tables):
-            self.tables[f'{self.plug_name(i)}'] = table
+            self.tables[f'{self.input_plug_name(i)}'] = table
 
-    def plug_name(self, i):
+    def input_plug_name(self, i):
         return f'{self.inputs_prefix}{i + 1}'
 
     def update_board(self, graph):

@@ -541,7 +541,7 @@ def paint_node(
     pos = node['position']
     if node.inputs == DYNAMIC_PLUG_COUNT:
         inputs = [n for n in node['inputs'] if n]
-        inputs = [f'{node.plug_name(i)}' for i in range(len(inputs) + 1)]
+        inputs = [f'{node.input_plug_name(i)}' for i in range(len(inputs) + 1)]
     else:
         inputs = node.inputs or []
     outputs = node.outputs or []

@@ -22,7 +22,7 @@ class SwitchNode(BaseNode):
         settings[ATTR.WHICH] = settings.get(ATTR.WHICH) or 1
         super().__init__(settings)
 
-    def plug_name(self, i):
+    def input_plug_name(self, i):
         return f'{i + 1}'
 
     def _build_query(self, tables):
