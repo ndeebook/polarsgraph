@@ -499,6 +499,12 @@ class PolarsGraph(QtWidgets.QWidget):
                 settings = {}
             settings['position'] = self.node_view.get_create_position()
 
+        # Subgraph
+        parent = (
+            self.node_view.current_graph_stack[-1]
+            if self.node_view.current_graph_stack
+            else None)
+
         # Create node
         node = create_node(
             self.graph,
@@ -506,6 +512,7 @@ class PolarsGraph(QtWidgets.QWidget):
             node_type,
             name=name,
             settings=settings,
+            parent=parent,
             auto_increment=auto_increment)
 
         # Assign to current subgraph context if inside one

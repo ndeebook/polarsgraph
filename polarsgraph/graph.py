@@ -98,6 +98,7 @@ def create_node(
         node_type,
         name=None,
         settings=None,
+        parent=None,
         auto_increment=True):
 
     # Handle name
@@ -118,6 +119,22 @@ def create_node(
     if node.input_plugs and not node['inputs']:
         node['inputs'] = [None for _ in node.input_plugs]
     graph[name] = node
+
+    # Subgraph
+    if parent:
+        node['parent'] = parent
+        # Add plugs to Subgraph node:
+        parent_node = graph[parent]
+        if node_type in ('input', 'output'):
+            attr = f'{node_type}_plugs'
+            try:
+                parent_node[attr].append(f'{node_type}{len(attr) + 1}')
+            except AttributeError:
+                parent_node[attr] = [f'{node_type}1']
+        # Add one input slots to parent subgraph node:
+        if node_type == 'input':
+            parent_node['inputs'] = (parent_node['inputs'] or []) + [None]
+
     return node
 
 

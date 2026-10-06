@@ -614,17 +614,17 @@ def paint_node(
     pos = node['position']
 
     if node.type == 'subgraph':
-        inputs = node['inputs'] or []
+        inplugs = node['input_plugs'] or []
     elif node.input_plugs == DYNAMIC_PLUG_COUNT:
-        inputs = [n for n in node['inputs'] if n]
-        inputs = [f'{node.input_plug_name(i)}' for i in range(len(inputs) + 1)]
+        inplugs = [n for n in node['inputs'] if n]
+        inplugs = [f'{node.input_plug_name(i)}' for i in range(len(inplugs) + 1)]
     else:
-        inputs = node.input_plugs or []
+        inplugs = node.input_plugs or []
 
     if node.type == 'subgraph':
-        outputs = node['outputs'] or []
+        outplugs = node['output_plugs'] or []
     else:
-        outputs = node.output_plugs or []
+        outplugs = node.output_plugs or []
 
     pos = viewportmapper.to_viewport_coords(pos)
     x = pos.x()
@@ -638,7 +638,7 @@ def paint_node(
     font_margin = viewportmapper.to_viewport(4)
     thickness = viewportmapper.to_viewport(1)
 
-    plugs_vertical_count = max(len(inputs), len(outputs))
+    plugs_vertical_count = max(len(inplugs), len(outplugs))
     plugs_height = plugs_vertical_count * plug_height
     node_height = plugs_height + title_height
 
@@ -676,8 +676,8 @@ def paint_node(
         painter.setBrush(PLUG_COLOR)
 
     input_coords = []
-    for i, input_text in enumerate(inputs):
-        if len(inputs) == 1:
+    for i, input_text in enumerate(inplugs):
+        if len(inplugs) == 1:
             input_text = '' if input_text in DEFAULT_PLUG_NAMES else input_text
         py = y + title_height + plug_height / 2 + title_height * i
         bbox = QtCore.QRectF(
@@ -708,7 +708,7 @@ def paint_node(
     else:
         painter.setBrush(PLUG_COLOR)
     output_coords = []
-    for i, output_text in enumerate(outputs):
+    for i, output_text in enumerate(outplugs):
         output_text = '' if output_text in DEFAULT_PLUG_NAMES else output_text
         px = x + node_width
         py = y + title_height + plug_height / 2 + title_height * i
