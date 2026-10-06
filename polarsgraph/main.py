@@ -563,6 +563,12 @@ class PolarsGraph(QtWidgets.QWidget):
                 node_names_to_delete.extend(
                     n for n, node in self.graph.items()
                     if node['parent'] == name)
+            elif node.type in ('input', 'output'):
+                # Delete parent Subgraph plug
+                subgraph = self.graph.get(node['parent'])
+                subgraph[f'{node.type}_plugs'].pop()
+                if node.type == 'input':
+                    subgraph['inputs'].pop()
 
         for node_name_to_delete in node_names_to_delete:
             # Preserve connections 1 input & 1 output
