@@ -128,7 +128,8 @@ def create_node(
         if node_type in ('input', 'output'):
             attr = f'{node_type}_plugs'
             try:
-                parent_node[attr].append(f'{node_type}{len(attr) + 1}')
+                parent_node[attr].append(
+                    f'{node_type}{len(parent_node[attr]) + 1}')
             except AttributeError:
                 parent_node[attr] = [f'{node_type}1']
         # Add one input slots to parent subgraph node:
