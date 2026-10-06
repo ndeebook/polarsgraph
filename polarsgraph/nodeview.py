@@ -143,11 +143,13 @@ class NodeView(QtWidgets.QWidget):
             self.selected_names.append(new_name)
 
         # Keep subgraph stack in sync if a subgraph is renamed
-        self.current_graph_stack = [
-            new_name if n == old_name else n for n in self.current_graph_stack]
-        if self.current_graph_stack[-1] == old_name:
-            self.current_graph_stack[-1] = new_name
-            self.breadcrumb_button.setText(f'▲  {new_name}')
+        if self.current_graph_stack:
+            self.current_graph_stack = [
+                new_name if n == old_name else n
+                for n in self.current_graph_stack]
+            if self.current_graph_stack[-1] == old_name:
+                self.current_graph_stack[-1] = new_name
+                self.breadcrumb_button.setText(f'▲  {new_name}')
 
         self.update()
 
