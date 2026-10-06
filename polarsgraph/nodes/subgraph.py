@@ -13,8 +13,8 @@ OUTPUT_COLOR = QtGui.QColor(77, 77, 77)
 class InputNode(BaseNode):
     type = 'input'
     category = LOAD_CATEGORY
-    inputs = None
-    outputs = ('table',)
+    input_plugs = None
+    output_plugs = ('table',)
     default_color = INPUT_COLOR
 
     def _build_query(self, tables):
@@ -24,8 +24,8 @@ class InputNode(BaseNode):
 class OutputNode(BaseNode):
     type = 'output'
     category = MANIPULATE_CATEGORY
-    inputs = ('table',)
-    outputs = None
+    input_plugs = ('table',)
+    output_plugs = None
     default_color = OUTPUT_COLOR
 
     def _build_query(self, tables):

@@ -28,8 +28,8 @@ class ATTR:
 class LinesNode(BaseNode):
     type = 'lines'
     category = DISPLAY_CATEGORY
-    inputs = 'table',
-    outputs = 'widget',
+    input_plugs = 'table',
+    output_plugs = 'widget',
     default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):

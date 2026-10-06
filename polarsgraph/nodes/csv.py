@@ -19,7 +19,7 @@ class CsvNode(BaseNode):
     type = 'csv'
     category = LOAD_CATEGORY
     inputs = None
-    outputs = 'table',
+    output_plugs = 'table',
     default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):
@@ -40,7 +40,7 @@ class CsvNode(BaseNode):
         if prefix:
             table = table.rename({c: f'{prefix}{c}' for c in table.columns})
 
-        self.tables[self.outputs[0]] = table.lazy()
+        self.tables[self.output_plugs[0]] = table.lazy()
 
 
 class CsvSettingsWidget(BaseSettingsWidget):

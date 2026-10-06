@@ -14,8 +14,8 @@ class ATTR:
 class ConcatenateNode(BaseNode):
     type = 'concatenate'
     category = MANIPULATE_CATEGORY
-    inputs = 'table1', 'table2'
-    outputs = 'table',
+    input_plugs = 'table1', 'table2'
+    output_plugs = 'table',
     default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):

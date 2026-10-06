@@ -16,8 +16,8 @@ class ATTR:
 class SQLNode(BaseNode):
     type = 'sql'
     category = MANIPULATE_CATEGORY
-    inputs = 'table1', 'table2', 'table3'
-    outputs = 'table',
+    input_plugs = 'table1', 'table2', 'table3'
+    output_plugs = 'table',
     default_color = DEFAULT_COLOR
 
     def _build_query(self, tables):

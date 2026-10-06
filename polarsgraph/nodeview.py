@@ -236,7 +236,7 @@ class NodeView(QtWidgets.QWidget):
             node_rect = self.nodes_bboxes.get(dragged_name)
             if not dragged_node:
                 return
-            if not (dragged_node.inputs and dragged_node.outputs):
+            if not (dragged_node.input_plugs and dragged_node.output_plugs):
                 return
             alt_pressed = (
                 QtWidgets.QApplication.keyboardModifiers()
@@ -615,16 +615,16 @@ def paint_node(
 
     if node.type == 'subgraph':
         inputs = node['inputs'] or []
-    elif node.inputs == DYNAMIC_PLUG_COUNT:
+    elif node.input_plugs == DYNAMIC_PLUG_COUNT:
         inputs = [n for n in node['inputs'] if n]
         inputs = [f'{node.input_plug_name(i)}' for i in range(len(inputs) + 1)]
     else:
-        inputs = node.inputs or []
+        inputs = node.input_plugs or []
 
     if node.type == 'subgraph':
         outputs = node['outputs'] or []
     else:
-        outputs = node.outputs or []
+        outputs = node.output_plugs or []
 
     pos = viewportmapper.to_viewport_coords(pos)
     x = pos.x()

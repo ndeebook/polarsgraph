@@ -26,9 +26,9 @@ class ATTR:
 class DashboardNode(BaseNode):
     type = 'dashboard'
     category = DASHBOARD_CATEGORY
-    inputs = DYNAMIC_PLUG_COUNT
+    input_plugs = DYNAMIC_PLUG_COUNT
     inputs_prefix = 'widget'
-    outputs = ()
+    output_plugs = ()
     default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):

@@ -17,8 +17,8 @@ class ATTR:
 class ConstantNode(BaseNode):
     type = 'constant ref'  # "ref" because hardcoded constant = `Derive` node
     category = MANIPULATE_CATEGORY
-    inputs = 'table', 'constant source'
-    outputs = 'table',
+    input_plugs = 'table', 'constant source'
+    output_plugs = 'table',
     default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):

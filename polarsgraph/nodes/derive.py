@@ -107,8 +107,8 @@ class ATTR:
 class DeriveNode(BaseNode):
     type = 'derive'
     category = MANIPULATE_CATEGORY
-    inputs = 'table',
-    outputs = 'table',
+    input_plugs = 'table',
+    output_plugs = 'table',
     default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):

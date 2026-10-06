@@ -20,8 +20,8 @@ from polarsgraph.nodes.table.tablewidget import ATTR, TableDisplay
 class TableNode(BaseNode):
     type = 'table'
     category = DISPLAY_CATEGORY
-    inputs = 'table',
-    outputs = 'widget',
+    input_plugs = 'table',
+    output_plugs = 'widget',
     default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):

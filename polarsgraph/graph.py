@@ -35,8 +35,8 @@ CATEGORY_OUTPUT_TYPE = {
 class BaseNode:
     type: str = None
     category: str = None
-    inputs: tuple[str] = None
-    outputs: tuple[str] = None
+    input_plugs: tuple[str] = None
+    output_plugs: tuple[str] = None
     default_color: QtGui.QColor = None
 
     def __init__(self, settings=None):
@@ -115,8 +115,8 @@ def create_node(
     node: BaseNode = NodeClass(settings)
 
     # Create default empty inputs
-    if node.inputs and not node['inputs']:
-        node['inputs'] = [None for _ in node.inputs]
+    if node.input_plugs and not node['inputs']:
+        node['inputs'] = [None for _ in node.input_plugs]
     graph[name] = node
     return node
 
@@ -190,13 +190,13 @@ def _get_input_table(graph, node_name, input_plug_index=0):
         return
     input_node_name, input_node_plug_index = plug_target
     input_node: BaseNode = graph[input_node_name]
-    input_table_name = input_node.outputs[input_node_plug_index]
+    input_table_name = input_node.output_plugs[input_node_plug_index]
     return input_node.tables.get(input_table_name)
 
 
-def get_input_tables(graph, node):
+def get_input_tables(graph, node: BaseNode):
     input_tables = []
-    for input_plug_index in range(len(node.inputs or [])):
+    for input_plug_index in range(len(node.input_plugs or [])):
         input_tables.append(
             _get_input_table(graph, node['name'], input_plug_index))
     return input_tables
@@ -261,7 +261,7 @@ def connect_nodes(graph, source_node, source_index, target_node, target_index):
         return False
 
     # Connect
-    if target_node.inputs == DYNAMIC_PLUG_COUNT:
+    if target_node.input_plugs == DYNAMIC_PLUG_COUNT:
         remove_unused_dynamic_plugs(target_node)
         try:
             target_node['inputs'][target_index]
@@ -294,7 +294,7 @@ def disconnect_plug(node, index):
     except IndexError:
         pass
     node['inputs'][index] = None
-    if node.inputs == DYNAMIC_PLUG_COUNT:
+    if node.input_plugs == DYNAMIC_PLUG_COUNT:
         remove_unused_dynamic_plugs(node)
 
 

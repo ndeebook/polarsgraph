@@ -17,8 +17,8 @@ class ATTR:
 class JoinNode(BaseNode):
     type = 'join'
     category = MANIPULATE_CATEGORY
-    inputs = 'left', 'right'
-    outputs = 'table',
+    input_plugs = 'left', 'right'
+    output_plugs = 'table',
     default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):

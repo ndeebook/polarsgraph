@@ -15,7 +15,7 @@ class SwitchNode(BaseNode):
     type = 'switch'
     category = MANIPULATE_CATEGORY
     inputs = DYNAMIC_PLUG_COUNT
-    outputs = 'table',
+    output_plugs = 'table',
     default_color = DEFAULT_COLOR
 
     def __init__(self, settings=None):
