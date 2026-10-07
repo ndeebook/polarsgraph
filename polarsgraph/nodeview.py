@@ -624,7 +624,7 @@ def paint_node(
         inplugs = node.input_plugs or []
 
     if node.type == 'subgraph':
-        outplugs = node.get_outpout_plugs()
+        outplugs = node.get_output_plugs()
     else:
         outplugs = node.output_plugs or []
 

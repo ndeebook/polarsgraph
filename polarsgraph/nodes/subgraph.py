@@ -85,7 +85,7 @@ class SubgraphNode(BaseNode):
     def get_input_plugs(self):
         return self._get_plugs('input')
 
-    def get_outpout_plugs(self):
+    def get_output_plugs(self):
         return self._get_plugs('output')
 
 
