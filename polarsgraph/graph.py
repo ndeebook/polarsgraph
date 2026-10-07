@@ -140,7 +140,7 @@ def create_node(
 
 
 def get_input_node_names(graph, node_name):
-    return [plug[0] for plug in graph[node_name]['inputs'] if plug]
+    return [cnx[0] for cnx in graph[node_name]['inputs'] if cnx]
 
 
 def get_input_nodes(graph, node_name):
@@ -149,10 +149,10 @@ def get_input_nodes(graph, node_name):
 
 def get_upstream_node_names(graph, node_name):
     names = []
-    for plug in graph[node_name]['inputs'] or []:
-        if not plug:
+    for connection in graph[node_name]['inputs'] or []:
+        if not connection:
             continue
-        source_node_name = plug[0]
+        source_node_name = connection[0]
         if source_node_name == node_name:
             raise ValueError(f'Cyclic graph around {node_name}')
         names.append(source_node_name)
