@@ -621,18 +621,13 @@ def paint_node(
     name = node['name']
     pos = node['position']
 
-    if node.type == 'subgraph':
-        inplugs = node.get_input_plugs()
-    elif node.input_plugs == DYNAMIC_PLUG_COUNT:
+    if node.input_plugs == DYNAMIC_PLUG_COUNT:
         inplugs = [n for n in node['inputs'] if n]
         inplugs = [f'{node.input_plug_name(i)}' for i in range(len(inplugs) + 1)]
     else:
         inplugs = node.input_plugs or []
 
-    if node.type == 'subgraph':
-        outplugs = node.get_output_plugs()
-    else:
-        outplugs = node.output_plugs or []
+    outplugs = node.output_plugs or []
 
     pos = viewportmapper.to_viewport_coords(pos)
     x = pos.x()

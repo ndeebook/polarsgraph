@@ -82,10 +82,12 @@ class SubgraphNode(BaseNode):
         #     for i, _ in enumerate(self[f'{side}_nodes'] or [])]
         return self[f'{side}_nodes'] or []
 
-    def get_input_plugs(self):
+    @property
+    def input_plugs(self):
         return self._get_plugs('input')
 
-    def get_output_plugs(self):
+    @property
+    def output_plugs(self):
         return self._get_plugs('output')
 
 
