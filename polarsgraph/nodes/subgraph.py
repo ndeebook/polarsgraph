@@ -1,7 +1,15 @@
+"""
+see graph.py > create_node()
+
+Subgraph node uses input_plugs and output_plugs attributes
+It also has input_nodes and output_nodes to recall input and output nodes
+and in which order they are.
+"""
+
 from PySide6 import QtGui, QtWidgets
 
 from polarsgraph.graph import (
-    BaseNode, MANIPULATE_CATEGORY, LOAD_CATEGORY, DYNAMIC_PLUG_COUNT)
+    BaseNode, MANIPULATE_CATEGORY, LOAD_CATEGORY)
 from polarsgraph.nodes.base import BaseSettingsWidget
 
 

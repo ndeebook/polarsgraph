@@ -127,12 +127,17 @@ def create_node(
         # Add plugs to Subgraph node:
         parent_node = graph[parent]
         if node_type in ('input', 'output'):
+            # Add input/output plugs attrs
             attr = f'{node_type}_plugs'
             try:
                 parent_node[attr].append(
                     f'{node_type}{len(parent_node[attr]) + 1}')
             except AttributeError:
                 parent_node[attr] = [f'{node_type}1']
+            # Add input/output nodes attrs for graph traversal
+            attr = f'{node_type}_nodes'
+            parent_node[attr] = parent_node[attr] or []
+            parent_node[attr].append(name)
         # Add one input slots to parent subgraph node:
         if node_type == 'input':
             parent_node['inputs'] = (parent_node['inputs'] or []) + [None]
@@ -145,7 +150,28 @@ def get_input_node_names(graph, node_name):
 
 
 def get_input_nodes(graph, node_name):
-    return [graph[name] for name in get_input_node_names(graph, node_name)]
+    nodes = []
+    for node_name in get_input_node_names(graph, node_name):
+        node: BaseNode = graph[node_name]
+        if node.type not in ('subgraph', 'input', 'output'):
+            nodes.append(node)
+            continue
+        # Output: just skip the node
+        if node.type == 'output':
+            nodes.extend(get_input_nodes(graph, node['name']))
+            continue
+        # Input: return the subgraph input
+        if node.type == 'input':
+            parent_subgraph = node['parent']
+            input_index = parent_subgraph['input_nodes'].index(node_name)
+            try:
+                node_name = parent_subgraph['inputs'][input_index]
+            except IndexError:  # plug not connected
+                continue
+            nodes.append(graph[node_name])
+            continue
+
+    return nodes
 
 
 def get_upstream_node_names(graph, node_name):
