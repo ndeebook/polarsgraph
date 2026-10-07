@@ -291,6 +291,12 @@ class NodeView(QtWidgets.QWidget):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape and self.current_graph_stack:
             self.exit_subgraph()
+        if event.key() == Qt.Key.Key_Return:
+            is_subgraph = (
+                len(self.selected_names) == 1
+                and self.graph[self.selected_names[0]].type == 'subgraph')
+            if is_subgraph:
+                self.enter_subgraph(self.selected_names[0])
         return super().keyPressEvent(event)
 
     def resizeEvent(self, event):
