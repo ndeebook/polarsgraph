@@ -516,7 +516,7 @@ class PolarsGraph(QtWidgets.QWidget):
             auto_increment=auto_increment)
 
         # Add default input/output
-        if node_type == 'subgraph':
+        if auto_increment and node_type == 'subgraph':
             input_node = create_node(
                 self.graph, types, 'input', parent=node['name'])
             output_node = create_node(
