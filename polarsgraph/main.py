@@ -5,7 +5,7 @@ import traceback
 from datetime import datetime as Datetime
 from functools import partial
 
-from PySide6 import QtWidgets, QtGui
+from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
 from polarsgraph.log import logger
@@ -514,6 +514,15 @@ class PolarsGraph(QtWidgets.QWidget):
             settings=settings,
             parent=parent,
             auto_increment=auto_increment)
+
+        # Add default input/output
+        if node_type == 'subgraph':
+            input_node = create_node(
+                self.graph, types, 'input', parent=node['name'])
+            output_node = create_node(
+                self.graph, types, 'output', parent=node['name'],
+                settings=dict(position=QtCore.QPointF(300, 0)))
+            connect_nodes(self.graph, input_node, 0, output_node, 0)
 
         # Assign to current subgraph context if inside one
         if self.node_view.current_graph_stack and node_type != 'subgraph':
