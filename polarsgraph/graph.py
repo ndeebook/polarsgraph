@@ -171,9 +171,9 @@ def get_all_upstream_node_names(graph, initial_node_name):
     to_parse = [initial_node_name]
     while to_parse:
         node_name = to_parse.pop()
-        upstream_nodes = get_logical_input_node_names(graph, node_name)
-        to_parse.extend(upstream_nodes)
-        for node_name in upstream_nodes:
+        upstream_node_names = get_logical_input_node_names(graph, node_name)
+        to_parse.extend(upstream_node_names)
+        for node_name in upstream_node_names:
             if node_name in upstream_names:
                 # position needs to be updated
                 upstream_names.remove(node_name)
@@ -184,7 +184,7 @@ def get_all_upstream_node_names(graph, initial_node_name):
 def get_all_nodes_output_nodes(graph):
     downstreams = defaultdict(list)
     for node_name in graph:
-        for upstream_name in get_logical_input_node_names(graph, node_name):
+        for upstream_name in get_input_node_names(graph, node_name):
             downstreams[upstream_name].append(node_name)
     return downstreams
 
@@ -193,10 +193,20 @@ def get_downstream_node_names(graph, initial_node_name):
     return get_all_nodes_output_nodes(graph)[initial_node_name]
 
 
-def set_dirty_recursive(graph: dict, node_name: str):
-    graph[node_name].dirty = True
-    for node_name in get_downstream_node_names(graph, node_name):
-        set_dirty_recursive(graph, node_name)
+def set_dirty_recursive(graph: dict, node_name: str, visited=None):
+    visited = set() if visited is None else visited
+    if node_name in visited:
+        return
+    visited.add(node_name)
+    node: BaseNode = graph[node_name]
+    node.dirty = True
+    if node.type == 'output':
+        set_dirty_recursive(graph, node['parent'], visited)
+    elif node.type == 'subgraph':
+        for input_node_name in node['input_nodes'] or []:
+            set_dirty_recursive(graph, input_node_name, visited)
+    for downstream_name in get_downstream_node_names(graph, node_name):
+        set_dirty_recursive(graph, downstream_name, visited)
 
 
 def _get_input_table(graph, node_name, input_plug_index=0):
