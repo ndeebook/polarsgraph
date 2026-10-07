@@ -130,12 +130,14 @@ def create_node(
 
 
 def get_input_node_names(graph, node_name):
-    return [cnx[0] for cnx in graph[node_name]['inputs'] if cnx]
+    return [cnx[0] for cnx in graph[node_name]['inputs'] or [] if cnx]
 
 
-def get_input_nodes(graph, node_name):
+def get_input_nodes(graph, initial_node_name):
     nodes = []
-    for node_name in get_input_node_names(graph, node_name):
+    for node_name in get_input_node_names(graph, initial_node_name):
+        if node_name == initial_node_name:
+            raise ValueError(f'Cyclic graph around {node_name}')
         node: BaseNode = graph[node_name]
         if node.type not in ('subgraph', 'input', 'output'):
             nodes.append(node)
@@ -144,7 +146,7 @@ def get_input_nodes(graph, node_name):
             nodes.extend(get_input_nodes(graph, node_name))
         # Input: return the subgraph input
         elif node.type == 'input':
-            parent_subgraph = node['parent']
+            parent_subgraph = graph[node['parent']]
             input_index = parent_subgraph['input_nodes'].index(node_name)
             cnx = parent_subgraph['inputs'][input_index]
             if not cnx:
@@ -157,18 +159,6 @@ def get_input_nodes(graph, node_name):
     return nodes
 
 
-def get_upstream_node_names(graph, node_name):
-    names = []
-    for connection in graph[node_name]['inputs'] or []:
-        if not connection:
-            continue
-        source_node_name = connection[0]
-        if source_node_name == node_name:
-            raise ValueError(f'Cyclic graph around {node_name}')
-        names.append(source_node_name)
-    return names
-
-
 def get_all_upstream_node_names(graph, initial_node_name):
     """
     Return nodes in an order they can be computed (with their inputs computed).
@@ -177,9 +167,10 @@ def get_all_upstream_node_names(graph, initial_node_name):
     to_parse = [initial_node_name]
     while to_parse:
         node_name = to_parse.pop()
-        upstream_nodes = get_upstream_node_names(graph, node_name)
-        to_parse.extend(upstream_nodes)
-        for node_name in upstream_nodes:
+        upstream_nodes = get_input_nodes(graph, node_name)
+        upstream_names = [n['name'] for n in upstream_nodes]
+        to_parse.extend(upstream_names)
+        for node_name in upstream_names:
             if node_name in upstream_names:
                 # position needs to be updated
                 upstream_names.remove(node_name)
@@ -190,8 +181,8 @@ def get_all_upstream_node_names(graph, initial_node_name):
 def get_all_nodes_output_nodes(graph):
     downstreams = defaultdict(list)
     for node_name in graph:
-        for upstream_name in get_upstream_node_names(graph, node_name):
-            downstreams[upstream_name].append(node_name)
+        for upstream_node in get_input_nodes(graph, node_name):
+            downstreams[upstream_node['name']].append(node_name)
     return downstreams
 
 
