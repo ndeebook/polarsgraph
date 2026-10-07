@@ -364,6 +364,11 @@ def rename_node(graph, old_name, new_name):
     if node.type in ('input', 'output'):
         subgraph = graph[node['parent']]
         subgraph.rename_plug(node.type, old_name, new_name)
+    elif node.type == 'subgraph':
+        plug_nodes = (node['input_nodes'] or []) + (node['output_nodes'] or [])
+        for plug_node_name in plug_nodes:
+            if plug_node_name in graph:
+                graph[plug_node_name]['parent'] = new_name
 
     # Rename plugs
     for node in graph.values():

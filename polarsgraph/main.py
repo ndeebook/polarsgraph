@@ -410,6 +410,16 @@ class PolarsGraph(QtWidgets.QWidget):
                         inputs[i] = [new_name, conn_index]
                     else:
                         inputs[i] = None
+                # Rename subgraph input_nodes/output_nodes and parent
+                for attr in ('input_nodes', 'output_nodes'):
+                    if settings.get(attr):
+                        settings[attr] = [
+                            f'{n}{suffix}' if f'{n}{suffix}' in graph else n
+                            for n in settings[attr]]
+                if settings.get('parent'):
+                    new_parent = f'{settings["parent"]}{suffix}'
+                    if new_parent in graph:
+                        settings['parent'] = new_parent
 
         # Build graph
         new_nodes: list[BaseNode] = []
@@ -516,7 +526,7 @@ class PolarsGraph(QtWidgets.QWidget):
             auto_increment=auto_increment)
 
         # Add default input/output
-        if auto_increment and node_type == 'subgraph':
+        if node_type == 'subgraph' and not node['input_nodes']:
             input_node = create_node(
                 self.graph, types, 'input', parent=node['name'])
             output_node = create_node(
@@ -695,6 +705,13 @@ class PolarsGraph(QtWidgets.QWidget):
         if selected:
             selected_graph = {
                 n: self.graph[n] for n in self.node_view.selected_names}
+            # Expand subgraphs
+            for subgraph_name, subgraph in dict(selected_graph).items():
+                if subgraph.type != 'subgraph':
+                    continue
+                selected_graph.update({
+                    name: node for name, node in self.graph.items()
+                    if node['parent'] == subgraph_name})
             return serialize_graph(selected_graph)
         # Save graph settings
         settings_node = GraphSettings(settings=dict(
