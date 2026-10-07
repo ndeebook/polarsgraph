@@ -212,6 +212,17 @@ def _get_input_table(graph, node_name, input_plug_index=0):
         return
     input_node_name, input_node_plug_index = plug_target
     input_node: BaseNode = graph[input_node_name]
+
+    # Resolve Subgraph nodes
+    if input_node.type == 'output':
+        return _get_input_table(graph, input_node_name, 0)
+    if input_node.type == 'input':
+        idx = graph[input_node['parent']]['input_nodes'].index(input_node_name)
+        return _get_input_table(graph, input_node['parent'], idx)
+    if input_node.type == 'subgraph':
+        output_node_name = input_node['output_nodes'][input_node_plug_index]
+        return _get_input_table(graph, output_node_name, 0)
+
     input_table_name = input_node.output_plugs[input_node_plug_index]
     return input_node.tables.get(input_table_name)
 
