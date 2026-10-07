@@ -4,6 +4,7 @@ import json
 import traceback
 from datetime import datetime as Datetime
 from functools import partial
+from copy import deepcopy
 
 from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
@@ -703,8 +704,8 @@ class PolarsGraph(QtWidgets.QWidget):
     # Save/Load
     def serialize_graph(self, selected=False):
         if selected:
-            selected_graph = {
-                n: self.graph[n] for n in self.node_view.selected_names}
+            selected_graph = deepcopy({
+                n: self.graph[n] for n in self.node_view.selected_names})
             # Expand subgraphs
             for subgraph_name, subgraph in dict(selected_graph).items():
                 if subgraph.type != 'subgraph':
@@ -712,6 +713,11 @@ class PolarsGraph(QtWidgets.QWidget):
                 selected_graph.update({
                     name: node for name, node in self.graph.items()
                     if node['parent'] == subgraph_name})
+            # Remove connections to non-copied nodes
+            for node in selected_graph.values():
+                for i, connection in enumerate(node['inputs'] or []):
+                    if connection[0] not in selected_graph:
+                        node['inputs'][i] = None
             return serialize_graph(selected_graph)
         # Save graph settings
         settings_node = GraphSettings(settings=dict(
