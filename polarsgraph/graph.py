@@ -146,17 +146,14 @@ def get_input_nodes(graph, node_name):
         elif node.type == 'input':
             parent_subgraph = node['parent']
             input_index = parent_subgraph['input_nodes'].index(node_name)
-            try:
-                node_name = parent_subgraph['inputs'][input_index]
-            except IndexError:  # plug not connected
+            cnx = parent_subgraph['inputs'][input_index]
+            if not cnx:
                 continue
-            nodes.append(graph[node_name])
-        # Subgraph: return the subgraph outputnodes' inputs
+            nodes.append(graph[cnx[0]])
+        # Subgraph: return the subgraph output nodes' inputs
         elif node.type == 'subgraph':
-            parent_subgraph = node['parent']
-            for output_node_name in parent_subgraph['output_nodes'] or []:
+            for output_node_name in node['output_nodes'] or []:
                 nodes.extend(get_input_nodes(graph, output_node_name))
-
     return nodes
 
 
