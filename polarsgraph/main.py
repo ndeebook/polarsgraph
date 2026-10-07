@@ -726,6 +726,7 @@ class PolarsGraph(QtWidgets.QWidget):
         self._add_to_recents(self.save_path)
 
     def open_file(self, filepath, import_=False):
+        print(f'\n\nOpening {filepath}\n')
         self._add_to_recents(filepath)
         with open(filepath, 'r') as f:
             graph = deserialize_graph(f.read())
