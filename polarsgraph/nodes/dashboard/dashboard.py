@@ -2,7 +2,7 @@ from PySide6 import QtWidgets, QtCore
 
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import (
-    DASHBOARD_CATEGORY, DYNAMIC_PLUG_COUNT, get_input_nodes,
+    DASHBOARD_CATEGORY, DYNAMIC_PLUG_COUNT, get_logical_input_nodes,
     build_node_query)
 from polarsgraph.nodes.base import (
     DISPLAY_INDEX_ATTR, BaseNode, BaseSettingsWidget, BaseDisplay)
@@ -56,7 +56,7 @@ class DashboardNode(BaseNode):
 
         # Widgets
         layout.clear()
-        for node in get_input_nodes(graph, self['name']):
+        for node in get_logical_input_nodes(graph, self['name']):
             display_widget: BaseDisplay = node.display_widget
             layout.addWidget(display_widget)
             display_widget.setVisible(True)

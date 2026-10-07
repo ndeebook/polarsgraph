@@ -133,7 +133,7 @@ def get_input_node_names(graph, node_name):
     return [cnx[0] for cnx in graph[node_name]['inputs'] or [] if cnx]
 
 
-def get_input_nodes(graph, initial_node_name):
+def get_logical_input_nodes(graph, initial_node_name):
     nodes = []
     for node_name in get_input_node_names(graph, initial_node_name):
         if node_name == initial_node_name:
@@ -143,7 +143,7 @@ def get_input_nodes(graph, initial_node_name):
             nodes.append(node)
         # Output: just skip the node
         elif node.type == 'output':
-            nodes.extend(get_input_nodes(graph, node_name))
+            nodes.extend(get_logical_input_nodes(graph, node_name))
         # Input: return the subgraph input
         elif node.type == 'input':
             parent_subgraph = graph[node['parent']]
@@ -155,8 +155,12 @@ def get_input_nodes(graph, initial_node_name):
         # Subgraph: return the subgraph output nodes' inputs
         elif node.type == 'subgraph':
             for output_node_name in node['output_nodes'] or []:
-                nodes.extend(get_input_nodes(graph, output_node_name))
+                nodes.extend(get_logical_input_nodes(graph, output_node_name))
     return nodes
+
+
+def get_logical_input_node_names(graph, node_name):
+    return [n['name'] for n in get_logical_input_nodes(graph, node_name)]
 
 
 def get_all_upstream_node_names(graph, initial_node_name):
@@ -167,10 +171,9 @@ def get_all_upstream_node_names(graph, initial_node_name):
     to_parse = [initial_node_name]
     while to_parse:
         node_name = to_parse.pop()
-        upstream_nodes = get_input_nodes(graph, node_name)
-        upstream_names = [n['name'] for n in upstream_nodes]
-        to_parse.extend(upstream_names)
-        for node_name in upstream_names:
+        upstream_nodes = get_logical_input_node_names(graph, node_name)
+        to_parse.extend(upstream_nodes)
+        for node_name in upstream_nodes:
             if node_name in upstream_names:
                 # position needs to be updated
                 upstream_names.remove(node_name)
@@ -181,8 +184,8 @@ def get_all_upstream_node_names(graph, initial_node_name):
 def get_all_nodes_output_nodes(graph):
     downstreams = defaultdict(list)
     for node_name in graph:
-        for upstream_node in get_input_nodes(graph, node_name):
-            downstreams[upstream_node['name']].append(node_name)
+        for upstream_name in get_logical_input_node_names(graph, node_name):
+            downstreams[upstream_name].append(node_name)
     return downstreams
 
 
@@ -239,7 +242,7 @@ def build_node_query(graph: dict, node_name: str):
             if error:
                 error_node = None
                 if upstream_node.category == DISPLAY_CATEGORY:
-                    input_nodes = get_input_nodes(
+                    input_nodes = get_logical_input_nodes(
                         graph, upstream_node['name'])
                     if not input_nodes:
                         upstream_node.error = error
