@@ -80,6 +80,7 @@ class BaseNode:
                 self.tables['table'] = tables[0]
             else:
                 self._build_query(tables)
+            self.error = None
             self.dirty = False
             return None
         except BaseException:
@@ -233,7 +234,6 @@ def build_node_query(graph: dict, node_name: str):
     for upstream_node_name in reversed(nodes_to_build):
         upstream_node: BaseNode = graph[upstream_node_name]
         if upstream_node.dirty:
-            upstream_node.error = None
             error = upstream_node.build_query(
                 get_input_tables(graph, upstream_node))
             if error:
