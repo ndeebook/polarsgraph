@@ -44,17 +44,49 @@ class SubgraphNode(BaseNode):
     type = 'subgraph'
     category = MANIPULATE_CATEGORY
     default_color = SUBGRAPH_COLOR
-    inputs_prefix = 'input'
-    outputs_prefix = 'output'
 
     def _build_query(self, tables):
         pass
 
-    def input_plug_name(self, i):
-        return f'{self.inputs_prefix}{i + 1}'
+    def record_new_plug(self, plug_node_type, node_name):
+        """
+        When an output/input node is created, record it on the parent subgraph
+        => used by create_node()
+        """
+        attribute_name = f'{plug_node_type}_nodes'
+        try:
+            self[attribute_name].append(node_name)
+        except AttributeError:
+            self[attribute_name] = [node_name]
 
-    def output_plug_name(self, i):
-        return f'{self.outputs_prefix}{i + 1}'
+        # Also create the empty input slot
+        if plug_node_type == 'input':
+            self['inputs'] = (self['inputs'] or []) + [None]
+
+    def remove_plug(self, plug_node_type, node_name):
+        plug_nodes = self[f'{plug_node_type}_nodes']
+        index = plug_nodes.index(node_name)
+        plug_nodes.remove(node_name)
+        if plug_node_type == 'input':
+            self['inputs'].pop(index)
+
+    def rename_plug(self, plug_node_type, old_name, new_name):
+        plug_nodes = self[f'{plug_node_type}_nodes']
+        index = plug_nodes.index(old_name)
+        plug_nodes[index] = new_name
+
+    def _get_plugs(self, side):
+        """side: input or output"""
+        # return [
+        #     f'{side}{i + 1}'
+        #     for i, _ in enumerate(self[f'{side}_nodes'] or [])]
+        return self[f'{side}_nodes'] or []
+
+    def get_input_plugs(self):
+        return self._get_plugs('input')
+
+    def get_outpout_plugs(self):
+        return self._get_plugs('output')
 
 
 class _NameOnlySettingsWidget(BaseSettingsWidget):

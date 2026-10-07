@@ -616,7 +616,7 @@ def paint_node(
     pos = node['position']
 
     if node.type == 'subgraph':
-        inplugs = node['input_plugs'] or []
+        inplugs = node.get_input_plugs()
     elif node.input_plugs == DYNAMIC_PLUG_COUNT:
         inplugs = [n for n in node['inputs'] if n]
         inplugs = [f'{node.input_plug_name(i)}' for i in range(len(inplugs) + 1)]
@@ -624,7 +624,7 @@ def paint_node(
         inplugs = node.input_plugs or []
 
     if node.type == 'subgraph':
-        outplugs = node['output_plugs'] or []
+        outplugs = node.get_outpout_plugs()
     else:
         outplugs = node.output_plugs or []
 

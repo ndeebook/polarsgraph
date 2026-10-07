@@ -124,23 +124,7 @@ def create_node(
     # Subgraph
     if parent:
         node['parent'] = parent
-        # Add plugs to Subgraph node:
-        parent_node = graph[parent]
-        if node_type in ('input', 'output'):
-            # Add input/output plugs attrs
-            attr = f'{node_type}_plugs'
-            try:
-                parent_node[attr].append(
-                    f'{node_type}{len(parent_node[attr]) + 1}')
-            except AttributeError:
-                parent_node[attr] = [f'{node_type}1']
-            # Add input/output nodes attrs for graph traversal
-            attr = f'{node_type}_nodes'
-            parent_node[attr] = parent_node[attr] or []
-            parent_node[attr].append(name)
-        # Add one input slots to parent subgraph node:
-        if node_type == 'input':
-            parent_node['inputs'] = (parent_node['inputs'] or []) + [None]
+        graph[parent].record_new_plug(node_type, name)
 
     return node
 
@@ -361,6 +345,11 @@ def rename_node(graph, old_name, new_name):
     node = graph.pop(old_name)
     node['name'] = new_name
     graph[new_name] = node
+
+    # Rename Subgraph plug
+    if node.type in ('input', 'output'):
+        subgraph = graph[node['parent']]
+        subgraph.rename_plug(node.type, old_name, new_name)
 
     # Rename plugs
     for node in graph.values():
