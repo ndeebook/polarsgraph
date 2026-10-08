@@ -431,7 +431,12 @@ class PolarsGraph(QtWidgets.QWidget):
                 p.setX(p.x() + 50)
                 p.setY(p.y() + 50)
             new_nodes.append(self.create_node(
-                nodetype, name, settings, auto_increment=add, update=False))
+                nodetype,
+                name,
+                settings,
+                auto_connect=False,
+                auto_increment=add,
+                update=False))
 
         # Rename pasted nodes
         if add:
@@ -495,6 +500,7 @@ class PolarsGraph(QtWidgets.QWidget):
             node_type,
             name=None,
             settings=None,
+            auto_connect=True,
             auto_increment=True,
             update=True):
 
@@ -540,7 +546,7 @@ class PolarsGraph(QtWidgets.QWidget):
             # Size backdrop based on selection
             nodes = [self.graph[n] for n in self.node_view.selected_names]
             node.wrap_around_nodes(nodes)
-        else:
+        elif auto_connect:
             # Connect to selected node
             if len(self.node_view.selected_names) == 1:
                 source_node = self.graph[self.node_view.selected_names[0]]
@@ -713,6 +719,8 @@ class PolarsGraph(QtWidgets.QWidget):
             # Remove connections to non-copied nodes
             for node in selected_graph.values():
                 for i, connection in enumerate(node['inputs'] or []):
+                    if not connection:
+                        continue
                     if connection[0] not in selected_graph:
                         node['inputs'][i] = None
             return serialize_graph(selected_graph)
