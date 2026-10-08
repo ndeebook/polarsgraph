@@ -415,12 +415,9 @@ class PolarsGraph(QtWidgets.QWidget):
                 for attr in ('input_nodes', 'output_nodes'):
                     if settings.get(attr):
                         settings[attr] = [
-                            f'{n}{suffix}' if f'{n}{suffix}' in graph else n
-                            for n in settings[attr]]
+                            f'{n}{suffix}' for n in settings[attr]]
                 if settings.get('parent'):
-                    new_parent = f'{settings["parent"]}{suffix}'
-                    if new_parent in graph:
-                        settings['parent'] = new_parent
+                    settings['parent'] = f'{settings["parent"]}{suffix}'
 
         # Build graph
         new_nodes: list[BaseNode] = []
@@ -851,6 +848,8 @@ class PolarsGraph(QtWidgets.QWidget):
 
     # Rename/Add
     def rename_node(self, old_name, new_name):
+        if old_name == new_name:
+            return
         new_name = rename_node(self.graph, old_name, new_name)
         self.node_view.rename_node(old_name, new_name)
         self.set_settings_node(self.graph[new_name])
