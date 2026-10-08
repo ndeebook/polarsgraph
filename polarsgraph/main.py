@@ -326,7 +326,11 @@ class PolarsGraph(QtWidgets.QWidget):
             ('x', lambda: self.create_node('derive'), 'Create Derive'),
             ('v', lambda: self.create_node('filter'), 'Create Filter'),
             ('p', lambda: self.create_node('format'), 'Create Format'),
-            ('g', lambda: self.create_node('groupby'), 'Create Group'),
+            ('g', lambda: self.create_node('groupby'), 'Create Groupby'),
+            (
+                'ctrl+g',
+                lambda: self.create_node('subgraph'),
+                'Create Subgraph'),
             ('j', lambda: self.create_node('join'), 'Create Join'),
             ('r', lambda: self.create_node('rename'), 'Create Rename'),
             ('o', lambda: self.create_node('reorder'), 'Create Reorder'),
