@@ -387,12 +387,12 @@ def rename_node(graph, old_name, new_name):
 
     # Rename plugs
     for node in graph.values():
-        for input in node['inputs'] or []:
-            if not input:
+        for input_ in node['inputs'] or []:
+            if not input_:
                 continue
-            plug_node_name = input[0]
+            plug_node_name = input_[0]
             if plug_node_name == old_name:
-                input[0] = new_name
+                input_[0] = new_name
 
     return new_name
 

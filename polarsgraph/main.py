@@ -549,15 +549,28 @@ class PolarsGraph(QtWidgets.QWidget):
         if self.node_view.current_graph_stack and node_type != 'subgraph':
             node['parent'] = self.node_view.current_graph_stack[-1]
 
-        if node_type == 'backdrop':
-            # Size backdrop based on selection
-            nodes = [self.graph[n] for n in self.node_view.selected_names]
-            node.wrap_around_nodes(nodes)
-        elif auto_connect:
-            # Connect to selected node
-            if len(self.node_view.selected_names) == 1:
-                source_node = self.graph[self.node_view.selected_names[0]]
-                connect_nodes(self.graph, source_node, 0, node, 0)
+        if auto_connect:
+            if node_type == 'backdrop':
+                # Size backdrop based on selection
+                nodes = [self.graph[n] for n in self.node_view.selected_names]
+                node.wrap_around_nodes(nodes)
+            elif node_type == 'subgraph':
+                # Move selected nodes inside graph
+                for node_name in self.node_view.selected_names:
+                    self.graph[node_name]['parent'] = node['name']
+                # Remove connections for nodes not in same parent
+                for _node in self.graph.values():
+                    parent = _node['parent']
+                    for i, connection in enumerate(_node['inputs'] or []):
+                        if not connection:
+                            continue
+                        if self.graph[connection[0]]['parent'] != parent:
+                            _node['inputs'][i] = None
+            else:
+                # Connect to selected node
+                if len(self.node_view.selected_names) == 1:
+                    source_node = self.graph[self.node_view.selected_names[0]]
+                    connect_nodes(self.graph, source_node, 0, node, 0)
 
         # Repaint graph
         if update:
