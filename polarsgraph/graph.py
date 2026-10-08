@@ -1,5 +1,6 @@
 import re
 import traceback
+from copy import deepcopy
 from collections import defaultdict
 
 import polars as pl
@@ -91,6 +92,21 @@ class BaseNode:
 
     def serialize(self):
         return serialize_node(self.settings)
+
+    def __deepcopy__(self, memo):
+        """
+        Enable deepcopy on nodes by ignoring self._display_widget which cannot
+        be pickled.
+        """
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if k == '_display_widget':
+                setattr(result, k, None)
+            else:
+                setattr(result, k, deepcopy(v, memo))
+        return result
 
 
 def create_node(
