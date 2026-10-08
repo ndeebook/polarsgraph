@@ -273,7 +273,10 @@ class Tableau(QtWidgets.QWidget):
     def get_separator_column_under_cursor(self, pos) -> str:
         for i, rect in self.columns_separators.items():
             if rect.contains(pos):
-                return self.columns[i]
+                try:
+                    return self.columns[i]
+                except IndexError:
+                    return
 
     def set_cursor(self, pos):
         if self.get_separator_column_under_cursor(pos):
