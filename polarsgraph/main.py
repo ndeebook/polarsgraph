@@ -416,8 +416,15 @@ class PolarsGraph(QtWidgets.QWidget):
                     if settings.get(attr):
                         settings[attr] = [
                             f'{n}{suffix}' for n in settings[attr]]
+
+            # Adapt parents
+            for name, settings in graph.items():
                 if settings.get('parent'):
-                    settings['parent'] = f'{settings["parent"]}{suffix}'
+                    pasted_parent = f'{settings["parent"]}{suffix}'
+                    if pasted_parent in graph:
+                        settings['parent'] = pasted_parent
+                    else:
+                        del settings['parent']
 
         # Build graph
         new_nodes: list[BaseNode] = []
