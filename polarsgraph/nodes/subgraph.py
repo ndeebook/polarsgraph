@@ -14,8 +14,8 @@ from polarsgraph.nodes.base import BaseSettingsWidget
 
 
 SUBGRAPH_COLOR = QtGui.QColor(80, 40, 120)
-INPUT_COLOR = QtGui.QColor(77, 77, 77)
-OUTPUT_COLOR = QtGui.QColor(77, 77, 77)
+INPUT_COLOR = QtGui.QColor(255, 10, 180)
+OUTPUT_COLOR = INPUT_COLOR
 
 
 class InputNode(BaseNode):

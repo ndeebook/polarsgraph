@@ -633,7 +633,10 @@ def paint_node(
     x = pos.x()
     y = pos.y()
     title_height = viewportmapper.to_viewport(20)
-    node_width = viewportmapper.to_viewport(128)
+    if node.type == 'subgraph':
+        node_width = viewportmapper.to_viewport(200)
+    else:
+        node_width = viewportmapper.to_viewport(128)
     plug_height = viewportmapper.to_viewport(24)
     round_size = viewportmapper.to_viewport(3)
     plug_radius = viewportmapper.to_viewport(7)
