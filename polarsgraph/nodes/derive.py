@@ -32,6 +32,11 @@ STR_ARGLESS_COLUMNS_METHODS = (
     'to_decimal',
     'len_chars',
 )
+DT_ARGLESS_COLUMNS_METHODS = (
+    'weekday',
+    'day',
+    'ordinal_day',
+)
 EXAMPLES_TEXT = """
 {column_name1} + ({column_name2} + 1 / 2)
 {column_name1} + "_" + {column_name2}
@@ -51,6 +56,10 @@ EXAMPLES_TEXT = """
 
 @to_boolean({column_name})
 @to_string({column_name})
+
+@weekday({date_column})
+@day({date_column})
+@ordinal_day({date_column})
 ...
 """ + ', '.join(STR_ARGLESS_COLUMNS_METHODS + ARGLESS_COLUMNS_METHODS)
 
@@ -446,6 +455,9 @@ def func_formula_to_polars(function_name, tokens):
     if function_name in STR_ARGLESS_COLUMNS_METHODS:
         column = token_to_value(tokens[0])
         return getattr(column.str, function_name)()
+    if function_name in DT_ARGLESS_COLUMNS_METHODS:
+        column = token_to_value(tokens[0])
+        return getattr(column.dt, function_name)()
     if function_name in ('to_boolean', 'to_string'):
         column = token_to_value(tokens[0])
         datatype = dict(to_boolean=pl.Boolean, to_string=pl.String)
