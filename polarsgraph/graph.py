@@ -246,6 +246,8 @@ def _get_input_table(graph, node_name, input_plug_index=0):
         idx = graph[input_node['parent']]['input_nodes'].index(input_node_name)
         return _get_input_table(graph, input_node['parent'], idx)
     if input_node.type == 'subgraph':
+        if input_node['disabled']:
+            return _get_input_table(graph, input_node_name, 0)
         output_node_name = input_node['output_nodes'][input_node_plug_index]
         return _get_input_table(graph, output_node_name, 0)
 
