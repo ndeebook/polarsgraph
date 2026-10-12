@@ -1,3 +1,6 @@
+import os
+from functools import lru_cache
+
 from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
@@ -176,6 +179,7 @@ class NodeView(QtWidgets.QWidget):
     def paintEvent(self, _):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
         # Draw background
         painter.setBrush(BACKGROUND_COLOR)
@@ -611,6 +615,16 @@ class NewNodeMenu(QtWidgets.QMenu):
         self.close()
 
 
+@lru_cache()
+def get_node_icon(node_type):
+    for icon_dir in os.getenv('POLARSGRAPH_ICONS', '').split(os.pathsep):
+        if not icon_dir:
+            continue
+        filepath = f'{icon_dir}/{node_type}.png'
+        if os.path.exists(filepath):
+            return QtGui.QPixmap(filepath)
+
+
 def paint_node(
         painter: QtGui.QPainter,
         viewportmapper: ViewportMapper,
@@ -623,7 +637,8 @@ def paint_node(
 
     if node.input_plugs == DYNAMIC_PLUG_COUNT:
         inplugs = [n for n in node['inputs'] if n]
-        inplugs = [f'{node.input_plug_name(i)}' for i in range(len(inplugs) + 1)]
+        inplugs = [
+            f'{node.input_plug_name(i)}' for i in range(len(inplugs) + 1)]
     else:
         inplugs = node.input_plugs or []
 
@@ -632,7 +647,7 @@ def paint_node(
     pos = viewportmapper.to_viewport_coords(pos)
     x = pos.x()
     y = pos.y()
-    title_height = viewportmapper.to_viewport(20)
+    title_height = viewportmapper.to_viewport(28)
     if node.type == 'subgraph':
         node_width = viewportmapper.to_viewport(200)
     else:
@@ -640,7 +655,7 @@ def paint_node(
     plug_height = viewportmapper.to_viewport(24)
     round_size = viewportmapper.to_viewport(3)
     plug_radius = viewportmapper.to_viewport(7)
-    font_size = viewportmapper.to_viewport(10)
+    font_size = viewportmapper.to_viewport(11)
     font_margin = viewportmapper.to_viewport(4)
     thickness = viewportmapper.to_viewport(1)
 
@@ -675,6 +690,14 @@ def paint_node(
     if node.type != 'dot':
         painter.drawText(title_rect, Qt.AlignmentFlag.AlignCenter, name)
 
+    icon_pixmap = get_node_icon(node.type)
+    if icon_pixmap:
+        icon_size = title_rect.height()
+        icon_rect = QtCore.QRectF(
+            title_rect.right() - icon_size, title_rect.top(),
+            icon_size, icon_size)
+        painter.drawPixmap(icon_rect, icon_pixmap, icon_pixmap.rect())
+
     # Draw inputs and plugs
     if node.category == DASHBOARD_CATEGORY:
         painter.setBrush(Qt.black)
@@ -685,7 +708,7 @@ def paint_node(
     for i, input_text in enumerate(inplugs):
         if len(inplugs) == 1:
             input_text = '' if input_text in DEFAULT_PLUG_NAMES else input_text
-        py = y + title_height + plug_height / 2 + title_height * i
+        py = y + title_height + plug_height / 2 + plug_height * i
         bbox = QtCore.QRectF(
             x - plug_radius, py - plug_radius,
             plug_radius * 2, plug_radius * 2)
@@ -694,9 +717,9 @@ def paint_node(
         painter.setPen(QtGui.QPen(Qt.white, thickness))
         painter.drawText(
             x + plug_radius + font_margin,
-            py - font_size,
+            py - plug_height / 2,
             node_width,
-            title_height,
+            plug_height,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
             input_text)
 
@@ -717,7 +740,7 @@ def paint_node(
     for i, output_text in enumerate(outplugs):
         output_text = '' if output_text in DEFAULT_PLUG_NAMES else output_text
         px = x + node_width
-        py = y + title_height + plug_height / 2 + title_height * i
+        py = y + title_height + plug_height / 2 + plug_height * i
         bbox = QtCore.QRectF(
             px - plug_radius, py - plug_radius,
             plug_radius * 2, plug_radius * 2)
@@ -726,9 +749,9 @@ def paint_node(
         painter.setPen(QtGui.QPen(Qt.white, thickness))
         painter.drawText(
             x,
-            py - font_size,
+            py - plug_height / 2,
             node_width - plug_radius - font_margin,
-            title_height,
+            plug_height,
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
             output_text)
 
