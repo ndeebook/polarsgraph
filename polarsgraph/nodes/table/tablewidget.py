@@ -164,7 +164,8 @@ class TableDisplay(BaseDisplay):
         self.node[ATTR.COLUMNS_WIDTHS][column_name] = newWidth
 
     def emit_sort_request(self, column_name):
-        self.action_requested.emit(dict(action='sort', column=column_name))
+        self.action_requested.emit(
+            dict(action='sort', node=self.node, column=column_name))
 
 
 def prompt_save_df(df, parent=None):

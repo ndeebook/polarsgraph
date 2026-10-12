@@ -46,6 +46,8 @@ class TableNode(BaseNode):
     def display_widget(self):
         if not self._display_widget:
             self._display_widget = TableDisplay(self)
+            self._display_widget.action_requested.connect(
+                self.app.handle_display_request)
         return self._display_widget
 
 

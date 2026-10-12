@@ -374,8 +374,9 @@ class PolarsGraph(QtWidgets.QWidget):
             self.load_graph({})
             self.save_path = None
             self.undo_stack.clear()
-            return QtWidgets.QMessageBox.warning(
-                self, 'Error', traceback.format_exc())
+            error = traceback.format_exc()
+            print(error)
+            return QtWidgets.QMessageBox.warning(self, 'Error', error)
 
     def _load_graph(self, graph, add=False, record_undo=True):
         # Remove and handle graph settings stored as dummy node
@@ -538,6 +539,7 @@ class PolarsGraph(QtWidgets.QWidget):
             name=name,
             settings=settings,
             parent=parent,
+            app=self,
             auto_increment=auto_increment)
 
         # Add default input/output
@@ -891,6 +893,44 @@ class PolarsGraph(QtWidgets.QWidget):
         position = self.add_button.rect().bottomLeft()
         self.node_view.show_add_node_menu(
             self.node_view.mapToGlobal(position))
+
+    # Display action
+    def handle_display_request(self, action):
+        if action['action'] == 'sort':
+            col_to_sort = action['column']
+            node = action['node']
+
+            # Find existing Sort node as direct input, or insert a new one
+            inputs = node['inputs'] or []
+            src_connection = inputs[0] if inputs else None
+            sort_node = None
+            if src_connection:
+                src_name, _ = src_connection
+                src = self.graph.get(src_name)
+                if src and src.type == 'sort':
+                    sort_node = src
+
+            if sort_node is None:
+                sort_node = self.create_node(
+                    'sort', auto_connect=False, update=False)
+                if src_connection:
+                    src_name, src_out_idx = src_connection
+                    self.insert_node(
+                        sort_node['name'],
+                        src_name, src_out_idx,
+                        node['name'], 0)
+                else:
+                    connect_nodes(self.graph, sort_node, 0, node, 0)
+
+            # Change sort order
+            sort_node.sort_by(col_to_sort)
+            self.set_settings_node(sort_node)
+
+            # Update
+            self.set_dirty_recursive(sort_node['name'])
+            self.node_view.repaint()
+            self.update_view_widget()
+            self.autosave()
 
     # Connect shortcut
     def connect_to_display(self, display_index=1):

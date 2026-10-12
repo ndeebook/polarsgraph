@@ -34,6 +34,36 @@ class SortNode(BaseNode):
 
         self.tables['table'] = df
 
+    def sort_by(self, col_to_sort):
+        columns = list(self[ATTR.COLUMNS] or [])
+        orders = list(self[ATTR.ORDERS] or [])
+        while len(columns) < 3:
+            columns.append(None)
+        while len(orders) < 3:
+            orders.append(True)
+
+        c1, c2, _ = columns
+        o1, o2, o3 = orders
+
+        # Just reverse order if already primary sort column
+        if c1 == col_to_sort:
+            self[ATTR.COLUMNS] = columns
+            self[ATTR.ORDERS] = [not o1, o2, o3]
+            return
+
+        # Column not in list: shift existing down, put new column first
+        if col_to_sort not in columns:
+            self[ATTR.COLUMNS] = [col_to_sort, c1, c2]
+            self[ATTR.ORDERS] = [True, o1, o2]
+            return
+
+        # Column already in list: move it to first position
+        index = columns.index(col_to_sort)
+        columns.insert(0, columns.pop(index))
+        orders.insert(0, orders.pop(index))
+        self[ATTR.COLUMNS] = columns
+        self[ATTR.ORDERS] = orders
+
 
 class SortSettingsWidget(BaseSettingsWidget):
     def __init__(self):
@@ -90,8 +120,9 @@ class SortSettingsWidget(BaseSettingsWidget):
             columns = self.input_table.collect_schema().names()
         combos = self.sort_combo1, self.sort_combo2, self.sort_combo3
         orders_checkboxes = self.order_cb1, self.order_cb2, self.order_cb3
+        for widget in (*combos, *orders_checkboxes):
+            widget.blockSignals(True)
         for i, combo in enumerate(combos):
-            combo.blockSignals(True)
             combo.clear()
             combo.addItem('')  # Optional blank item (for skipping)
             combo.addItems(columns)
@@ -106,7 +137,8 @@ class SortSettingsWidget(BaseSettingsWidget):
                     combo.addItem(saved_column)
                 combo.setCurrentText(saved_column)
                 checkbox.setChecked(saved_order)
-            combo.blockSignals(False)
+        for widget in (*combos, *orders_checkboxes):
+            widget.blockSignals(False)
 
     def update_order_settings(self):
         self.node[ATTR.COLUMNS] = [

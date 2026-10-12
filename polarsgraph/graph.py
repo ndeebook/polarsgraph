@@ -41,6 +41,9 @@ class BaseNode:
     default_color: QtGui.QColor = None
 
     def __init__(self, settings=None):
+        self.graph = None
+        self.app = None
+
         self.error = None
         self.settings = settings or dict()
         self.settings['type'] = self.type
@@ -102,7 +105,7 @@ class BaseNode:
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if k == '_display_widget':
+            if k in ('_display_widget', 'graph', 'app'):
                 setattr(result, k, None)
             else:
                 setattr(result, k, deepcopy(v, memo))
@@ -116,6 +119,7 @@ def create_node(
         name=None,
         settings=None,
         parent=None,
+        app=None,
         auto_increment=True):
 
     # Handle name
@@ -131,6 +135,8 @@ def create_node(
     # Create node
     NodeClass = types[node_type]['type']
     node: BaseNode = NodeClass(settings)
+    node.app = app
+    node.graph = graph
 
     # Create default empty inputs
     if node.input_plugs and not node['inputs']:
