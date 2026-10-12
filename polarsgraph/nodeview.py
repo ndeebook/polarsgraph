@@ -1,7 +1,4 @@
-import os
-from functools import lru_cache
-
-from PySide6 import QtWidgets, QtGui, QtCore
+from PySide6 import QtWidgets, QtGui, QtCore, QtSvg
 from PySide6.QtCore import Qt
 
 from polarsgraph.graph import (
@@ -25,6 +22,9 @@ DEFAULT_PLUG_NAMES = 'table', 'widget'
 
 IN = 0
 OUT = 1
+
+
+_svg_renderers_cache = dict()
 
 
 class NodeView(QtWidgets.QWidget):
@@ -615,14 +615,13 @@ class NewNodeMenu(QtWidgets.QMenu):
         self.close()
 
 
-@lru_cache()
-def get_node_icon(node_type):
-    for icon_dir in os.getenv('POLARSGRAPH_ICONS', '').split(os.pathsep):
-        if not icon_dir:
-            continue
-        filepath = f'{icon_dir}/{node_type}.png'
-        if os.path.exists(filepath):
-            return QtGui.QPixmap(filepath)
+def get_node_svg_renderer(node_type, svg_bytes):
+    try:
+        return _svg_renderers_cache[node_type]
+    except KeyError:
+        renderer = QtSvg.QSvgRenderer(QtCore.QByteArray(svg_bytes))
+        _svg_renderers_cache[node_type] = renderer
+        return renderer
 
 
 def paint_node(
@@ -690,13 +689,13 @@ def paint_node(
     if node.type != 'dot':
         painter.drawText(title_rect, Qt.AlignmentFlag.AlignCenter, name)
 
-    icon_pixmap = get_node_icon(node.type)
-    if icon_pixmap:
+    svg_renderer = get_node_svg_renderer(node.type, node.icon)
+    if svg_renderer:
         icon_size = title_rect.height()
         icon_rect = QtCore.QRectF(
             title_rect.right() - icon_size, title_rect.top(),
             icon_size, icon_size)
-        painter.drawPixmap(icon_rect, icon_pixmap, icon_pixmap.rect())
+        svg_renderer.render(painter, icon_rect)
 
     # Draw inputs and plugs
     if node.category == DASHBOARD_CATEGORY:

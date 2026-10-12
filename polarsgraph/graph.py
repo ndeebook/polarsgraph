@@ -39,6 +39,7 @@ class BaseNode:
     input_plugs: tuple[str] = None
     output_plugs: tuple[str] = None
     default_color: QtGui.QColor = None
+    icon: bytes = None  # svg code
 
     def __init__(self, settings=None):
         self.graph = None
