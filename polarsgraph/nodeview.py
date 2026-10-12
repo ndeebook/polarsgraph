@@ -655,7 +655,7 @@ def paint_node(
     if node.type == 'subgraph':
         node_width = viewportmapper.to_viewport(200)
     else:
-        node_width = viewportmapper.to_viewport(128)
+        node_width = viewportmapper.to_viewport(150)
     plug_height = viewportmapper.to_viewport(24)
     round_size = viewportmapper.to_viewport(3)
     plug_radius = viewportmapper.to_viewport(7)
@@ -700,10 +700,11 @@ def paint_node(
         icon_rect = QtCore.QRectF(
             title_rect.right() - icon_size, title_rect.top(),
             icon_size, icon_size).adjusted(
-                thickness * 2, thickness * 2, thickness * -4, thickness * -4)
+                thickness * 2, thickness * 2, thickness * -2, thickness * -2)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRect(icon_rect)  # paint title color over node name
-        svg_renderer.render(painter, icon_rect)
+        painter.setBrush(BACKGROUND_COLOR)
+        painter.drawRoundedRect(icon_rect, round_size, round_size)
+        svg_renderer.render(painter, icon_rect.adjusted(1, 1, -1, -1))
 
     # Draw inputs and plugs
     if node.category == DASHBOARD_CATEGORY:
