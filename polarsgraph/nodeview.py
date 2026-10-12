@@ -1,3 +1,6 @@
+import os
+from functools import lru_cache
+
 from PySide6 import QtWidgets, QtGui, QtCore, QtSvg
 from PySide6.QtCore import Qt
 
@@ -615,13 +618,15 @@ class NewNodeMenu(QtWidgets.QMenu):
         self.close()
 
 
-def get_node_svg_renderer(node_type, svg_bytes):
-    try:
-        return _svg_renderers_cache[node_type]
-    except KeyError:
-        renderer = QtSvg.QSvgRenderer(QtCore.QByteArray(svg_bytes))
-        _svg_renderers_cache[node_type] = renderer
-        return renderer
+@lru_cache()
+def get_node_svg_renderer(node_type):
+    for icon_dir in os.getenv('POLARSGRAPH_ICONS', '').split(os.pathsep):
+        if not icon_dir:
+            continue
+        svg_path = f'{icon_dir}/{node_type}.svg'
+        if os.path.exists(svg_path):
+            with open(svg_path, 'rb') as f:
+                return QtSvg.QSvgRenderer(QtCore.QByteArray(f.read()))
 
 
 def paint_node(
@@ -689,12 +694,15 @@ def paint_node(
     if node.type != 'dot':
         painter.drawText(title_rect, Qt.AlignmentFlag.AlignCenter, name)
 
-    svg_renderer = get_node_svg_renderer(node.type, node.icon)
+    svg_renderer = get_node_svg_renderer(node.type)
     if svg_renderer:
         icon_size = title_rect.height()
         icon_rect = QtCore.QRectF(
             title_rect.right() - icon_size, title_rect.top(),
-            icon_size, icon_size)
+            icon_size, icon_size).adjusted(
+                thickness * 2, thickness * 2, thickness * -4, thickness * -4)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRect(icon_rect)  # paint title color over node name
         svg_renderer.render(painter, icon_rect)
 
     # Draw inputs and plugs
