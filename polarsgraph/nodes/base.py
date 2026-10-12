@@ -99,6 +99,7 @@ class BaseSettingsWidget(QtWidgets.QWidget):
 
 class BaseDisplay(QtWidgets.QWidget):
     shown = QtCore.Signal()
+    action_requested = QtCore.Signal(dict)
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)

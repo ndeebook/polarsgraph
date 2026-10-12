@@ -37,6 +37,7 @@ class TableDisplay(BaseDisplay):
 
         # Widgets
         self.tableau = TableauWithScroll()
+        self.tableau.header_clicked.connect(self.emit_sort_request)
 
         self.table_details_label = QtWidgets.QLabel()
         resize_button = QtWidgets.QPushButton(
@@ -161,6 +162,9 @@ class TableDisplay(BaseDisplay):
             self.node[ATTR.COLUMNS_WIDTHS] = {}
         column_name = self.columns[column]
         self.node[ATTR.COLUMNS_WIDTHS][column_name] = newWidth
+
+    def emit_sort_request(self, column_name):
+        self.action_requested.emit(dict(action='sort', column=column_name))
 
 
 def prompt_save_df(df, parent=None):

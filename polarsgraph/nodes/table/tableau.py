@@ -14,6 +14,7 @@ WHITE = QtGui.QColor('white')
 
 class Tableau(QtWidgets.QWidget):
     columns_resized = QtCore.Signal()
+    header_clicked = QtCore.Signal(str)
 
     def __init__(self, table=None, parent=None):
         super().__init__(parent)
@@ -306,18 +307,43 @@ class Tableau(QtWidgets.QWidget):
         # Mouse Hover:
         self.set_cursor(event.position())
 
+    def get_column_header_at(self, pos):
+        if not hasattr(self, 'horizontal_header_height'):
+            return None
+        if pos.y() >= self.horizontal_header_height:
+            return None
+        if pos.x() < self.vertical_header_width:
+            return None
+        if not self._column_sizes:
+            return None
+        viewport_width = self.width()
+        x_pos = pos.x()
+        for col_index, colname in enumerate(self.columns):
+            x = self._get_column_x(col_index, viewport_width)
+            if x is None:
+                continue
+            if x <= x_pos < x + self._column_sizes[col_index]:
+                return colname
+        return None
+
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         pos = event.position()
         self.selected_column_separator = (
             self.get_separator_column_under_cursor(pos))
+        self.click_pos = pos
         self.drag_start = pos
         return super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
+        sep = self.selected_column_separator
         self.selected_column_separator = None
         if self._column_resized:
             self.columns_resized.emit()
             self._column_resized = False
+        elif sep is None:
+            col = self.get_column_header_at(self.click_pos)
+            if col is not None:
+                self.header_clicked.emit(col)
         return super().mouseReleaseEvent(event)
 
     def set_table(self, table: pl.DataFrame):
@@ -387,12 +413,14 @@ class Tableau(QtWidgets.QWidget):
 
 class TableauWithScroll(QtWidgets.QWidget):
     columns_resized = QtCore.Signal()
+    header_clicked = QtCore.Signal(str)
 
     def __init__(self, table=None):
         super().__init__()
 
         self.tableau = Tableau(parent=self)
         self.tableau.columns_resized.connect(self.adjust_scrollbars)
+        self.tableau.header_clicked.connect(self.header_clicked)
 
         self.vertical_scroll = QtWidgets.QScrollBar(
             Qt.Orientation.Vertical)
