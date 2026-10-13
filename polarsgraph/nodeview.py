@@ -701,10 +701,14 @@ def paint_node(
             title_rect.right() - icon_size, title_rect.top(),
             icon_size, icon_size).adjusted(
                 thickness * 2, thickness * 2, thickness * -2, thickness * -2)
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(BACKGROUND_COLOR)
-        painter.drawRoundedRect(icon_rect, round_size, round_size)
-        svg_renderer.render(painter, icon_rect.adjusted(1, 1, -1, -1))
+        svg_rect = icon_rect.adjusted(1, 1, -1, -1)
+        # QSvgRenderer.render() with a null/negative rect falls back to the
+        # painter viewport, painting the whole widget. Skip when too small.
+        if svg_rect.width() > 1 and svg_rect.height() > 1:
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(BACKGROUND_COLOR)
+            painter.drawRoundedRect(icon_rect, round_size, round_size)
+            svg_renderer.render(painter, svg_rect)
 
     # Draw inputs and plugs
     if node.category == DASHBOARD_CATEGORY:
