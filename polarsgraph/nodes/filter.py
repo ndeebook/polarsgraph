@@ -73,7 +73,8 @@ class FilterNode(BaseNode):
                     df = df.filter(
                         ~(pl.col(column).is_null() | (pl.col(column) == '')))
                 else:
-                    df = df.filter(pl.col(column) != value)
+                    df = df.filter(
+                        (pl.col(column) != value) | pl.col(column).is_null())
             elif condition == '>':
                 df = df.filter(pl.col(column) > value)
             elif condition == '<':
