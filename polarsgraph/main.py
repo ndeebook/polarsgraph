@@ -606,16 +606,20 @@ class PolarsGraph(QtWidgets.QWidget):
         self.autosave()
 
     def delete_nodes(self, node_names_to_delete):
+        subgraphs_nodes = []
         for name in list(node_names_to_delete):
             node = self.graph.get(name)
             if node and node.type == 'subgraph':
-                node_names_to_delete.extend(
+                subgraphs_nodes.extend(
                     n for n, node in self.graph.items()
                     if node['parent'] == name)
             elif node.type in ('input', 'output'):
                 # Delete parent Subgraph plug
                 subgraph = self.graph.get(node['parent'])
                 subgraph.remove_plug(node.type, name)
+
+        for subgraph_node in subgraphs_nodes:
+            self.graph.pop(subgraph_node)
 
         for node_name_to_delete in node_names_to_delete:
             # Preserve connections 1 input & 1 output
