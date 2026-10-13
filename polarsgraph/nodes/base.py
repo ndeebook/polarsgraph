@@ -165,6 +165,8 @@ def get_converter(data_type: pl.DataType):
 
 
 def convert_value(value, data_type):
+    if value is None:
+        return
     converter = get_converter(data_type)
     if converter is None:
         return value
