@@ -206,10 +206,14 @@ class CustomStackedBarChart(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.dataframe = pl.DataFrame()
+        self.segments = []
+        self.hover_segment = None
+        self.setMouseTracking(True)
 
     def set_data(self, table, node):
         self.dataframe = table
         self.node = node
+        self.hover_segment = None
         self.update()
 
     def paintEvent(self, event):
@@ -221,6 +225,8 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         margin = 10
         title_offset = 10
         legend_offset = 24
+
+        self.segments = []
 
         # Background
         painter.fillRect(rect, COLOR['bg'])
@@ -292,6 +298,15 @@ class CustomStackedBarChart(QtWidgets.QWidget):
                 # Draw bar segment
                 bar_rect = QtCore.QRectF(x, y, width, bar_height * .7)
                 painter.drawRect(bar_rect)
+                if value:
+                    self.segments.append({
+                        'rect': QtCore.QRectF(bar_rect),
+                        'row_label': row[self.dataframe.columns[0]],
+                        'row_total': totals[i],
+                        'column': column,
+                        'value': value,
+                        'color': colors[column],
+                    })
                 x += width
                 total_width += width
 
@@ -315,6 +330,83 @@ class CustomStackedBarChart(QtWidgets.QWidget):
                     0, y, total_width - margin/2, bar_height * .7)
                 painter.drawText(
                     bar_rect, Qt.AlignRight | Qt.AlignVCenter, total)
+
+        # Hover tooltip
+        if self.hover_segment is not None:
+            self._draw_hover(painter, rect)
+
+    def _draw_hover(self, painter, widget_rect):
+        if self.hover_segment >= len(self.segments):
+            return
+        seg = self.segments[self.hover_segment]
+
+        # Highlight the hovered segment
+        painter.setPen(QtGui.QPen(QtGui.QColor('white'), 1.5))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRect(seg['rect'])
+
+        total = seg['row_total'] or 0
+        pct = (seg['value'] / total * 100) if total else 0
+        lines = [
+            str(seg['row_label']),
+            f"Total: {auto_round(total)}",
+            f"{seg['column']}: {auto_round(seg['value'])} ({pct:.1f}%)",
+        ]
+
+        metrics = painter.fontMetrics()
+        pad_x, pad_y, line_gap = 6, 4, 2
+        text_w = max(metrics.horizontalAdvance(ln) for ln in lines)
+        line_h = metrics.height()
+        box_w = text_w + 2 * pad_x
+        box_h = len(lines) * line_h + (len(lines) - 1) * line_gap + 2 * pad_y
+
+        # Position near segment center, flip to stay in widget
+        offset = 12
+        anchor_x = seg['rect'].right()
+        anchor_y = seg['rect'].top()
+        box_x = anchor_x + offset
+        box_y = anchor_y - box_h - offset
+        if box_x + box_w > widget_rect.right():
+            box_x = seg['rect'].left() - offset - box_w
+        if box_y < widget_rect.top():
+            box_y = seg['rect'].bottom() + offset
+        box_x = max(widget_rect.left(), box_x)
+        box_y = min(widget_rect.bottom() - box_h, box_y)
+
+        box = QtCore.QRectF(box_x, box_y, box_w, box_h)
+        painter.setPen(QtGui.QPen(seg['color'], 1))
+        painter.setBrush(QtGui.QColor(0, 0, 0, 200))
+        painter.drawRoundedRect(box, 3, 3)
+
+        painter.setPen(COLOR['text'])
+        y_cursor = box.top() + pad_y + metrics.ascent()
+        for ln in lines:
+            painter.drawText(QtCore.QPointF(box.left() + pad_x, y_cursor), ln)
+            y_cursor += line_h + line_gap
+
+    def mouseMoveEvent(self, event):
+        if not self.segments:
+            if self.hover_segment is not None:
+                self.hover_segment = None
+                self.update()
+            return
+
+        pos = event.position()
+        new_hover = None
+        for idx, seg in enumerate(self.segments):
+            if seg['rect'].contains(pos):
+                new_hover = idx
+                break
+
+        if new_hover != self.hover_segment:
+            self.hover_segment = new_hover
+            self.update()
+
+    def leaveEvent(self, event):
+        if self.hover_segment is not None:
+            self.hover_segment = None
+            self.update()
+        super().leaveEvent(event)
 
 
 @lru_cache()
