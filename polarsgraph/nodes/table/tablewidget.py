@@ -18,11 +18,13 @@ BGCOLOR_COLUMN_SUFFIX = '~color'
 
 class ATTR:
     NAME = 'name'
+    TITLE = 'title'
     COLUMNS_WIDTHS = 'columns_widths'
     DISPLAY_INDEX = DISPLAY_INDEX_ATTR
     FROZEN_COLUMNS = 'frozen_columns'
     FROZEN_ROWS = 'frozen_rows'
     ROWS_NUMBER_OFFSET = 'rows_number_offset'
+    SHOW_ROW_NUMBERS = 'show_row_numbers'
     ROUND_FLOATS_DIGITS = 'round_floats'
     AUTO_RESIZE_MAX_ROWS = 'auto_resize_max_rows'
 
@@ -105,6 +107,9 @@ class TableDisplay(BaseDisplay):
         self.tableau.set_frozen_columns(self.node[ATTR.FROZEN_COLUMNS])
         self.tableau.set_frozen_rows(self.node[ATTR.FROZEN_ROWS])
         self.tableau.set_rows_number_offset(self.node[ATTR.ROWS_NUMBER_OFFSET])
+        self.tableau.set_title(self.node[ATTR.TITLE])
+        self.tableau.set_show_row_numbers(
+            self.node[ATTR.SHOW_ROW_NUMBERS] is not False)
 
     def set_board_mode(self, board_enabled: bool):
         self.bottom_widget.setVisible(not board_enabled)

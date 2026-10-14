@@ -55,6 +55,16 @@ class TableSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 
+        self.title_edit = QtWidgets.QLineEdit()
+        self.title_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(
+                self.title_edit, ATTR.TITLE))
+
+        self.show_row_numbers_checkbox = QtWidgets.QCheckBox()
+        self.show_row_numbers_checkbox.stateChanged.connect(
+            lambda: self.checkbox_to_settings(
+                self.show_row_numbers_checkbox, ATTR.SHOW_ROW_NUMBERS))
+
         self.index_combo = QtWidgets.QComboBox()
         self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
         self.index_combo.currentTextChanged.connect(
@@ -88,7 +98,9 @@ class TableSettingsWidget(BaseSettingsWidget):
 
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow('Title', self.title_edit)
         form_layout.addRow('Display index', self.index_combo)
+        form_layout.addRow('Show row numbers', self.show_row_numbers_checkbox)
         form_layout.addRow('Frozen columns', self.frozen_columns_spinbox)
         form_layout.addRow('Frozen rows', self.frozen_rows_spinbox)
         form_layout.addRow(
@@ -105,6 +117,9 @@ class TableSettingsWidget(BaseSettingsWidget):
         self.blockSignals(True)
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
+        self.title_edit.setText(node[ATTR.TITLE] or '')
+        self.show_row_numbers_checkbox.setChecked(
+            node[ATTR.SHOW_ROW_NUMBERS] is not False)
         self.frozen_columns_spinbox.setValue(node[ATTR.FROZEN_COLUMNS] or 0)
         self.frozen_rows_spinbox.setValue(node[ATTR.FROZEN_ROWS] or 0)
         self.rows_number_offset_spinbox.setValue(
