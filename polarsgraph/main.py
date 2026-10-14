@@ -367,9 +367,9 @@ class PolarsGraph(QtWidgets.QWidget):
         self._save_path = path
         self.setWindowTitle(f'{TITLE} - {path}')
 
-    def load_graph(self, graph, add=False, record_undo=True):
+    def load_graph(self, graph, add=False, record_undo=True, graph_stack=None):
         try:
-            self._load_graph(graph, add, record_undo)
+            self._load_graph(graph, add, record_undo, graph_stack)
         except BaseException:
             self.load_graph({})
             self.save_path = None
@@ -378,7 +378,8 @@ class PolarsGraph(QtWidgets.QWidget):
             print(error)
             return QtWidgets.QMessageBox.warning(self, 'Error', error)
 
-    def _load_graph(self, graph, add=False, record_undo=True):
+    def _load_graph(
+            self, graph, add=False, record_undo=True, graph_stack=None):
         # Remove and handle graph settings stored as dummy node
         if GRAPH_SETTINGS_KEY in graph:
             graph_settings = graph.pop(GRAPH_SETTINGS_KEY)
@@ -467,6 +468,8 @@ class PolarsGraph(QtWidgets.QWidget):
         # Refresh UI
         if not add:
             self.node_view.set_graph(self.graph)
+            for subgraph in reversed(graph_stack or []):
+                self.node_view.enter_subgraph(subgraph)
             self.display_widget.set_graph(self.graph)
         # SettingsWidget:
         if self.settings_widget.node:
@@ -865,12 +868,16 @@ class PolarsGraph(QtWidgets.QWidget):
 
     # Undo/Redo
     def _undo_redo(self, action='undo'):
+        graph_stack = list(self.node_view.current_graph_stack)
         if action == 'undo':
             graph = self.undo_stack.undo()
         else:
             graph = self.undo_stack.redo()
         if graph:
-            self.load_graph(deserialize_graph(graph), record_undo=False)
+            self.load_graph(
+                deserialize_graph(graph),
+                record_undo=False,
+                graph_stack=graph_stack)
 
     def add_undo(self):
         logger.debug('record undo')
