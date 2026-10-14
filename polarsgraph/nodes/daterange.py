@@ -16,6 +16,7 @@ class ATTR:
     NAME = 'name'
     DATE_COLUMN = 'date_column'
     KEY_COLUMN = 'key_column'
+    VALUE_COLUMN = 'value_column'
     COLUMNS_AGGREGATIONS = 'columns_aggregations'
     CUSTOM_VALUE = 'custom_value'
 
@@ -36,9 +37,10 @@ class DateRangeNode(BaseNode):
 
         date_col = self[ATTR.DATE_COLUMN]
         key_col = self[ATTR.KEY_COLUMN]
+        value_col = self[ATTR.VALUE_COLUMN]
         custom_value = self[ATTR.CUSTOM_VALUE] or ''
 
-        if not date_col:
+        if not date_col or not value_col:
             self.tables['table'] = df
             return
 
@@ -100,8 +102,7 @@ class DateRangeNode(BaseNode):
             .join_asof(
                 collected.select(
                     [date_col, key_col] + value_cols)
-                .sort(date_col)
-                .set_sorted(date_col),
+                .sort(date_col),
                 left_on='date',
                 right_on=date_col,
                 by=key_col,
@@ -110,7 +111,7 @@ class DateRangeNode(BaseNode):
                 pl.col(c).fill_null(0) for c in value_cols
                 if schema[c].is_numeric() or schema[c] == pl.Boolean])
             .group_by('date')
-            .agg(pl.col('statuses.weight').mean())
+            .agg(pl.col(value_col).mean())
             .sort('date')
         )
 
@@ -132,6 +133,11 @@ class DateRangeSettingsWidget(BaseSettingsWidget):
         self.key_column_combo.currentTextChanged.connect(
             lambda: self.combobox_to_settings(
                 self.key_column_combo, ATTR.KEY_COLUMN))
+
+        self.value_column_combo = QtWidgets.QComboBox()
+        self.value_column_combo.currentTextChanged.connect(
+            lambda: self.combobox_to_settings(
+                self.value_column_combo, ATTR.VALUE_COLUMN))
 
         self.column_agg_table = QtWidgets.QTableWidget()
         self.column_agg_table.setColumnCount(2)
@@ -155,6 +161,7 @@ class DateRangeSettingsWidget(BaseSettingsWidget):
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         form_layout.addRow('Date column', self.date_column_combo)
         form_layout.addRow('Key column', self.key_column_combo)
+        form_layout.addRow('Value column', self.value_column_combo)
         form_layout.addRow('Custom value', self.customvalue_edit)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -177,6 +184,11 @@ class DateRangeSettingsWidget(BaseSettingsWidget):
         key_col = node[ATTR.KEY_COLUMN] or ''
         set_combo_values_from_table_columns(
             self.key_column_combo, self.input_table, key_col,
+            extra_values=[''])
+
+        value_col = node[ATTR.VALUE_COLUMN] or ''
+        set_combo_values_from_table_columns(
+            self.value_column_combo, self.input_table, value_col,
             extra_values=[''])
 
         self.customvalue_edit.setText(node[ATTR.CUSTOM_VALUE] or '')
