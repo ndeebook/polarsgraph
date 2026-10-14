@@ -32,11 +32,8 @@ STR_ARGLESS_COLUMNS_METHODS = (
     'to_decimal',
     'len_chars',
 )
-DT_ARGLESS_COLUMNS_METHODS = (
-    'weekday',
-    'day',
-    'ordinal_day',
-)
+DT_ARGLESS_COLUMNS_METHODS = [
+    method for method in dir(pl.col('_').dt) if not method.startswith('_')]
 EXAMPLES_TEXT = """
 {column_name1} + ({column_name2} + 1 / 2)
 {column_name1} + "_" + {column_name2}
@@ -60,6 +57,8 @@ EXAMPLES_TEXT = """
 @weekday({date_column})
 @day({date_column})
 @ordinal_day({date_column})
+@month({date_column})
+@year({date_column})
 ...
 """ + ', '.join(STR_ARGLESS_COLUMNS_METHODS + ARGLESS_COLUMNS_METHODS)
 
