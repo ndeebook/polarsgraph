@@ -161,6 +161,7 @@ class CustomLinesChart(QtWidgets.QWidget):
         self.node = None
         self.error = None
         self.series_list = []
+        self.series_names = []
         self.x_min = 0.0
         self.x_max = 1.0
         self.y_min = 0.0
@@ -171,6 +172,9 @@ class CustomLinesChart(QtWidgets.QWidget):
         self.date_axis_values = None  # sorted unique dates when categorical
         self.x_tick_values = []
         self.y_tick_values = []
+        self.chart_rect = QtCore.QRectF()
+        self.hover_point = None  # (series_idx, x_val, y_val)
+        self.setMouseTracking(True)
 
     def set_data(self, table: pl.DataFrame, node):
         self.error = None
@@ -228,6 +232,8 @@ class CustomLinesChart(QtWidgets.QWidget):
 
     def _parse(self):
         self.series_list = []
+        self.series_names = []
+        self.hover_point = None
         self.x_min, self.x_max = 0.0, 1.0
         self.y_min, self.y_max = 0.0, 1.0
         self.orig_x_min = None
@@ -262,6 +268,7 @@ class CustomLinesChart(QtWidgets.QWidget):
         screen_x_cols, screen_y_cols = [], []
         for col_index in range(0, df.width, 2):
             x_col, y_col = df.columns[col_index], df.columns[col_index + 1]
+            series_name = df.columns[col_index + 1]
             if invert_axes:
                 x_col, y_col = y_col, x_col
             pair = (
@@ -274,6 +281,7 @@ class CustomLinesChart(QtWidgets.QWidget):
             if pair.is_empty():
                 continue
             self.series_list.append((pair['x'].to_list(), pair['y'].to_list()))
+            self.series_names.append(series_name)
             screen_x_cols.append(x_col)
             screen_y_cols.append(y_col)
 
@@ -355,6 +363,18 @@ class CustomLinesChart(QtWidgets.QWidget):
             return dt.strftime('%d/%m %H:%M')
         return _fmt_value(val)
 
+    def _to_sx(self, x):
+        x_range = (self.x_max - self.x_min) or 1
+        return (
+            self.chart_rect.left()
+            + (x - self.x_min) / x_range * self.chart_rect.width())
+
+    def _to_sy(self, y):
+        y_range = (self.y_max - self.y_min) or 1
+        return (
+            self.chart_rect.bottom()
+            - (y - self.y_min) / y_range * self.chart_rect.height())
+
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
@@ -387,22 +407,13 @@ class CustomLinesChart(QtWidgets.QWidget):
         m_right = 48
         m_bottom = 30
 
-        chart_rect = QtCore.QRectF(
+        self.chart_rect = QtCore.QRectF(
             m_left, m_top,
             rect.width() - m_left - m_right,
             rect.height() - m_top - m_bottom)
 
-        if chart_rect.width() < 10 or chart_rect.height() < 10:
+        if self.chart_rect.width() < 10 or self.chart_rect.height() < 10:
             return
-
-        x_range = (self.x_max - self.x_min) or 1
-        y_range = (self.y_max - self.y_min) or 1
-
-        def to_sx(x):
-            return chart_rect.left() + (x - self.x_min) / x_range * chart_rect.width()
-
-        def to_sy(y):
-            return chart_rect.bottom() - (y - self.y_min) / y_range * chart_rect.height()
 
         # Axis Labels
         small_font = QtGui.QFont()
@@ -411,11 +422,11 @@ class CustomLinesChart(QtWidgets.QWidget):
 
         # Y grid lines and labels
         for y_val in self.y_tick_values:
-            sy = to_sy(y_val)
+            sy = self._to_sy(y_val)
             painter.setPen(QtGui.QPen(COLOR['grid'], 0.5))
             painter.drawLine(
-                QtCore.QPointF(chart_rect.left(), sy),
-                QtCore.QPointF(chart_rect.right(), sy))
+                QtCore.QPointF(self.chart_rect.left(), sy),
+                QtCore.QPointF(self.chart_rect.right(), sy))
             painter.setPen(COLOR['axis_text'])
             painter.drawText(
                 QtCore.QRectF(0, sy - 10, m_left - 4, 20),
@@ -424,14 +435,16 @@ class CustomLinesChart(QtWidgets.QWidget):
 
         # X grid lines and labels
         for x_val in self.x_tick_values:
-            sx = to_sx(x_val)
+            sx = self._to_sx(x_val)
             painter.setPen(QtGui.QPen(COLOR['grid'], 0.5))
             painter.drawLine(
-                QtCore.QPointF(sx, chart_rect.top()),
-                QtCore.QPointF(sx, chart_rect.bottom()))
+                QtCore.QPointF(sx, self.chart_rect.top()),
+                QtCore.QPointF(sx, self.chart_rect.bottom()))
             painter.setPen(COLOR['axis_text'])
             painter.drawText(
-                QtCore.QRectF(sx - 40, chart_rect.bottom() + 4, 80, m_bottom - 4),
+                QtCore.QRectF(
+                    sx - 40, self.chart_rect.bottom() + 4,
+                    80, m_bottom - 4),
                 Qt.AlignCenter | Qt.AlignTop,
                 self._fmt_axis_label(x_val, self.screen_x_date_mode))
 
@@ -439,7 +452,7 @@ class CustomLinesChart(QtWidgets.QWidget):
         for idx, (xs, ys) in enumerate(self.series_list):
             color = QtGui.QColor(LINE_COLORS[idx % len(LINE_COLORS)])
             points = [
-                QtCore.QPointF(to_sx(x), to_sy(y))
+                QtCore.QPointF(self._to_sx(x), self._to_sy(y))
                 for x, y in zip(xs, ys)]
             if len(points) > 1:
                 painter.setPen(QtGui.QPen(color, 2))
@@ -448,6 +461,103 @@ class CustomLinesChart(QtWidgets.QWidget):
                 painter.setPen(Qt.NoPen)
                 painter.setBrush(color)
                 painter.drawEllipse(points[0], 3, 3)
+
+        # Hover tooltip
+        if self.hover_point is not None:
+            self._draw_hover(painter)
+
+    def _draw_hover(self, painter):
+        s_idx, x_val, y_val = self.hover_point
+        if s_idx >= len(self.series_list):
+            return
+        sx = self._to_sx(x_val)
+        sy = self._to_sy(y_val)
+        color = QtGui.QColor(LINE_COLORS[s_idx % len(LINE_COLORS)])
+
+        # Highlight dot
+        painter.setPen(QtGui.QPen(QtGui.QColor('white'), 1.5))
+        painter.setBrush(color)
+        painter.drawEllipse(QtCore.QPointF(sx, sy), 5, 5)
+
+        # Build tooltip lines
+        name = (
+            self.series_names[s_idx]
+            if s_idx < len(self.series_names) else '')
+        x_label = self._fmt_axis_label(x_val, self.screen_x_date_mode)
+        y_label = self._fmt_axis_label(y_val, self.screen_y_date_mode)
+        lines = []
+        if name:
+            lines.append(name)
+        lines.append(f'X: {x_label}')
+        lines.append(f'Y: {y_label}')
+
+        # Measure
+        metrics = painter.fontMetrics()
+        pad_x, pad_y, line_gap = 6, 4, 2
+        text_w = max(metrics.horizontalAdvance(ln) for ln in lines)
+        line_h = metrics.height()
+        box_w = text_w + 2 * pad_x
+        box_h = len(lines) * line_h + (len(lines) - 1) * line_gap + 2 * pad_y
+
+        # Position (prefer upper-right of cursor, flip to stay in chart)
+        offset = 12
+        box_x = sx + offset
+        box_y = sy - box_h - offset
+        if box_x + box_w > self.chart_rect.right():
+            box_x = sx - offset - box_w
+        if box_y < self.chart_rect.top():
+            box_y = sy + offset
+        box_x = max(self.chart_rect.left(), box_x)
+        box_y = min(self.chart_rect.bottom() - box_h, box_y)
+
+        box = QtCore.QRectF(box_x, box_y, box_w, box_h)
+        painter.setPen(QtGui.QPen(color, 1))
+        painter.setBrush(QtGui.QColor(0, 0, 0, 200))
+        painter.drawRoundedRect(box, 3, 3)
+
+        painter.setPen(COLOR['text'])
+        y_cursor = box.top() + pad_y + metrics.ascent()
+        for ln in lines:
+            painter.drawText(QtCore.QPointF(box.left() + pad_x, y_cursor), ln)
+            y_cursor += line_h + line_gap
+
+    def mouseMoveEvent(self, event):
+        if not self.series_list or self.chart_rect.width() < 10:
+            if self.hover_point is not None:
+                self.hover_point = None
+                self.update()
+            return
+
+        pos = event.position()
+        if not self.chart_rect.contains(pos):
+            if self.hover_point is not None:
+                self.hover_point = None
+                self.update()
+            return
+
+        px, py = pos.x(), pos.y()
+        max_dist_sq = 20 * 20
+        best = None  # (dist_sq, series_idx, x, y)
+        for s_idx, (xs, ys) in enumerate(self.series_list):
+            for x, y in zip(xs, ys):
+                sx = self._to_sx(x)
+                sy = self._to_sy(y)
+                dx = sx - px
+                dy = sy - py
+                d_sq = dx * dx + dy * dy
+                if d_sq < max_dist_sq and (best is None or d_sq < best[0]):
+                    best = (d_sq, s_idx, x, y)
+
+        new_hover = best[1:] if best else None
+        if new_hover != self.hover_point:
+            self.hover_point = new_hover
+            self.update()
+
+    def leaveEvent(self, event):
+        if self.hover_point is not None:
+            self.hover_point = None
+            self.update()
+        super().leaveEvent(event)
 
 
 def _fmt_value(val):
