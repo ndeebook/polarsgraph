@@ -147,7 +147,8 @@ def create_node(
     # Subgraph
     if parent:
         node['parent'] = parent
-        graph[parent].record_new_plug(node_type, name)
+        if node_type in ('input', 'output'):
+            graph[parent].record_new_plug(node_type, name)
 
     return node
 
