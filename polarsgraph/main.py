@@ -834,8 +834,10 @@ class PolarsGraph(QtWidgets.QWidget):
         self.undo_stack.clear()
 
     def prompt_save(self, selected=False):
+        directory = (
+            os.path.dirname(self.save_path) if self.save_path else '')
         filepath, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, 'Open Graph', '', '*.pg')
+            self, 'Open Graph', directory, '*.pg')
         if not filepath:
             return
         self.save_to_file(
