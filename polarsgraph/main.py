@@ -423,33 +423,50 @@ class PolarsGraph(QtWidgets.QWidget):
                         settings[attr] = [
                             f'{n}{suffix}' for n in settings[attr]]
 
-            # Adapt parents
+            # Adapt parents: pasted nodes whose parent is also in the
+            # clipboard keep the (suffixed) parent; nodes whose parent is
+            # outside the clipboard become top-level and are reparented to
+            # the current subgraph context (if any).
+            context_parent = (
+                self.node_view.current_graph_stack[-1]
+                if self.node_view.current_graph_stack
+                else None)
             for name, settings in graph.items():
-                if settings.get('parent'):
-                    pasted_parent = f'{settings["parent"]}{suffix}'
-                    if pasted_parent in graph:
-                        settings['parent'] = pasted_parent
-                    else:
-                        del settings['parent']
+                pasted_parent = (
+                    f'{settings["parent"]}{suffix}'
+                    if settings.get('parent') else None)
+                if pasted_parent and pasted_parent in graph:
+                    settings['parent'] = pasted_parent
+                elif context_parent:
+                    settings['parent'] = context_parent
+                else:
+                    settings.pop('parent', None)
 
-        # Build graph
-        new_nodes: list[BaseNode] = []
-        for name, settings in graph.items():
-            nodetype = settings['type']
-            if nodetype not in types:
-                continue
-            if add:
-                # offset position slightly for paste/import
-                p = settings['position']
-                p.setX(p.x() + 50)
-                p.setY(p.y() + 50)
-            new_nodes.append(self.create_node(
-                nodetype,
-                name,
-                settings,
-                auto_connect=False,
-                auto_increment=add,
-                update=False))
+        # Build graph. Temporarily clear the context stack so create_node
+        # does not override the parent that settings already defines.
+        saved_graph_stack = self.node_view.current_graph_stack
+        if add:
+            self.node_view.current_graph_stack = []
+        try:
+            new_nodes: list[BaseNode] = []
+            for name, settings in graph.items():
+                nodetype = settings['type']
+                if nodetype not in types:
+                    continue
+                if add:
+                    # offset position slightly for paste/import
+                    p = settings['position']
+                    p.setX(p.x() + 50)
+                    p.setY(p.y() + 50)
+                new_nodes.append(self.create_node(
+                    nodetype,
+                    name,
+                    settings,
+                    auto_connect=False,
+                    auto_increment=add,
+                    update=False))
+        finally:
+            self.node_view.current_graph_stack = saved_graph_stack
 
         # Rename pasted nodes
         if add:
