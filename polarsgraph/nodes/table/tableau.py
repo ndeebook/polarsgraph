@@ -325,13 +325,12 @@ class Tableau(QtWidgets.QWidget):
 
     def set_cursor(self, pos):
         if self.get_separator_column_under_cursor(pos):
-            QtWidgets.QApplication.setOverrideCursor(
-                Qt.CursorShape.SizeHorCursor)
+            self.setCursor(Qt.CursorShape.SizeHorCursor)
         else:
-            QtWidgets.QApplication.restoreOverrideCursor()
+            self.unsetCursor()
 
     def leaveEvent(self, event):
-        QtWidgets.QApplication.restoreOverrideCursor()
+        self.unsetCursor()
         return super().leaveEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
