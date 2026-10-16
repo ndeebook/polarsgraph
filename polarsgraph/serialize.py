@@ -7,6 +7,10 @@ from polarsgraph.log import logger
 from polarsgraph.version import VERSION
 
 
+HEADER_PREFIX = '# PolarsGraph'
+HEADER = f'{HEADER_PREFIX} v{".".join([str(v) for v in VERSION])}'
+
+
 def dump(data, depth=0, indent=' ' * 4):
     """
     json dump but only indent first 2 levels of dict
@@ -67,7 +71,7 @@ def deserialize_node(text):
 
 
 def serialize_graph(graph, settings=None):
-    content = f'# PolarsGraph v{".".join([str(v) for v in VERSION])}\n'
+    content = f'{HEADER}\n'
     nodes = list(graph.values())
     if settings:
         nodes.append(settings)
@@ -78,16 +82,19 @@ def serialize_graph(graph, settings=None):
     return content
 
 
+def _extract_version(serialized_graph_lines):
+    if not serialized_graph_lines[0].startswith(HEADER_PREFIX):
+        return 0, 7
+    header = serialized_graph_lines.pop(0)
+    if ' v' not in header:
+        return 0, 7
+    file_version = header.split(' v')[-1].split('.')
+    return tuple(int(v) for v in file_version)
+
+
 def deserialize_graph(text):
     lines = text.split('\n')
-
-    # Get version
-    if lines[0].startswith('# PolarsGraph'):
-        header = lines.pop(0)
-        file_version = header.split(' v')[-1].split('.')
-        file_version = tuple(int(v) for v in file_version)
-    else:
-        file_version = 0, 7
+    file_version = _extract_version(lines)
 
     # Parse nodes
     nodes = []

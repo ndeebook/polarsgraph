@@ -16,7 +16,8 @@ from polarsgraph.graph import (
     set_dirty_recursive, disconnect_plug, get_input_tables)
 from polarsgraph.undo import UndoStack
 from polarsgraph.qtutils import set_shortcut
-from polarsgraph.serialize import serialize_graph, deserialize_graph
+from polarsgraph.serialize import (
+    HEADER_PREFIX, serialize_graph, deserialize_graph)
 
 from polarsgraph.nodes.base import BaseNode
 from polarsgraph.nodeview import NodeView, IN, OUT
@@ -118,7 +119,6 @@ RECENTS_PREF = 'recents'
 
 GRAPH_SETTINGS_KEY = '_graph_settings'
 TITLE = 'PolarsGraph'
-CLIPBOARD_PREFIX = '# PolarsGraph clipboard\n'
 
 
 class PolarsGraph(QtWidgets.QWidget):
@@ -410,6 +410,14 @@ class PolarsGraph(QtWidgets.QWidget):
             graph = {
                 f'{name}{suffix}': settings
                 for name, settings in graph.items()}
+            # Drop orphan input/output nodes: their subgraph wasn't
+            # pasted, so they can't exist on their own.
+            orphan_plugs = [
+                name for name, settings in graph.items()
+                if settings.get('type') in ('input', 'output')
+                and f'{settings.get("parent") or ""}{suffix}' not in graph]
+            for name in orphan_plugs:
+                graph.pop(name)
             # Rename connections but remove connections not part of clipboard
             for name, settings in graph.items():
                 inputs = settings.get('inputs') or []
@@ -872,11 +880,11 @@ class PolarsGraph(QtWidgets.QWidget):
 
     def copy(self):
         QtWidgets.QApplication.clipboard().setText(
-            f'{CLIPBOARD_PREFIX}{self.serialize_graph(selected=True)}')
+            self.serialize_graph(selected=True))
 
     def paste(self):
         clipboard = QtWidgets.QApplication.clipboard().text().strip()
-        if clipboard.startswith(CLIPBOARD_PREFIX):
+        if clipboard.startswith(HEADER_PREFIX):
             self.load_graph(deserialize_graph(clipboard), add=True)
 
     # Autosave
