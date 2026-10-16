@@ -101,7 +101,7 @@ class ReorderableListWidget(QtWidgets.QWidget):
         self.order_list_widget = DragDropListWidget()
         self.order_list_widget.order_changed.connect(self.emit_order)
         self.order_list_widget.item_double_clicked.connect(self.delete_item)
-        self.delete_list_widget = DragDropListWidget()
+        self.delete_list_widget = DragDropListWidget(sort=True)
         self.delete_list_widget.order_changed.connect(self.emit_order)
         self.delete_list_widget.item_double_clicked.connect(self.undelete_item)
 
@@ -199,6 +199,7 @@ class ReorderableListWidget(QtWidgets.QWidget):
         if current_row != -1:
             item = self.order_list_widget.takeItem(current_row)
             self.delete_list_widget.addItem(item)
+            self.delete_list_widget.sortItems()
         self.emit_order()
 
     def undelete_item(self):
@@ -213,8 +214,9 @@ class DragDropListWidget(QtWidgets.QListWidget):
     order_changed = QtCore.Signal()
     item_double_clicked = QtCore.Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, sort=False):
         super().__init__(parent)
+        self.sorted = sort
         self.setSelectionMode(
             QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
         self.setDragEnabled(True)
@@ -228,6 +230,8 @@ class DragDropListWidget(QtWidgets.QListWidget):
         else:
             self.addItems([i.text() for i in event.source().selectedItems()])
             event.accept()
+        if self.sorted:
+            self.sortItems()
         # QTimer.singleShot => make sure List widget is updated and that
         # .items() will return the updated list
         QtCore.QTimer.singleShot(0, self.order_changed.emit)
