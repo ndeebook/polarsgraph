@@ -32,7 +32,7 @@ from polarsgraph.nodes.sort import SortNode, SortSettingsWidget
 from polarsgraph.nodes.join import JoinNode, JoinSettingsWidget
 from polarsgraph.nodes.pivot import PivotNode, PivotSettingsWidget
 from polarsgraph.nodes.derive import DeriveNode, DeriveSettingsWidget
-from polarsgraph.nodes.filter import FilterNode, FilterSettingsWidget
+from polarsgraph.nodes.old.filter import FilterNode, FilterSettingsWidget
 from polarsgraph.nodes.filter2 import Filter2Node, Filter2SettingsWidget
 from polarsgraph.nodes.filterexp import FilterExpNode, FilterExpSettingsWidget
 from polarsgraph.nodes.format import FormatNode, FormatSettingsWidget
