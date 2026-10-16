@@ -11,6 +11,7 @@ from polarsgraph.nodes.base import (
 class ATTR:
     NAME = 'name'
     CONDITIONS = 'conditions'
+    INVERT = 'invert'
 
 
 CONDITIONS_LABELS = {
@@ -43,6 +44,8 @@ class Filter2Node(BaseNode):
         if not self[ATTR.CONDITIONS]:
             return df
         filters = get_filters(df, self[ATTR.CONDITIONS])
+        if self[ATTR.INVERT]:
+            filters = ~filters
         self.tables['table'] = df.filter(filters)
 
 
@@ -126,9 +129,15 @@ class Filter2SettingsWidget(BaseSettingsWidget):
         self.add_button = QtWidgets.QPushButton('+ Add condition')
         self.add_button.clicked.connect(self._add_condition)
 
+        self.invert_checkbox = QtWidgets.QCheckBox()
+        self.invert_checkbox.stateChanged.connect(
+            lambda: self.checkbox_to_settings(
+                self.invert_checkbox, ATTR.INVERT))
+
         # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        form_layout.addRow(ATTR.INVERT.title(), self.invert_checkbox)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)

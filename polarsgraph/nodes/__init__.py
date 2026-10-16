@@ -23,7 +23,8 @@ OPERATOR_MAGIC_METHODS = {
     '^': '__xor__',
     '~': '__invert__',
     '==': '__eq__',
-    '!=': '__ne__',
+    # '!=': '__ne__',
+    '!=': 'ne_missing',  # dont always drop null values
     '<': '__lt__',
     '<=': '__le__',
     '>': '__gt__',
