@@ -190,7 +190,7 @@ class ColumnCompleter(QtWidgets.QListWidget):
 
 
 class DeriveSettingsWidget(BaseSettingsWidget):
-    def __init__(self):
+    def __init__(self, help_text=EXAMPLES_TEXT):
         super().__init__()
 
         # Fixed size font
@@ -218,15 +218,15 @@ class DeriveSettingsWidget(BaseSettingsWidget):
         self.highlighter = CustomHighlighter(self.formula_edit.document())
         self.completer = ColumnCompleter(self.formula_edit)
 
-        help_label = QtWidgets.QLabel(EXAMPLES_TEXT, font=fixed_font)
+        help_label = QtWidgets.QLabel(help_text, font=fixed_font)
         help_label.setWordWrap(True)
 
         # Layout
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Column name', self.column_edit)
+        self.form_layout = QtWidgets.QFormLayout()
+        self.form_layout.addRow(ATTR.NAME.title(), self.name_edit)
+        self.form_layout.addRow('Column name', self.column_edit)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(self.form_layout)
         layout.addWidget(QtWidgets.QLabel('Formula'))
         layout.addWidget(self.formula_edit)
         layout.addWidget(QtWidgets.QLabel('Examples:'))
@@ -236,7 +236,7 @@ class DeriveSettingsWidget(BaseSettingsWidget):
         self.blockSignals(True)
         self.node = node
         self.name_edit.setText(node[ATTR.NAME])
-        self.column_edit.setText(node[ATTR.COLUMN] or 'Derived column')
+        self._set_column_from_node(node)
         if input_tables and input_tables[0] is not None:
             self.completer.set_columns(
                 input_tables[0].collect_schema().names())
@@ -244,6 +244,9 @@ class DeriveSettingsWidget(BaseSettingsWidget):
             self.completer.set_columns([])
         self.formula_edit.setPlainText(node[ATTR.FORMULA] or '')
         self.blockSignals(False)
+
+    def _set_column_from_node(self, node):
+        self.column_edit.setText(node[ATTR.COLUMN] or 'Derived column')
 
 
 class CustomHighlighter(QtGui.QSyntaxHighlighter):
