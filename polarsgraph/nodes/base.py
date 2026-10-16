@@ -127,7 +127,8 @@ def set_combo_values_from_table_columns(
         combo: QtWidgets.QComboBox,
         df: pl.LazyFrame,
         current_text: str,
-        extra_values=None):
+        extra_values=None,
+        sort=True):
     try:
         values = df.collect_schema().names()
     except AttributeError:
@@ -135,6 +136,8 @@ def set_combo_values_from_table_columns(
     for extra_value in extra_values or []:
         if extra_value not in values:
             values.insert(0, extra_value)
+    if sort:
+        values.sort()
     set_combo_values(combo, values, current_text)
 
 
