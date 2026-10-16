@@ -35,6 +35,7 @@ CATEGORY_OUTPUT_TYPE = {
 
 class BaseNode:
     type: str = None
+    deprecated: bool = False
     category: str = None
     input_plugs: tuple[str] = None
     output_plugs: tuple[str] = None

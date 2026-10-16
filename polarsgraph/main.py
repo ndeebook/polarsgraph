@@ -32,6 +32,7 @@ from polarsgraph.nodes.join import JoinNode, JoinSettingsWidget
 from polarsgraph.nodes.pivot import PivotNode, PivotSettingsWidget
 from polarsgraph.nodes.derive import DeriveNode, DeriveSettingsWidget
 from polarsgraph.nodes.filter import FilterNode, FilterSettingsWidget
+from polarsgraph.nodes.filter2 import Filter2Node, Filter2SettingsWidget
 from polarsgraph.nodes.format import FormatNode, FormatSettingsWidget
 from polarsgraph.nodes.rename import RenameNode, RenameSettingsWidget
 from polarsgraph.nodes.switch import SwitchNode, SwitchSettingsWidget
@@ -75,6 +76,7 @@ types = {
         'type': DateRangeNode, 'widget': DateRangeSettingsWidget},
     DeriveNode.type: {'type': DeriveNode, 'widget': DeriveSettingsWidget},
     FilterNode.type: {'type': FilterNode, 'widget': FilterSettingsWidget},
+    Filter2Node.type: {'type': Filter2Node, 'widget': Filter2SettingsWidget},
     FormatNode.type: {'type': FormatNode, 'widget': FormatSettingsWidget},
     RenameNode.type: {'type': RenameNode, 'widget': RenameSettingsWidget},
     ReorderNode.type: {'type': ReorderNode, 'widget': ReorderSettingsWidget},
@@ -324,7 +326,7 @@ class PolarsGraph(QtWidgets.QWidget):
                 lambda: self.create_node('concatenate'),
                 'Create Concatenate'),
             ('x', lambda: self.create_node('derive'), 'Create Derive'),
-            ('v', lambda: self.create_node('filter'), 'Create Filter'),
+            ('v', lambda: self.create_node('filter2'), 'Create Filter'),
             ('p', lambda: self.create_node('format'), 'Create Format'),
             ('g', lambda: self.create_node('groupby'), 'Create Groupby'),
             (

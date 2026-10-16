@@ -4,7 +4,7 @@ from copy import deepcopy
 from PySide6 import QtGui, QtCore
 
 from polarsgraph.log import logger
-from polarsgraph.version import version
+from polarsgraph.version import VERSION
 
 
 def dump(data, depth=0, indent=' ' * 4):
@@ -67,7 +67,7 @@ def deserialize_node(text):
 
 
 def serialize_graph(graph, settings=None):
-    content = f'# PolarsGraph v{".".join([str(v) for v in version])}\n'
+    content = f'# PolarsGraph v{".".join([str(v) for v in VERSION])}\n'
     nodes = list(graph.values())
     if settings:
         nodes.append(settings)
@@ -85,7 +85,7 @@ def deserialize_graph(text):
     if lines[0].startswith('# PolarsGraph'):
         header = lines.pop(0)
         file_version = header.split(' v')[-1].split('.')
-        file_version = tuple(int(v) for v in version)
+        file_version = tuple(int(v) for v in file_version)
     else:
         file_version = 0, 7
 
@@ -105,16 +105,21 @@ def deserialize_graph(text):
 
     # Deserialize nodes
     nodes = [deserialize_node(n) for n in nodes]
-    if file_version < version:
+    if file_version < VERSION:
         _conform_old_nodes(nodes, file_version)
     return {n['name']: n for n in nodes}
 
 
 def _conform_old_nodes(nodes, file_version):
-    if file_version < (0, 8):
-        for node in nodes:
-            if node['type'] == 'group':
-                node['type'] = 'groupby'
+    for node in nodes:
+        if file_version < (0, 8) and node['type'] == 'group':
+            node['type'] = 'groupby'
+        if file_version < (0, 9) and node['type'] == 'filter':
+            node['type'] = 'filter2'
+            node['conditions'] = [[
+                node.pop('column'),
+                node.pop('condition'),
+                node.pop('value', None)]]
 
 
 if __name__ == '__main__':
@@ -126,6 +131,16 @@ if __name__ == '__main__':
     assert dump(dict(x=1, y=[1, 2, 3])) == expected
 
     # Test 2
+    text = '''test
+{
+    "type": "test",
+    "name": "test",
+    "x": [["a", "b", "c"]]
+}'''
+    deserialize_graph(text) == {
+        'test': {'type': 'test', 'name': 'test', 'x': [['a', 'b', 'c']]}}
+
+    # Test 3
     text = '''Derive1
 {
     "type": "derive",

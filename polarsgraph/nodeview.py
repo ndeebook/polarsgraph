@@ -570,20 +570,25 @@ class NewNodeMenu(QtWidgets.QMenu):
 
         self.types_by_label = {}
         for name, type_ in types.items():
-            category = type_['type'].category
+            class_ = type_['type']
+            if class_.deprecated:
+                continue
+            category = class_.category
             display = (
                 name if category == 'manipulate' else f'{name}  ({category})')
+            # Remove node version
+            display = ''.join(c for c in display if not c.isdigit())
             self.types_by_label[display] = name
         self.types = sorted(self.types_by_label)
 
         self.type_edit = QtWidgets.QLineEdit()
         self.type_edit.returnPressed.connect(self.emit_from_line_edit)
 
-        self.seq_completer = QtWidgets.QCompleter(types, self)
-        self.seq_completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        self.seq_completer.setCompletionMode(
+        self.type_completer = QtWidgets.QCompleter(self.types, self)
+        self.type_completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.type_completer.setCompletionMode(
             QtWidgets.QCompleter.PopupCompletion)
-        self.type_edit.setCompleter(self.seq_completer)
+        self.type_edit.setCompleter(self.type_completer)
 
         self.types_list = QtWidgets.QListWidget(
             minimumWidth=160, minimumHeight=200)

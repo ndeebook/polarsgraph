@@ -7,7 +7,7 @@ import sys
 import shutil
 import subprocess
 
-from polarsgraph.version import version
+from polarsgraph.version import VERSION
 
 main_path = os.path.normpath(
     f'{os.path.dirname(__file__)}/polarsgraph/__main__.py')
@@ -19,7 +19,7 @@ if not os.path.isdir(release_root):
 
 release_dir = os.path.normpath(f'{release_root}/polarsgraph')
 zip_path = os.path.normpath(
-    f'{release_root}/polarsgraph-{".".join(str(v) for v in version)}')
+    f'{release_root}/polarsgraph-{".".join(str(v) for v in VERSION)}')
 
 # Remove old
 print('Cleaning previous releases...')

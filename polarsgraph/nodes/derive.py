@@ -9,7 +9,7 @@ import polars as pl
 
 from PySide6 import QtWidgets, QtGui, QtCore
 
-from polarsgraph.nodes import ORANGE as DEFAULT_COLOR
+from polarsgraph.nodes import ORANGE as DEFAULT_COLOR, OPERATOR_MAGIC_METHODS
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
@@ -63,37 +63,6 @@ EXAMPLES_TEXT = """
 """ + ', '.join(STR_ARGLESS_COLUMNS_METHODS + ARGLESS_COLUMNS_METHODS)
 
 BOOL_DICT = dict(true=True, false=False)
-
-OPERATOR_MAGIC_METHODS = {
-    '+': '__add__',
-    '-': '__sub__',
-    '*': '__mul__',
-    '/': '__truediv__',
-    '//': '__floordiv__',
-    '%': '__mod__',
-    '**': '__pow__',
-    '&': '__and__',
-    '|': '__or__',
-    '^': '__xor__',
-    '~': '__invert__',
-    '==': '__eq__',
-    '!=': '__ne__',
-    '<': '__lt__',
-    '<=': '__le__',
-    '>': '__gt__',
-    '>=': '__ge__',
-    'in': '__contains__',
-    '+=': '__iadd__',
-    '-=': '__isub__',
-    '*=': '__imul__',
-    '/=': '__itruediv__',
-    '//=': '__ifloordiv__',
-    '%=': '__imod__',
-    '**=': '__ipow__',
-    '&=': '__iand__',
-    '|=': '__ior__',
-    '^=': '__ixor__',
-}
 
 
 re_bool = r'null|none|true|false'
@@ -168,7 +137,8 @@ class ColumnCompleter(QtWidgets.QListWidget):
         if partial is None or not self.column_names:
             self.hide()
             return
-        matches = [n for n in self.column_names if partial.lower() in n.lower()]
+        matches = [
+            n for n in self.column_names if partial.lower() in n.lower()]
         if not matches:
             self.hide()
             return

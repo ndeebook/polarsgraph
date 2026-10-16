@@ -29,6 +29,7 @@ LABELS_CONDITIONS = {label: c for c, label in CONDITIONS_LABELS.items()}
 
 class FilterNode(BaseNode):
     type = 'filter'
+    deprecated = True
     category = MANIPULATE_CATEGORY
     input_plugs = 'table',
     output_plugs = 'table',
