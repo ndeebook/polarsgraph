@@ -455,6 +455,21 @@ class PolarsGraph(QtWidgets.QWidget):
                 else:
                     settings.pop('parent', None)
 
+        # Compute paste offset: translate pasted nodes so their top-left
+        # lands at the last clicked position (falling back to +50,+50).
+        paste_offset = QtCore.QPointF(50, 50)
+        if add:
+            positions = [
+                settings['position'] for settings in graph.values()
+                if settings['type'] in types and settings.get('position')]
+            click = self.node_view.select_position
+            if positions and click is not None:
+                anchor = self.node_view.viewportmapper.to_units_coords(click)
+                min_x = min(p.x() for p in positions)
+                min_y = min(p.y() for p in positions)
+                paste_offset = QtCore.QPointF(
+                    anchor.x() - min_x, anchor.y() - min_y)
+
         # Build graph. Temporarily clear the context stack so create_node
         # does not override the parent that settings already defines.
         saved_graph_stack = self.node_view.current_graph_stack
@@ -467,10 +482,9 @@ class PolarsGraph(QtWidgets.QWidget):
                 if nodetype not in types:
                     continue
                 if add:
-                    # offset position slightly for paste/import
                     p = settings['position']
-                    p.setX(p.x() + 50)
-                    p.setY(p.y() + 50)
+                    p.setX(p.x() + paste_offset.x())
+                    p.setY(p.y() + paste_offset.y())
                 new_nodes.append(self.create_node(
                     nodetype,
                     name,
