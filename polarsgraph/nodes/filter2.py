@@ -45,7 +45,7 @@ class Filter2Node(BaseNode):
             return df
         filters = get_filters(df, self[ATTR.CONDITIONS])
         if self[ATTR.INVERT]:
-            filters = ~filters
+            filters = ~filters.fill_null(False)
         self.tables['table'] = df.filter(filters)
 
 
