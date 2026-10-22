@@ -25,6 +25,11 @@ class ConcatenateNode(BaseNode):
     def _build_query(self, tables):
         df1: pl.LazyFrame = tables[0]
         df2: pl.LazyFrame = tables[1]
+
+        if self['how'] == 'vertical':
+            # order columns the same way
+            df2 = df2.select(df1.collect_schema().names())
+
         self.tables['table'] = pl.concat([df1, df2], how=self['how'])
 
 
