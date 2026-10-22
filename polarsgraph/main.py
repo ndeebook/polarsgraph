@@ -515,6 +515,8 @@ class PolarsGraph(QtWidgets.QWidget):
             for subgraph in reversed(graph_stack or []):
                 self.node_view.enter_subgraph(subgraph)
             self.display_widget.set_graph(self.graph)
+            if 'Dashboard' in self.graph:
+                self.display_widget.set_display_node('Dashboard')
         # SettingsWidget:
         if self.settings_widget.node:
             node_name = self.settings_widget.node['name']
