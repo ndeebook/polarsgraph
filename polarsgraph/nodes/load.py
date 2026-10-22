@@ -3,16 +3,15 @@ import os
 from PySide6 import QtWidgets
 import polars as pl
 
+from polarsgraph.attrs import StrAttr
 from polarsgraph.nodes import BLACK as DEFAULT_COLOR
 from polarsgraph.graph import LOAD_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 
-class ATTR:
-    NAME = 'name'
-    PATH = 'path'
-    CSV_SEPARATOR = 'csv_separator'
-    PREFIX = 'columns_prefix'
+PATH = 'path'
+CSV_SEPARATOR = 'csv_separator'
+PREFIX = 'columns_prefix'
 
 
 OPEN_FUNCTIONS = {
@@ -31,13 +30,14 @@ class LoadNode(BaseNode):
     inputs = None
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        settings[ATTR.CSV_SEPARATOR] = settings.get(ATTR.CSV_SEPARATOR) or ','
-        super().__init__(settings)
+    attrs = [
+        StrAttr(PATH, label='Path'),
+        StrAttr(CSV_SEPARATOR, default=',', label='CSV Separator'),
+        StrAttr(PREFIX, label='Columns prefix'),
+    ]
 
     def _build_query(self, _):
-        path = self[ATTR.PATH]
+        path = self[PATH]
         if not path:
             raise ValueError('Please specify a file path to open')
         path = os.path.expanduser(os.path.expandvars(path))
@@ -46,11 +46,11 @@ class LoadNode(BaseNode):
         open_func = OPEN_FUNCTIONS[extension]
         kwargs = dict()
         if extension == 'csv':
-            kwargs['separator'] = self[ATTR.CSV_SEPARATOR]
+            kwargs['separator'] = self[CSV_SEPARATOR]
 
         table: pl.DataFrame = open_func(path, **kwargs)
 
-        prefix = self[ATTR.PREFIX]
+        prefix = self[PREFIX]
         if prefix:
             table = table.rename({c: f'{prefix}{c}' for c in table.columns})
 
@@ -61,46 +61,30 @@ class LoadSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 
-        # Widgets
-        self.path_edit = QtWidgets.QLineEdit()
-        self.path_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(self.path_edit, ATTR.PATH))
+        path_attr, separator_attr, prefix_attr = LoadNode.attrs
+
+        form = QtWidgets.QFormLayout()
+        form.addRow('Name', self.name_edit)
+        for attr in (path_attr, separator_attr, prefix_attr):
+            label, widget = self.register_attr(attr)
+            form.addRow(label, widget)
 
         self.browse_button = QtWidgets.QPushButton('Browse')
         self.browse_button.clicked.connect(self._browse)
-
-        self.csv_separator_edit = QtWidgets.QLineEdit()
-        self.csv_separator_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(
-                self.csv_separator_edit, ATTR.CSV_SEPARATOR))
-
-        self.prefix_edit = QtWidgets.QLineEdit()
-        self.prefix_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(
-                self.prefix_edit, ATTR.PREFIX))
-
         self.reload_button = QtWidgets.QPushButton('Reload file')
         self.reload_button.clicked.connect(self.emit_changed)
 
-        # Layout
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow(ATTR.PATH.title(), self.path_edit)
-        form_layout.addRow(' ', self.browse_button)
-        form_layout.addRow('CSV Separator', self.csv_separator_edit)
-        form_layout.addRow('Columns prefix', self.prefix_edit)
-        form_layout.addRow(' ', self.reload_button)
+        # Insert the browse button right after the Path row.
+        form.insertRow(2, ' ', self.browse_button)
+        form.addRow(' ', self.reload_button)
 
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(form)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
-        self.name_edit.setText(node[ATTR.NAME])
-        self.path_edit.setText(node[ATTR.PATH])
-        self.csv_separator_edit.setText(node[ATTR.CSV_SEPARATOR] or ',')
-        self.prefix_edit.setText(node[ATTR.PREFIX] or '')
+        self.load_attrs(node, input_tables)
         self.blockSignals(False)
 
     def _browse(self):
@@ -108,5 +92,6 @@ class LoadSettingsWidget(BaseSettingsWidget):
             self, 'Open spreadsheet', '', MASK)
         if not filepath:
             return
-        self.path_edit.setText(filepath)
-        self.line_edit_to_settings(self.path_edit, ATTR.PATH)
+        path_attr = LoadNode.attrs[0]
+        path_attr.widget.setText(filepath)
+        self.line_edit_to_settings(path_attr.widget, PATH)

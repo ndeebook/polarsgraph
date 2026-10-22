@@ -5,6 +5,9 @@ from PySide6 import QtCore, QtWidgets, QtGui
 
 
 from polarsgraph.graph import BaseNode
+# Re-export for backwards compat — these moved to polarsgraph.qtutils.
+from polarsgraph.qtutils import (  # noqa: F401
+    set_combo_values, set_combo_values_from_table_columns)
 
 
 TRUE_WORDS = '1', 'true', 'yes'
@@ -38,9 +41,38 @@ class BaseSettingsWidget(QtWidgets.QWidget):
         self.name_edit.setValidator(validator)
         self.name_edit.editingFinished.connect(self.rename)
         self.needs_built_query = True
+        self._attrs: list = []
 
     def set_node(self, node, input_tables):
         raise NotImplementedError
+
+    def build_attr_form(self, attrs, form_layout=None):
+        """
+        Add a Name row + one row per declarative attr, wire signals.
+        Returns the form layout so the caller can place it.
+        """
+        if form_layout is None:
+            form_layout = QtWidgets.QFormLayout()
+        form_layout.addRow('Name', self.name_edit)
+        for attr in attrs:
+            label, widget = self.register_attr(attr)
+            form_layout.addRow(label, widget)
+        return form_layout
+
+    def register_attr(self, attr):
+        """
+        Build an attr's widget, register it for load_attrs, return
+        (label, widget) so the caller can place the widget manually.
+        """
+        label, widget = attr.build(self)
+        self._attrs.append(attr)
+        return label, widget
+
+    def load_attrs(self, node, input_tables):
+        """Populate name_edit + every registered attr widget from `node`."""
+        self.name_edit.setText(node['name'])
+        for attr in self._attrs:
+            attr.load(self, node, input_tables)
 
     def rename(self):
         self.rename_asked.emit(self.node['name'], self.name_edit.text())
@@ -110,35 +142,6 @@ class BaseDisplay(QtWidgets.QWidget):
     def showEvent(self, event):
         self.shown.emit()
         return super().showEvent(event)
-
-
-def set_combo_values(
-        combo: QtWidgets.QComboBox,
-        values: list[str],
-        current_text: str):
-    combo.clear()
-    if current_text not in values:
-        values = [current_text, *values]
-    combo.addItems(values)
-    combo.setCurrentText(current_text)
-
-
-def set_combo_values_from_table_columns(
-        combo: QtWidgets.QComboBox,
-        df: pl.LazyFrame,
-        current_text: str,
-        extra_values=None,
-        sort=True):
-    try:
-        values = df.collect_schema().names()
-    except AttributeError:
-        values = []
-    for extra_value in extra_values or []:
-        if extra_value not in values:
-            values.insert(0, extra_value)
-    if sort:
-        values.sort()
-    set_combo_values(combo, values, current_text)
 
 
 def to_boolean(value):

@@ -3,14 +3,13 @@ import os
 import polars as pl
 from PySide6 import QtWidgets, QtGui
 
+from polarsgraph.attrs import TextAttr
 from polarsgraph.nodes import PURPLE as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 
-class ATTR:
-    NAME = 'name'
-    QUERY = 'query'
+QUERY = 'query'
 
 
 class SQLNode(BaseNode):
@@ -19,9 +18,10 @@ class SQLNode(BaseNode):
     input_plugs = 'table1', 'table2', 'table3'
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
+    attrs = [TextAttr(QUERY, label='SQL Query')]
 
     def _build_query(self, tables):
-        query = self[ATTR.QUERY]
+        query = self[QUERY]
         if not query:
             raise ValueError('Please provide a SQL query')
 
@@ -50,29 +50,27 @@ class SqlSettingsWidget(BaseSettingsWidget):
         editor_font = QtGui.QFont(fixed_font)
         editor_font.setPointSizeF(editor_font.pointSizeF() * 1.2)
 
-        self.query_edit = QtWidgets.QPlainTextEdit()
-        self.query_edit.textChanged.connect(
-            lambda: self.line_edit_to_settings(self.query_edit, ATTR.QUERY))
-        self.query_edit.setStyleSheet(
+        (query_attr,) = SQLNode.attrs
+        _, query_widget = self.register_attr(query_attr)
+        query_widget.setStyleSheet(
             'QPlainTextEdit{background-color:#333333;color:#9cdcfe}')
-        self.query_edit.setFont(editor_font)
+        query_widget.setFont(editor_font)
+
+        form = QtWidgets.QFormLayout()
+        form.addRow('Name', self.name_edit)
 
         hint = QtWidgets.QLabel(
             'Input tables are available as: table1, table2, table3')
         hint.setWordWrap(True)
 
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(form)
         layout.addWidget(QtWidgets.QLabel('SQL Query'))
-        layout.addWidget(self.query_edit)
+        layout.addWidget(query_widget)
         layout.addWidget(hint)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
-        self.name_edit.setText(node[ATTR.NAME])
-        self.query_edit.setPlainText(node[ATTR.QUERY] or '')
+        self.load_attrs(node, input_tables)
         self.blockSignals(False)

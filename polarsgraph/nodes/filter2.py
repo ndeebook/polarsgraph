@@ -1,17 +1,16 @@
 import polars as pl
 from PySide6 import QtWidgets
 
+from polarsgraph.attrs import BoolAttr
 from polarsgraph.nodes import BLUE as DEFAULT_COLOR, OPERATOR_MAGIC_METHODS
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import (
-    BaseNode, BaseSettingsWidget, convert_value, convert_values,
-    set_combo_values_from_table_columns)
+    BaseNode, BaseSettingsWidget, convert_value, convert_values)
+from polarsgraph.qtutils import set_combo_values_from_table_columns
 
 
-class ATTR:
-    NAME = 'name'
-    CONDITIONS = 'conditions'
-    INVERT = 'invert'
+CONDITIONS = 'conditions'
+INVERT = 'invert'
 
 
 CONDITIONS_LABELS = {
@@ -35,16 +34,14 @@ class Filter2Node(BaseNode):
     input_plugs = 'table',
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        super().__init__(settings)
+    attrs = [BoolAttr(INVERT, label='Invert')]
 
     def _build_query(self, tables):
         df: pl.LazyFrame = tables[0]
-        if not self[ATTR.CONDITIONS]:
+        if not self[CONDITIONS]:
             return df
-        filters = get_filters(df, self[ATTR.CONDITIONS])
-        if self[ATTR.INVERT]:
+        filters = get_filters(df, self[CONDITIONS])
+        if self[INVERT]:
             filters = ~filters.fill_null(False)
         self.tables['table'] = df.filter(filters)
 
@@ -106,7 +103,7 @@ class Filter2SettingsWidget(BaseSettingsWidget):
 
         self.input_table: pl.LazyFrame = None
 
-        # Widgets
+        # Conditions table (fully custom — not declarative)
         self.conditions_table = QtWidgets.QTableWidget()
         self.conditions_table.setColumnCount(5)
         self.conditions_table.setHorizontalHeaderLabels(
@@ -129,18 +126,8 @@ class Filter2SettingsWidget(BaseSettingsWidget):
         self.add_button = QtWidgets.QPushButton('+ Add condition')
         self.add_button.clicked.connect(self._add_condition)
 
-        self.invert_checkbox = QtWidgets.QCheckBox()
-        self.invert_checkbox.stateChanged.connect(
-            lambda: self.checkbox_to_settings(
-                self.invert_checkbox, ATTR.INVERT))
-
-        # Layout
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow(ATTR.INVERT.title(), self.invert_checkbox)
-
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(self.build_attr_form(Filter2Node.attrs))
         layout.addWidget(self.add_button)
         layout.addWidget(self.conditions_table)
 
@@ -148,10 +135,8 @@ class Filter2SettingsWidget(BaseSettingsWidget):
         self.blockSignals(True)
         self.node = node
         self.input_table = input_tables[0]
-
-        self.name_edit.setText(node[ATTR.NAME])
-        self._populate(node[ATTR.CONDITIONS] or [])
-
+        self.load_attrs(node, input_tables)
+        self._populate(node[CONDITIONS] or [])
         self.blockSignals(False)
 
     def _populate(self, conditions):
@@ -226,7 +211,7 @@ class Filter2SettingsWidget(BaseSettingsWidget):
                 self.conditions_table.removeRow(row_idx)
                 self._emit_changes()
                 # Repopulate so the new first row has its logic cell cleared
-                self._populate(self.node[ATTR.CONDITIONS] or [])
+                self._populate(self.node[CONDITIONS] or [])
                 return
 
     def _emit_changes(self):
@@ -241,5 +226,5 @@ class Filter2SettingsWidget(BaseSettingsWidget):
                 conditions.append(
                     self.conditions_table.cellWidget(row_idx, 0).currentText())
             conditions.append([column, condition, value])
-        self.node[ATTR.CONDITIONS] = conditions
+        self.node[CONDITIONS] = conditions
         self.emit_changed()

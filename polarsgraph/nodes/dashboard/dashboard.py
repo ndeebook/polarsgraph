@@ -1,5 +1,6 @@
 from PySide6 import QtWidgets, QtCore
 
+from polarsgraph.attrs import ChoiceAttr, IntAttr
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import (
     DASHBOARD_CATEGORY, DYNAMIC_PLUG_COUNT, get_logical_input_nodes,
@@ -13,14 +14,13 @@ from polarsgraph.nodes.dashboard.layoutwidget import DashboardLayoutWidget
 TABLE_HANDLE_CSS = 'QScrollBar::handle:vertical {min-height: 30px;}'
 
 
-class ATTR:
-    NAME = 'name'
-    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
-    GRID_WIDTH = 'grid_width'
-    GRID_HEIGHT = 'grid_height'
-    SPACING = 'spacing'
-    MARGINS = 'margins'
-    WIDGETS_RECTANGLES = 'widgets_rectangles'
+GRID_WIDTH = 'grid_width'
+GRID_HEIGHT = 'grid_height'
+SPACING = 'spacing'
+MARGINS = 'margins'
+WIDGETS_RECTANGLES = 'widgets_rectangles'
+
+DISPLAY_INDEX_OPTIONS = ['auto'] + [str(i) for i in range(1, 10)]
 
 
 class DashboardNode(BaseNode):
@@ -30,6 +30,15 @@ class DashboardNode(BaseNode):
     inputs_prefix = 'widget'
     output_plugs = ()
     default_color = DEFAULT_COLOR
+    attrs = [
+        ChoiceAttr(DISPLAY_INDEX_ATTR, DISPLAY_INDEX_OPTIONS,
+                   label='Display index'),
+        IntAttr(SPACING, default=2, label='Spacing'),
+        IntAttr(MARGINS, default=2, label='Margins'),
+        # Not shown in the form — set by the DashboardLayoutWidget.
+        IntAttr(GRID_WIDTH, default=16),
+        IntAttr(GRID_HEIGHT, default=16),
+    ]
 
     def __init__(self, settings=None):
         super().__init__(settings)
@@ -48,11 +57,11 @@ class DashboardNode(BaseNode):
         layout = self.display_widget.grid
 
         # Spacing & margins
-        layout.setSpacing(self[ATTR.SPACING] or 0)
-        m = self[ATTR.MARGINS] or 0
+        layout.setSpacing(self[SPACING] or 0)
+        m = self[MARGINS] or 0
         layout.setContentsMargins(m, m, m, m)
-        layout.grid_width = self[ATTR.GRID_WIDTH] or 1
-        layout.grid_height = self[ATTR.GRID_HEIGHT] or 1
+        layout.grid_width = self[GRID_WIDTH] or 1
+        layout.grid_height = self[GRID_HEIGHT] or 1
 
         # Widgets
         layout.clear()
@@ -63,7 +72,7 @@ class DashboardNode(BaseNode):
             display_widget.set_board_mode(True)
             if not build_node_query(graph, node['name']):
                 node.clear()
-        layout.rects = self[ATTR.WIDGETS_RECTANGLES]
+        layout.rects = self[WIDGETS_RECTANGLES]
 
     @property
     def widgets(self):
@@ -76,43 +85,30 @@ class DashboardNode(BaseNode):
         return self._display_widget
 
 
+_FORM_ATTRS = DashboardNode.attrs[:3]
+
+
 class DashboardSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
 
-        # Widgets
-        self.index_combo = QtWidgets.QComboBox()
-        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
-        self.index_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.index_combo, ATTR.DISPLAY_INDEX))
-
-        self.spacing_edit = QtWidgets.QSpinBox()
-        self.spacing_edit.valueChanged.connect(
-            lambda: self.spinbox_to_settings(self.spacing_edit, ATTR.SPACING))
-        self.margins_edit = QtWidgets.QSpinBox()
-        self.margins_edit.valueChanged.connect(
-            lambda: self.spinbox_to_settings(self.margins_edit, ATTR.MARGINS))
         self.dashboard_layout_widget = DashboardLayoutWidget()
         self.dashboard_layout_widget.layout_changed.connect(
             self.update_dashboard_layout)
 
-        # Layout
         form_layout = QtWidgets.QFormLayout()
         form_layout.setContentsMargins(0, 0, 0, 0)
         form_layout.setSpacing(0)
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Display index', self.index_combo)
-        form_layout.addRow(ATTR.SPACING.title(), self.spacing_edit)
-        form_layout.addRow(ATTR.MARGINS.title(), self.margins_edit)
+        self.build_attr_form(_FORM_ATTRS, form_layout=form_layout)
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
         layout.addWidget(self.dashboard_layout_widget)
 
     def update_dashboard_layout(self, data):
-        self.node[ATTR.GRID_WIDTH] = data['grid_width']
-        self.node[ATTR.GRID_HEIGHT] = data['grid_height']
-        self.node[ATTR.WIDGETS_RECTANGLES] = [
+        self.node[GRID_WIDTH] = data['grid_width']
+        self.node[GRID_HEIGHT] = data['grid_height']
+        self.node[WIDGETS_RECTANGLES] = [
             qrect_to_rect(r) for r in data['widgets_rectangles'].values()]
         self.emit_changed()
 
@@ -121,20 +117,14 @@ class DashboardSettingsWidget(BaseSettingsWidget):
         self.dashboard_layout_widget.blockSignals(True)
 
         self.node = node
-
-        self.name_edit.setText(node[ATTR.NAME])
-        index = node[ATTR.DISPLAY_INDEX]
-        if index:
-            self.index_combo.setCurrentText(index)
-        self.margins_edit.setValue(node[ATTR.MARGINS] or 2)
-        self.spacing_edit.setValue(node[ATTR.SPACING] or 2)
+        self.load_attrs(node, input_tables)
 
         self.dashboard_layout_widget.grid_width_spinbox.setValue(
-            int(node[ATTR.GRID_WIDTH] or 16))
+            int(node[GRID_WIDTH] or 16))
         self.dashboard_layout_widget.grid_height_spinbox.setValue(
-            int(node[ATTR.GRID_HEIGHT] or 16))
+            int(node[GRID_HEIGHT] or 16))
         self.dashboard_layout_widget.clear()
-        for rect in node[ATTR.WIDGETS_RECTANGLES] or []:
+        for rect in node[WIDGETS_RECTANGLES] or []:
             self.dashboard_layout_widget.add_rectangle(rect)
 
         self.blockSignals(False)

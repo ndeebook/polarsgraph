@@ -6,9 +6,7 @@ from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 
-class ATTR:
-    NAME = 'name'
-    COLUMNS_ORDER = 'columns_order'
+COLUMNS_ORDER = 'columns_order'
 
 
 class ReorderNode(BaseNode):
@@ -18,13 +16,10 @@ class ReorderNode(BaseNode):
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
 
-    def __init__(self, settings=None):
-        super().__init__(settings)
-
     def _build_query(self, tables):
         df: pl.LazyFrame = tables[0]
 
-        column_order = self[ATTR.COLUMNS_ORDER]
+        column_order = self[COLUMNS_ORDER]
         if column_order:
             existing_columns = df.collect_schema().names()
             column_order = [c for c in column_order if c in existing_columns]
@@ -46,12 +41,8 @@ class ReorderSettingsWidget(BaseSettingsWidget):
         self.column_order_widget.order_changed.connect(
             self.handle_columns_change)
 
-        # Layout
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(self.build_attr_form(ReorderNode.attrs))
         layout.addWidget(reset_button)
         layout.addWidget(self.column_order_widget)
 
@@ -59,18 +50,15 @@ class ReorderSettingsWidget(BaseSettingsWidget):
         self.blockSignals(True)
         self.node = node
         self.input_table: pl.LazyFrame = input_tables[0]
-
-        self.name_edit.setText(node[ATTR.NAME])
-
+        self.load_attrs(node, input_tables)
         self.populate_lists()
-
         self.blockSignals(False)
 
     def populate_lists(self, reset=False):
         if self.input_table is None:
             return self.column_order_widget.clear()
 
-        columns = self.node[ATTR.COLUMNS_ORDER]
+        columns = self.node[COLUMNS_ORDER]
         if self.input_table is None:
             all_columns = []
         else:
@@ -83,11 +71,11 @@ class ReorderSettingsWidget(BaseSettingsWidget):
         missing_columns = [c for c in all_columns if c not in columns]
         self.column_order_widget.set_deleted_items(missing_columns)
         if reset:
-            self.node[ATTR.COLUMNS_ORDER] = all_columns
+            self.node[COLUMNS_ORDER] = all_columns
             self.emit_changed()
 
     def handle_columns_change(self, items):
-        self.node[ATTR.COLUMNS_ORDER] = items
+        self.node[COLUMNS_ORDER] = items
         self.emit_changed()
 
 

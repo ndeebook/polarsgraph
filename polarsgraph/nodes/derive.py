@@ -9,9 +9,14 @@ import polars as pl
 
 from PySide6 import QtWidgets, QtGui, QtCore
 
+from polarsgraph.attrs import StrAttr, TextAttr
 from polarsgraph.nodes import ORANGE as DEFAULT_COLOR, OPERATOR_MAGIC_METHODS
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
+
+
+COLUMN = 'column'
+FORMULA = 'formula'
 
 
 ARGLESS_COLUMNS_METHODS = (
@@ -75,26 +80,21 @@ re_tokens = re_bool, re_column, re_number, re_function, re_string, re_operator
 token_pattern = re.compile(r'\s*' + '|'.join(re_tokens) + r'\s*')
 
 
-class ATTR:
-    NAME = 'name'
-    COLUMN = 'column'
-    FORMULA = 'formula'
-
-
 class DeriveNode(BaseNode):
     type = 'derive'
     category = MANIPULATE_CATEGORY
     input_plugs = 'table',
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        super().__init__(settings)
+    attrs = [
+        StrAttr(COLUMN, default='Derived column', label='Column name'),
+        TextAttr(FORMULA, label='Formula'),
+    ]
 
     def _build_query(self, tables):
         table: pl.LazyFrame = tables[0]
-        formula = remove_comments(self[ATTR.FORMULA])
-        column_name = self[ATTR.COLUMN] or 'Derived column'
+        formula = remove_comments(self[FORMULA])
+        column_name = self[COLUMN] or 'Derived column'
         expression = formula_to_polars_expression(formula)
         table = table.with_columns(expression.alias(column_name))
         self.tables['table'] = table
@@ -190,8 +190,10 @@ class ColumnCompleter(QtWidgets.QListWidget):
 
 
 class DeriveSettingsWidget(BaseSettingsWidget):
-    def __init__(self, help_text=EXAMPLES_TEXT):
+    def __init__(self, attrs=None, help_text=EXAMPLES_TEXT):
         super().__init__()
+        if attrs is None:
+            attrs = DeriveNode.attrs
 
         # Fixed size font
         if os.name == 'nt':
@@ -203,15 +205,20 @@ class DeriveSettingsWidget(BaseSettingsWidget):
         editor_font = QtGui.QFont(fixed_font)
         editor_font.setPointSizeF(editor_font.pointSizeF() * 1.2)
 
-        # Widgets
-        self.column_edit = QtWidgets.QLineEdit()
-        self.column_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(self.column_edit, ATTR.COLUMN))
+        # Form: Name + any non-formula declarative attrs.
+        form = QtWidgets.QFormLayout()
+        form.addRow('Name', self.name_edit)
+        formula_attr = None
+        for attr in attrs:
+            if attr.key == FORMULA:
+                formula_attr = attr
+                continue
+            label, widget = self.register_attr(attr)
+            form.addRow(label, widget)
+        self.form_layout = form
 
-        self.formula_edit = QtWidgets.QPlainTextEdit()
-        self.formula_edit.textChanged.connect(
-            lambda: self.line_edit_to_settings(
-                self.formula_edit, ATTR.FORMULA))
+        # Formula editor: declarative TextAttr with styling applied here.
+        _, self.formula_edit = self.register_attr(formula_attr)
         self.formula_edit.setStyleSheet(
             'QPlainTextEdit{background-color:#333333;color:#9cdcfe}')
         self.formula_edit.setFont(editor_font)
@@ -221,12 +228,8 @@ class DeriveSettingsWidget(BaseSettingsWidget):
         help_label = QtWidgets.QLabel(help_text, font=fixed_font)
         help_label.setWordWrap(True)
 
-        # Layout
-        self.form_layout = QtWidgets.QFormLayout()
-        self.form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        self.form_layout.addRow('Column name', self.column_edit)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(self.form_layout)
+        layout.addLayout(form)
         layout.addWidget(QtWidgets.QLabel('Formula'))
         layout.addWidget(self.formula_edit)
         layout.addWidget(QtWidgets.QLabel('Examples:'))
@@ -235,18 +238,13 @@ class DeriveSettingsWidget(BaseSettingsWidget):
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
-        self.name_edit.setText(node[ATTR.NAME])
-        self._set_column_from_node(node)
+        self.load_attrs(node, input_tables)
         if input_tables and input_tables[0] is not None:
             self.completer.set_columns(
                 input_tables[0].collect_schema().names())
         else:
             self.completer.set_columns([])
-        self.formula_edit.setPlainText(node[ATTR.FORMULA] or '')
         self.blockSignals(False)
-
-    def _set_column_from_node(self, node):
-        self.column_edit.setText(node[ATTR.COLUMN] or 'Derived column')
 
 
 class CustomHighlighter(QtGui.QSyntaxHighlighter):

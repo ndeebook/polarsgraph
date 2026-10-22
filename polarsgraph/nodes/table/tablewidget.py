@@ -5,7 +5,7 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
 from polarsgraph.log import logger
-from polarsgraph.nodes.base import DISPLAY_INDEX_ATTR, BaseNode, BaseDisplay
+from polarsgraph.nodes.base import BaseNode, BaseDisplay
 from polarsgraph.nodes.table.tableau import TableauWithScroll
 
 
@@ -16,17 +16,14 @@ WHITE = QtGui.QColor('white')
 BGCOLOR_COLUMN_SUFFIX = '~color'
 
 
-class ATTR:
-    NAME = 'name'
-    TITLE = 'title'
-    COLUMNS_WIDTHS = 'columns_widths'
-    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
-    FROZEN_COLUMNS = 'frozen_columns'
-    FROZEN_ROWS = 'frozen_rows'
-    ROWS_NUMBER_OFFSET = 'rows_number_offset'
-    SHOW_ROW_NUMBERS = 'show_row_numbers'
-    ROUND_FLOATS_DIGITS = 'round_floats'
-    AUTO_RESIZE_MAX_ROWS = 'auto_resize_max_rows'
+TITLE = 'title'
+COLUMNS_WIDTHS = 'columns_widths'
+FROZEN_COLUMNS = 'frozen_columns'
+FROZEN_ROWS = 'frozen_rows'
+ROWS_NUMBER_OFFSET = 'rows_number_offset'
+SHOW_ROW_NUMBERS = 'show_row_numbers'
+ROUND_FLOATS_DIGITS = 'round_floats'
+AUTO_RESIZE_MAX_ROWS = 'auto_resize_max_rows'
 
 
 class TableDisplay(BaseDisplay):
@@ -85,7 +82,7 @@ class TableDisplay(BaseDisplay):
         columns_count = len(table.columns)
 
         # Round
-        round_digits = self.node[ATTR.ROUND_FLOATS_DIGITS]
+        round_digits = self.node[ROUND_FLOATS_DIGITS]
         if round_digits:
             float_cols = [
                 name for name, dtype in table.schema.items()
@@ -99,17 +96,17 @@ class TableDisplay(BaseDisplay):
 
         # New widget
         self.tableau.set_table(table)
-        max_rows = self.node[ATTR.AUTO_RESIZE_MAX_ROWS]
+        max_rows = self.node[AUTO_RESIZE_MAX_ROWS]
         if max_rows and table.height < max_rows:
             QtCore.QTimer.singleShot(
                 0, self.tableau.resize_columns_to_contents)
-        self.tableau.set_column_sizes(self.node[ATTR.COLUMNS_WIDTHS] or {})
-        self.tableau.set_frozen_columns(self.node[ATTR.FROZEN_COLUMNS])
-        self.tableau.set_frozen_rows(self.node[ATTR.FROZEN_ROWS])
-        self.tableau.set_rows_number_offset(self.node[ATTR.ROWS_NUMBER_OFFSET])
-        self.tableau.set_title(self.node[ATTR.TITLE])
+        self.tableau.set_column_sizes(self.node[COLUMNS_WIDTHS] or {})
+        self.tableau.set_frozen_columns(self.node[FROZEN_COLUMNS])
+        self.tableau.set_frozen_rows(self.node[FROZEN_ROWS])
+        self.tableau.set_rows_number_offset(self.node[ROWS_NUMBER_OFFSET])
+        self.tableau.set_title(self.node[TITLE])
         self.tableau.set_show_row_numbers(
-            self.node[ATTR.SHOW_ROW_NUMBERS] is not False)
+            self.node[SHOW_ROW_NUMBERS] is not False)
 
     def set_board_mode(self, board_enabled: bool):
         self.bottom_widget.setVisible(not board_enabled)
@@ -163,10 +160,10 @@ class TableDisplay(BaseDisplay):
         QtWidgets.QApplication.clipboard().setText(text)
 
     def record_column_width(self, column, oldWidth, newWidth):
-        if not self.node[ATTR.COLUMNS_WIDTHS]:
-            self.node[ATTR.COLUMNS_WIDTHS] = {}
+        if not self.node[COLUMNS_WIDTHS]:
+            self.node[COLUMNS_WIDTHS] = {}
         column_name = self.columns[column]
-        self.node[ATTR.COLUMNS_WIDTHS][column_name] = newWidth
+        self.node[COLUMNS_WIDTHS][column_name] = newWidth
 
     def emit_sort_request(self, column_name):
         self.action_requested.emit(

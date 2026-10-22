@@ -5,19 +5,12 @@ from polarsgraph.nodes import GRAY as DEFAULT_COLOR
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 
-class ATTR:
-    NAME = 'name'
-
-
 class DotNode(BaseNode):
     type = 'dot'
     category = MANIPULATE_CATEGORY
     input_plugs = 'table',
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        super().__init__(settings)
 
     def _build_query(self, tables):
         self.tables['table'] = tables[0]
@@ -26,14 +19,11 @@ class DotNode(BaseNode):
 class DotSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
-
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(self.build_attr_form(DotNode.attrs))
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
-        self.name_edit.setText(node[ATTR.NAME])
+        self.load_attrs(node, input_tables)
         self.blockSignals(False)

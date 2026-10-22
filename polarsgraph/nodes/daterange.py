@@ -4,21 +4,19 @@ import polars as pl
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
 
+from polarsgraph.attrs import ColumnChoiceAttr, StrAttr
 from polarsgraph.nodes import PINK as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
-from polarsgraph.nodes.base import (
-    BaseNode, BaseSettingsWidget, set_combo_values_from_table_columns)
+from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 from polarsgraph.nodes.groupby import (
     DATATYPE_DEFAULT_AGG, DELETE_LABEL, NULL_LABEL, CUSTOM_VALUE_LABEL)
 
 
-class ATTR:
-    NAME = 'name'
-    DATE_COLUMN = 'date_column'
-    KEY_COLUMN = 'key_column'
-    VALUE_COLUMN = 'value_column'
-    COLUMNS_AGGREGATIONS = 'columns_aggregations'
-    CUSTOM_VALUE = 'custom_value'
+DATE_COLUMN = 'date_column'
+KEY_COLUMN = 'key_column'
+VALUE_COLUMN = 'value_column'
+COLUMNS_AGGREGATIONS = 'columns_aggregations'
+CUSTOM_VALUE = 'custom_value'
 
 
 class DateRangeNode(BaseNode):
@@ -27,18 +25,22 @@ class DateRangeNode(BaseNode):
     input_plugs = 'table',
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        super().__init__(settings)
+    attrs = [
+        ColumnChoiceAttr(DATE_COLUMN, label='Date column', extra_values=['']),
+        ColumnChoiceAttr(KEY_COLUMN, label='Key column', extra_values=['']),
+        ColumnChoiceAttr(
+            VALUE_COLUMN, label='Value column', extra_values=['']),
+        StrAttr(CUSTOM_VALUE, label='Custom value'),
+    ]
 
     def _build_query(self, tables):
         df: pl.LazyFrame = tables[0]
         schema = df.collect_schema()
 
-        date_col = self[ATTR.DATE_COLUMN]
-        key_col = self[ATTR.KEY_COLUMN]
-        value_col = self[ATTR.VALUE_COLUMN]
-        custom_value = self[ATTR.CUSTOM_VALUE] or ''
+        date_col = self[DATE_COLUMN]
+        key_col = self[KEY_COLUMN]
+        value_col = self[VALUE_COLUMN]
+        custom_value = self[CUSTOM_VALUE] or ''
 
         if not date_col or not value_col:
             self.tables['table'] = df
@@ -52,7 +54,7 @@ class DateRangeNode(BaseNode):
             self.tables['table'] = df
             return
 
-        column_aggregations = self[ATTR.COLUMNS_AGGREGATIONS] or {}
+        column_aggregations = self[COLUMNS_AGGREGATIONS] or {}
         agg_exprs = []
         for col_name in schema.names():
             if col_name in (date_col, key_col):
@@ -124,21 +126,6 @@ class DateRangeSettingsWidget(BaseSettingsWidget):
 
         self.input_table = None
 
-        self.date_column_combo = QtWidgets.QComboBox()
-        self.date_column_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.date_column_combo, ATTR.DATE_COLUMN))
-
-        self.key_column_combo = QtWidgets.QComboBox()
-        self.key_column_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.key_column_combo, ATTR.KEY_COLUMN))
-
-        self.value_column_combo = QtWidgets.QComboBox()
-        self.value_column_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.value_column_combo, ATTR.VALUE_COLUMN))
-
         self.column_agg_table = QtWidgets.QTableWidget()
         self.column_agg_table.setColumnCount(2)
         self.column_agg_table.horizontalHeader().setSectionResizeMode(
@@ -149,23 +136,11 @@ class DateRangeSettingsWidget(BaseSettingsWidget):
         self.column_agg_table.setHorizontalHeaderLabels(
             ['Column', 'Aggregation'])
 
-        self.customvalue_edit = QtWidgets.QLineEdit()
-        self.customvalue_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(
-                self.customvalue_edit, ATTR.CUSTOM_VALUE))
-
         refresh_button = QtWidgets.QPushButton('Refresh list')
         refresh_button.clicked.connect(self.populate_aggregation_table)
 
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Date column', self.date_column_combo)
-        form_layout.addRow('Key column', self.key_column_combo)
-        form_layout.addRow('Value column', self.value_column_combo)
-        form_layout.addRow('Custom value', self.customvalue_edit)
-
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(self.build_attr_form(DateRangeNode.attrs))
         layout.addWidget(refresh_button)
         layout.addWidget(self.column_agg_table, stretch=1)
 
@@ -173,26 +148,7 @@ class DateRangeSettingsWidget(BaseSettingsWidget):
         self.blockSignals(True)
         self.node = node
         self.input_table: pl.LazyFrame = input_tables[0]
-
-        self.name_edit.setText(node[ATTR.NAME])
-
-        date_col = node[ATTR.DATE_COLUMN] or ''
-        set_combo_values_from_table_columns(
-            self.date_column_combo, self.input_table, date_col,
-            extra_values=[''])
-
-        key_col = node[ATTR.KEY_COLUMN] or ''
-        set_combo_values_from_table_columns(
-            self.key_column_combo, self.input_table, key_col,
-            extra_values=[''])
-
-        value_col = node[ATTR.VALUE_COLUMN] or ''
-        set_combo_values_from_table_columns(
-            self.value_column_combo, self.input_table, value_col,
-            extra_values=[''])
-
-        self.customvalue_edit.setText(node[ATTR.CUSTOM_VALUE] or '')
-
+        self.load_attrs(node, input_tables)
         self.populate_aggregation_table()
         self.blockSignals(False)
 
@@ -202,8 +158,8 @@ class DateRangeSettingsWidget(BaseSettingsWidget):
         else:
             columns = self.input_table.collect_schema()
 
-        date_col = self.node[ATTR.DATE_COLUMN]
-        key_col = self.node[ATTR.KEY_COLUMN]
+        date_col = self.node[DATE_COLUMN]
+        key_col = self.node[KEY_COLUMN]
         agg_columns = {
             c: dt for c, dt in columns.items()
             if c not in (date_col, key_col)}
@@ -211,7 +167,7 @@ class DateRangeSettingsWidget(BaseSettingsWidget):
         self.column_agg_table.blockSignals(True)
         self.column_agg_table.setRowCount(len(agg_columns))
 
-        settings_aggs = self.node[ATTR.COLUMNS_AGGREGATIONS] or {}
+        settings_aggs = self.node[COLUMNS_AGGREGATIONS] or {}
         for i, (column, datatype) in enumerate(agg_columns.items()):
             column_item = QtWidgets.QTableWidgetItem(column)
             column_item.setFlags(Qt.ItemIsEnabled)
@@ -244,5 +200,5 @@ class DateRangeSettingsWidget(BaseSettingsWidget):
             combo = self.column_agg_table.cellWidget(row, 1)
             if combo:
                 columns_aggregations[column_name] = combo.currentText()
-        self.node[ATTR.COLUMNS_AGGREGATIONS] = columns_aggregations
+        self.node[COLUMNS_AGGREGATIONS] = columns_aggregations
         self.emit_changed()

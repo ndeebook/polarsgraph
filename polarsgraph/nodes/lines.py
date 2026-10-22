@@ -6,6 +6,7 @@ import polars as pl
 from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
+from polarsgraph.attrs import BoolAttr, ChoiceAttr, StrAttr
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes.base import (
@@ -32,13 +33,12 @@ LINE_COLORS = [
 ]
 
 
-class ATTR:
-    NAME = 'name'
-    TITLE = 'title'
-    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
-    INVERT_AXES = 'invert_axes'
-    Y_MAX = 'y_max'
-    LINEAR_DATES = 'linear_dates'
+TITLE = 'title'
+INVERT_AXES = 'invert_axes'
+Y_MAX = 'y_max'
+LINEAR_DATES = 'linear_dates'
+
+DISPLAY_INDEX_OPTIONS = ['auto'] + [str(i) for i in range(1, 10)]
 
 
 class LinesNode(BaseNode):
@@ -47,6 +47,14 @@ class LinesNode(BaseNode):
     input_plugs = 'table',
     output_plugs = 'widget',
     default_color = DEFAULT_COLOR
+    attrs = [
+        ChoiceAttr(DISPLAY_INDEX_ATTR, DISPLAY_INDEX_OPTIONS,
+                   label='Display index'),
+        StrAttr(TITLE, label='Title'),
+        BoolAttr(INVERT_AXES, label='Invert Axes'),
+        BoolAttr(LINEAR_DATES, label='Linear date axis'),
+        StrAttr(Y_MAX, label='Y max', placeholder='auto'),
+    ]
 
     def __init__(self, settings=None):
         super().__init__(settings)
@@ -71,51 +79,13 @@ class LinesNode(BaseNode):
 class LinesSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
-
-        self.index_combo = QtWidgets.QComboBox()
-        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
-        self.index_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.index_combo, ATTR.DISPLAY_INDEX))
-
-        self.title_edit = QtWidgets.QLineEdit()
-        self.title_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(self.title_edit, ATTR.TITLE))
-
-        self.invert_axes_cb = QtWidgets.QCheckBox('Invert Axes')
-        self.invert_axes_cb.checkStateChanged.connect(
-            lambda: self.checkbox_to_settings(
-                self.invert_axes_cb, ATTR.INVERT_AXES))
-
-        self.linear_dates_cb = QtWidgets.QCheckBox('Linear date axis')
-        self.linear_dates_cb.checkStateChanged.connect(
-            lambda: self.checkbox_to_settings(
-                self.linear_dates_cb, ATTR.LINEAR_DATES))
-
-        self.y_max_edit = QtWidgets.QLineEdit()
-        self.y_max_edit.setPlaceholderText('auto')
-        self.y_max_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(self.y_max_edit, ATTR.Y_MAX))
-
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Display index', self.index_combo)
-        form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
-        form_layout.addRow('', self.invert_axes_cb)
-        form_layout.addRow('', self.linear_dates_cb)
-        form_layout.addRow('Y max', self.y_max_edit)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(self.build_attr_form(LinesNode.attrs))
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
-        self.name_edit.setText(node[ATTR.NAME])
-        self.title_edit.setText(node[ATTR.TITLE] or '')
-        self.invert_axes_cb.setChecked(bool(node[ATTR.INVERT_AXES]))
-        self.linear_dates_cb.setChecked(bool(node[ATTR.LINEAR_DATES]))
-        self.y_max_edit.setText(
-            str(node[ATTR.Y_MAX]) if node[ATTR.Y_MAX] is not None else '')
+        self.load_attrs(node, input_tables)
         self.blockSignals(False)
 
 
@@ -190,7 +160,7 @@ class CustomLinesChart(QtWidgets.QWidget):
 
     def convert_dates(self):
         self.date_axis_values = None
-        linear = bool(self.node[ATTR.LINEAR_DATES]) if self.node else False
+        linear = bool(self.node[LINEAR_DATES]) if self.node else False
 
         date_cols = [
             c for c, dt in self.dataframe.schema.items()
@@ -247,7 +217,7 @@ class CustomLinesChart(QtWidgets.QWidget):
             raise ValueError(
                 'Dataframe must have an even number of columns (pairs of X,Y)')
 
-        invert_axes = bool(self.node[ATTR.INVERT_AXES])
+        invert_axes = bool(self.node[INVERT_AXES])
 
         # Figure out which screen axis gets date labels, if any
         orig_x_dtype = self.dataframe.dtypes[0]
@@ -310,7 +280,7 @@ class CustomLinesChart(QtWidgets.QWidget):
             agg[f'ymax_{i}'] for i in range(len(screen_y_cols)))
 
         # Resolve y range (0-anchored for non-date, override wins)
-        y_max_raw = self.node[ATTR.Y_MAX]
+        y_max_raw = self.node[Y_MAX]
         try:
             y_max_override = (
                 float(y_max_raw) if y_max_raw not in (None, '') else None)
@@ -387,7 +357,7 @@ class CustomLinesChart(QtWidgets.QWidget):
             return
 
         # Title
-        title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
+        title = self.node[TITLE] or self.node['name']
         painter.setPen(COLOR['text'])
         title_rect = QtCore.QRect(0, 0, rect.width(), 28)
         painter.drawText(title_rect, Qt.AlignCenter, title)

@@ -10,11 +10,18 @@ The `format` node does this but it can be implemented with new nodes
 import polars as pl
 from PySide6 import QtWidgets
 
+from polarsgraph.attrs import BoolAttr, ChoiceAttr, IntAttr, StrAttr
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
-from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
+from polarsgraph.nodes.base import (
+    DISPLAY_INDEX_ATTR, BaseNode, BaseSettingsWidget)
 
-from polarsgraph.nodes.table.tablewidget import ATTR, TableDisplay
+from polarsgraph.nodes.table.tablewidget import (
+    AUTO_RESIZE_MAX_ROWS, FROZEN_COLUMNS, FROZEN_ROWS, ROUND_FLOATS_DIGITS,
+    ROWS_NUMBER_OFFSET, SHOW_ROW_NUMBERS, TITLE, TableDisplay)
+
+
+DISPLAY_INDEX_OPTIONS = ['auto'] + [str(i) for i in range(1, 10)]
 
 
 class TableNode(BaseNode):
@@ -23,6 +30,21 @@ class TableNode(BaseNode):
     input_plugs = 'table',
     output_plugs = 'widget',
     default_color = DEFAULT_COLOR
+    attrs = [
+        StrAttr(TITLE, label='Title'),
+        ChoiceAttr(DISPLAY_INDEX_ATTR, DISPLAY_INDEX_OPTIONS,
+                   label='Display index'),
+        BoolAttr(SHOW_ROW_NUMBERS, default=True, label='Show row numbers'),
+        IntAttr(FROZEN_COLUMNS, default=0, label='Frozen columns', maximum=99),
+        IntAttr(FROZEN_ROWS, default=0, label='Frozen rows', maximum=99),
+        IntAttr(ROWS_NUMBER_OFFSET, default=0,
+                label='Rows number offset', maximum=99),
+        IntAttr(ROUND_FLOATS_DIGITS, default=0,
+                label='Round digits count (0 = off)', maximum=99),
+        IntAttr(AUTO_RESIZE_MAX_ROWS, default=0,
+                label='Auto-resize columns (max rows, 0 = off)',
+                maximum=9999),
+    ]
 
     def __init__(self, settings=None):
         super().__init__(settings)
@@ -54,82 +76,12 @@ class TableNode(BaseNode):
 class TableSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
-
-        self.title_edit = QtWidgets.QLineEdit()
-        self.title_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(
-                self.title_edit, ATTR.TITLE))
-
-        self.show_row_numbers_checkbox = QtWidgets.QCheckBox()
-        self.show_row_numbers_checkbox.stateChanged.connect(
-            lambda: self.checkbox_to_settings(
-                self.show_row_numbers_checkbox, ATTR.SHOW_ROW_NUMBERS))
-
-        self.index_combo = QtWidgets.QComboBox()
-        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
-        self.index_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.index_combo, ATTR.DISPLAY_INDEX))
-
-        self.frozen_columns_spinbox = QtWidgets.QSpinBox(maximum=99)
-        self.frozen_columns_spinbox.valueChanged.connect(
-            lambda: self.spinbox_to_settings(
-                self.frozen_columns_spinbox, ATTR.FROZEN_COLUMNS))
-
-        self.frozen_rows_spinbox = QtWidgets.QSpinBox(maximum=99)
-        self.frozen_rows_spinbox.valueChanged.connect(
-            lambda: self.spinbox_to_settings(
-                self.frozen_rows_spinbox, ATTR.FROZEN_ROWS))
-
-        self.rows_number_offset_spinbox = QtWidgets.QSpinBox(maximum=99)
-        self.rows_number_offset_spinbox.valueChanged.connect(
-            lambda: self.spinbox_to_settings(
-                self.rows_number_offset_spinbox, ATTR.ROWS_NUMBER_OFFSET))
-
-        self.round_digits_spinbox = QtWidgets.QSpinBox(maximum=99)
-        self.round_digits_spinbox.valueChanged.connect(
-            lambda: self.spinbox_to_settings(
-                self.round_digits_spinbox, ATTR.ROUND_FLOATS_DIGITS))
-
-        self.auto_resize_max_rows_spinbox = QtWidgets.QSpinBox(maximum=9999)
-        self.auto_resize_max_rows_spinbox.valueChanged.connect(
-            lambda: self.spinbox_to_settings(
-                self.auto_resize_max_rows_spinbox, ATTR.AUTO_RESIZE_MAX_ROWS))
-
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Title', self.title_edit)
-        form_layout.addRow('Display index', self.index_combo)
-        form_layout.addRow('Show row numbers', self.show_row_numbers_checkbox)
-        form_layout.addRow('Frozen columns', self.frozen_columns_spinbox)
-        form_layout.addRow('Frozen rows', self.frozen_rows_spinbox)
-        form_layout.addRow(
-            'Rows number offset', self.rows_number_offset_spinbox)
-        form_layout.addRow(
-            'Round digits count (0 = off)', self.round_digits_spinbox)
-        form_layout.addRow(
-            'Auto-resize columns (max rows, 0 = off)',
-            self.auto_resize_max_rows_spinbox)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(self.build_attr_form(TableNode.attrs))
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
-        self.name_edit.setText(node[ATTR.NAME])
-        self.title_edit.setText(node[ATTR.TITLE] or '')
-        self.show_row_numbers_checkbox.setChecked(
-            node[ATTR.SHOW_ROW_NUMBERS] is not False)
-        self.frozen_columns_spinbox.setValue(node[ATTR.FROZEN_COLUMNS] or 0)
-        self.frozen_rows_spinbox.setValue(node[ATTR.FROZEN_ROWS] or 0)
-        self.rows_number_offset_spinbox.setValue(
-            node[ATTR.ROWS_NUMBER_OFFSET] or 0)
-        self.round_digits_spinbox.setValue(
-            node[ATTR.ROUND_FLOATS_DIGITS] or 0)
-        self.auto_resize_max_rows_spinbox.setValue(
-            node[ATTR.AUTO_RESIZE_MAX_ROWS] or 0)
-        index = node[ATTR.DISPLAY_INDEX]
-        if index:
-            self.index_combo.setCurrentText(index)
+        self.load_attrs(node, input_tables)
         self.input_table: pl.LazyFrame = input_tables[0]
         self.blockSignals(False)

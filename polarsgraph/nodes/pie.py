@@ -2,6 +2,7 @@ import polars as pl
 from PySide6 import QtWidgets, QtGui, QtCharts, QtCore
 from PySide6.QtCore import Qt
 
+from polarsgraph.attrs import ChoiceAttr, IntAttr, StrAttr
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes.base import (
@@ -15,12 +16,11 @@ COLOR = dict(
 )
 
 
-class ATTR:
-    NAME = 'name'
-    TITLE = 'title'
-    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
-    START_ANGLE = 'start_angle'
-    END_ANGLE = 'end_angle'
+TITLE = 'title'
+START_ANGLE = 'start_angle'
+END_ANGLE = 'end_angle'
+
+DISPLAY_INDEX_OPTIONS = ['auto'] + [str(i) for i in range(1, 10)]
 
 
 class PieNode(BaseNode):
@@ -29,10 +29,18 @@ class PieNode(BaseNode):
     input_plugs = 'table',
     output_plugs = 'widget',
     default_color = DEFAULT_COLOR
+    attrs = [
+        ChoiceAttr(DISPLAY_INDEX_ATTR, DISPLAY_INDEX_OPTIONS,
+                   label='Display index'),
+        StrAttr(TITLE, label='Title'),
+        IntAttr(START_ANGLE, default=0, label='Start angle',
+                minimum=-999, maximum=999),
+        IntAttr(END_ANGLE, default=360, label='End angle',
+                minimum=-999, maximum=999),
+    ]
 
     def __init__(self, settings=None):
         super().__init__(settings)
-
         self._display_widget = None
 
     def _build_query(self, tables):
@@ -55,45 +63,13 @@ class PieNode(BaseNode):
 class PieSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
-
-        # Widgets
-        self.index_combo = QtWidgets.QComboBox()
-        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
-        self.index_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.index_combo, ATTR.DISPLAY_INDEX))
-
-        self.title_edit = QtWidgets.QLineEdit()
-        self.title_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(self.title_edit, ATTR.TITLE))
-
-        self.start_angle_edit = QtWidgets.QLineEdit()
-        self.start_angle_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(
-                self.start_angle_edit, ATTR.START_ANGLE, int))
-
-        self.end_angle_edit = QtWidgets.QLineEdit()
-        self.end_angle_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(
-                self.end_angle_edit, ATTR.END_ANGLE, int))
-
-        # Layout
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Display index', self.index_combo)
-        form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
-        form_layout.addRow('Start angle', self.start_angle_edit)
-        form_layout.addRow('End angle', self.end_angle_edit)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(self.build_attr_form(PieNode.attrs))
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
-        self.name_edit.setText(node[ATTR.NAME])
-        self.title_edit.setText(node[ATTR.TITLE] or '')
-        self.start_angle_edit.setText(str(node[ATTR.START_ANGLE] or 0))
-        self.end_angle_edit.setText(str(node[ATTR.END_ANGLE] or 360))
+        self.load_attrs(node, input_tables)
         self.blockSignals(False)
 
 
@@ -119,9 +95,9 @@ class PieDisplay(BaseDisplay):
         if table is None:
             return
         table = table.collect()
-        title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
-        start_angle = self.node[ATTR.START_ANGLE] or 0
-        end_angle = self.node[ATTR.END_ANGLE] or 360
+        title = self.node[TITLE] or self.node['name']
+        start_angle = self.node[START_ANGLE] or 0
+        end_angle = self.node[END_ANGLE] or 360
         self.node.error = make_chart(
             self.chart_view, table, title, start_angle, end_angle)
         if self.node.error:

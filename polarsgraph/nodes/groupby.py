@@ -2,10 +2,10 @@ import polars as pl
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
 
+from polarsgraph.attrs import ColumnChoiceAttr, StrAttr
 from polarsgraph.nodes import PINK as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
-from polarsgraph.nodes.base import (
-    BaseNode, BaseSettingsWidget, set_combo_values_from_table_columns)
+from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 
 ALL_ROWS_LABEL = '* aggregate all rows'
@@ -26,15 +26,12 @@ DATATYPE_DEFAULT_AGG = {
     pl.Boolean: 'sum',  # == count True's
 }
 
-
-class ATTR:
-    NAME = 'name'
-    GROUP_BY = 'group_by'
-    GROUP_BY2 = 'group_by2'
-    GROUP_BY3 = 'group_by3'
-    COLUMNS_AGGREGATIONS = 'columns_aggregations'
-    ROUND = 'round'
-    CUSTOM_VALUE = 'custom_value'
+GROUP_BY = 'group_by'
+GROUP_BY2 = 'group_by2'
+GROUP_BY3 = 'group_by3'
+COLUMNS_AGGREGATIONS = 'columns_aggregations'
+ROUND = 'round'
+CUSTOM_VALUE = 'custom_value'
 
 
 class GroupByNode(BaseNode):
@@ -43,24 +40,29 @@ class GroupByNode(BaseNode):
     input_plugs = 'table',
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        super().__init__(settings)
+    attrs = [
+        ColumnChoiceAttr(
+            GROUP_BY, label='Group by',
+            extra_values=[ALL_ROWS_LABEL]),
+        ColumnChoiceAttr(GROUP_BY2, label='', extra_values=['']),
+        ColumnChoiceAttr(GROUP_BY3, label='', extra_values=['']),
+        StrAttr(CUSTOM_VALUE, label='Custom value'),
+    ]
 
     def _build_query(self, tables):
         df: pl.LazyFrame = tables[0]
         schema = df.collect_schema()
 
         # Group by column(s)
-        group_by_column = self[ATTR.GROUP_BY]
-        group_by_column2 = self[ATTR.GROUP_BY2]
-        group_by_column3 = self[ATTR.GROUP_BY3]
+        group_by_column = self[GROUP_BY]
+        group_by_column2 = self[GROUP_BY2]
+        group_by_column3 = self[GROUP_BY3]
         group_by_columns = group_by_column, group_by_column2, group_by_column3
-        custom_value = self[ATTR.CUSTOM_VALUE] or ''
+        custom_value = self[CUSTOM_VALUE] or ''
 
         # Prepare aggregation expressions
         agg_exprs = []
-        column_aggregations = self[ATTR.COLUMNS_AGGREGATIONS] or {}
+        column_aggregations = self[COLUMNS_AGGREGATIONS] or {}
         for col_name in schema.names():
             agg_name = column_aggregations.get(col_name)
             if agg_name == DELETE_LABEL:
@@ -79,9 +81,11 @@ class GroupByNode(BaseNode):
                 col = pl.col(col_name)
                 if agg_name == 'mean':
                     if schema[col_name] == pl.Boolean:
-                        df = df.with_columns(col.replace(None, False).name.keep())
+                        df = df.with_columns(
+                            col.replace(None, False).name.keep())
                     elif schema[col_name].is_numeric():
-                        df = df.with_columns(col.fill_null(0).name.keep())
+                        df = df.with_columns(
+                            col.fill_null(0).name.keep())
                 agg_expr = getattr(col, agg_name)()
             else:
                 # Column not configured, delete it
@@ -97,7 +101,7 @@ class GroupByNode(BaseNode):
             df = df.group_by(group_by).agg(agg_exprs)
 
         # Round
-        decimals = self[ATTR.ROUND]
+        decimals = self[ROUND]
         if decimals not in (None, ''):
             # Collect schema again because .mean() can turn int/bool into float
             for column, data_type in df.collect_schema().items():
@@ -115,56 +119,41 @@ class GroupSettingsWidget(BaseSettingsWidget):
 
         self.input_table = None
 
-        # Widgets
-        self.group_by_column_combo = QtWidgets.QComboBox()
-        self.group_by_column_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.group_by_column_combo, ATTR.GROUP_BY))
-        self.group_by_column_combo2 = QtWidgets.QComboBox()
-        self.group_by_column_combo2.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.group_by_column_combo2, ATTR.GROUP_BY2))
-        self.group_by_column_combo3 = QtWidgets.QComboBox()
-        self.group_by_column_combo3.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.group_by_column_combo3, ATTR.GROUP_BY3))
+        # ROUND is a special-cased empty-or-int field, kept custom.
+        self.round_edit = QtWidgets.QLineEdit()
+        self.round_edit.editingFinished.connect(
+            lambda: self.line_edit_to_settings(
+                self.round_edit, ROUND, int))
 
-        # Table for column aggregation functions
+        # Dynamic per-column aggregation table.
         self.column_agg_table = QtWidgets.QTableWidget()
         self.column_agg_table.setColumnCount(2)
         self.column_agg_table.horizontalHeader().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeMode.Stretch)
         mode = QtWidgets.QAbstractItemView.ScrollPerPixel
         self.column_agg_table.setVerticalScrollMode(mode)
-        self.column_agg_table.setVerticalScrollBarPolicy(
-            Qt.ScrollBarAlwaysOn)
+        self.column_agg_table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.column_agg_table.setHorizontalHeaderLabels(
             ['Column', 'Aggregation'])
-
-        self.round_edit = QtWidgets.QLineEdit()
-        self.round_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(
-                self.round_edit, ATTR.ROUND, int))
-
-        self.customvalue_edit = QtWidgets.QLineEdit()
-        self.customvalue_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(
-                self.customvalue_edit, ATTR.CUSTOM_VALUE))
 
         refresh_button = QtWidgets.QPushButton('Refresh list')
         refresh_button.clicked.connect(self.populate_aggregation_table)
 
-        # Layout
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Group by', self.group_by_column_combo)
-        form_layout.addRow('', self.group_by_column_combo2)
-        form_layout.addRow('', self.group_by_column_combo3)
-        form_layout.addRow('Round (number of decimals)', self.round_edit)
-        form_layout.addRow('Custom value', self.customvalue_edit)
+        # Form: name + declarative attrs + custom ROUND row (inserted before
+        # CUSTOM_VALUE for visual continuity with the original layout).
+        form = QtWidgets.QFormLayout()
+        form.addRow('Name', self.name_edit)
+        group_by_attr, group_by2_attr, group_by3_attr, custom_value_attr = (
+            GroupByNode.attrs)
+        for attr in (group_by_attr, group_by2_attr, group_by3_attr):
+            label, widget = self.register_attr(attr)
+            form.addRow(label, widget)
+        form.addRow('Round (number of decimals)', self.round_edit)
+        label, custom_value_widget = self.register_attr(custom_value_attr)
+        form.addRow(label, custom_value_widget)
 
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(form)
         layout.addWidget(refresh_button)
         layout.addWidget(self.column_agg_table)
 
@@ -173,26 +162,12 @@ class GroupSettingsWidget(BaseSettingsWidget):
         self.node = node
         self.input_table: pl.LazyFrame = input_tables[0]
 
-        self.name_edit.setText(node[ATTR.NAME])
+        self.load_attrs(node, input_tables)
 
-        group_by = node[ATTR.GROUP_BY] or ALL_ROWS_LABEL
-        group_by2 = node[ATTR.GROUP_BY2] or ''
-        group_by3 = node[ATTR.GROUP_BY3] or ''
-        set_combo_values_from_table_columns(
-            self.group_by_column_combo, self.input_table, group_by,
-            extra_values=[ALL_ROWS_LABEL])
-        set_combo_values_from_table_columns(
-            self.group_by_column_combo2, self.input_table, group_by2,
-            extra_values=[''])
-        set_combo_values_from_table_columns(
-            self.group_by_column_combo3, self.input_table, group_by3,
-            extra_values=[''])
-
-        round_value = node[ATTR.ROUND]
-        round_value = '' if round_value is None else str(round_value)
+        # ROUND field: None/'' → '' else str
+        round_value = node[ROUND]
+        round_value = '' if round_value in (None, '') else str(round_value)
         self.round_edit.setText(round_value)
-
-        self.customvalue_edit.setText(node[ATTR.CUSTOM_VALUE] or '')
 
         self.populate_aggregation_table()
 
@@ -206,7 +181,7 @@ class GroupSettingsWidget(BaseSettingsWidget):
         self.column_agg_table.blockSignals(True)
         self.column_agg_table.setRowCount(len(columns))
 
-        settings_aggs = self.node[ATTR.COLUMNS_AGGREGATIONS] or {}
+        settings_aggs = self.node[COLUMNS_AGGREGATIONS] or {}
         for i, (column, datatype) in enumerate(columns.items()):
             # Add column name
             column_item = QtWidgets.QTableWidgetItem(column)
@@ -243,5 +218,5 @@ class GroupSettingsWidget(BaseSettingsWidget):
                 agg_function = combo.currentText()
             columns_aggregations[column_name] = agg_function
 
-        self.node[ATTR.COLUMNS_AGGREGATIONS] = columns_aggregations
+        self.node[COLUMNS_AGGREGATIONS] = columns_aggregations
         self.emit_changed()

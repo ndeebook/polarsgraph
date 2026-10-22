@@ -7,6 +7,7 @@ import polars as pl
 from PySide6 import QtWidgets, QtGui, QtCore
 from PySide6.QtCore import Qt
 
+from polarsgraph.attrs import ChoiceAttr, StrAttr
 from polarsgraph.nodes import GREEN as DEFAULT_COLOR
 from polarsgraph.graph import DISPLAY_CATEGORY
 from polarsgraph.nodes.base import (
@@ -32,11 +33,10 @@ DEFAULT_COLORS = [
 ]
 
 
-class ATTR:
-    NAME = 'name'
-    TITLE = 'title'
-    DISPLAY_INDEX = DISPLAY_INDEX_ATTR
-    COLORS = 'colors'
+TITLE = 'title'
+COLORS = 'colors'
+
+DISPLAY_INDEX_OPTIONS = ['auto'] + [str(i) for i in range(1, 10)]
 
 
 class BarsNode(BaseNode):
@@ -45,10 +45,14 @@ class BarsNode(BaseNode):
     input_plugs = 'table',
     output_plugs = 'widget',
     default_color = DEFAULT_COLOR
+    attrs = [
+        ChoiceAttr(DISPLAY_INDEX_ATTR, DISPLAY_INDEX_OPTIONS,
+                   label='Display index'),
+        StrAttr(TITLE, label='Title'),
+    ]
 
     def __init__(self, settings=None):
         super().__init__(settings)
-
         self._display_widget = None
 
     def _build_query(self, tables):
@@ -74,17 +78,7 @@ class BarsSettingsWidget(BaseSettingsWidget):
 
         self.input_table = None
 
-        # Widgets
-        self.index_combo = QtWidgets.QComboBox()
-        self.index_combo.addItems(['auto'] + [str(i) for i in range(1, 10)])
-        self.index_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.index_combo, ATTR.DISPLAY_INDEX))
-
-        self.title_edit = QtWidgets.QLineEdit()
-        self.title_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(self.title_edit, ATTR.TITLE))
-
+        # Colors table is a dynamic per-column widget — kept custom.
         self.colors_table = QtWidgets.QTableWidget(minimumHeight=250)
         self.colors_table.setColumnCount(2)
         self.colors_table.horizontalHeader().setSectionResizeMode(
@@ -93,13 +87,8 @@ class BarsSettingsWidget(BaseSettingsWidget):
         self.colors_table.cellChanged.connect(self.set_colors_from_table)
         self.colors_table.cellClicked.connect(self.edit_color)
 
-        # Layout
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Display index', self.index_combo)
-        form_layout.addRow(ATTR.TITLE.title(), self.title_edit)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(self.build_attr_form(BarsNode.attrs))
         layout.addWidget(QtWidgets.QLabel('Colors:'))
         layout.addWidget(self.colors_table)
 
@@ -107,8 +96,7 @@ class BarsSettingsWidget(BaseSettingsWidget):
         self.blockSignals(True)
         self.node = node
         self.input_table: pl.LazyFrame = input_tables[0]
-        self.name_edit.setText(node[ATTR.NAME])
-        self.title_edit.setText(node[ATTR.TITLE] or '')
+        self.load_attrs(node, input_tables)
         self.populate_color_table()
         self.blockSignals(False)
 
@@ -131,7 +119,7 @@ class BarsSettingsWidget(BaseSettingsWidget):
     def populate_color_table(self):
         self.colors_table.blockSignals(True)
 
-        colors = self.node[ATTR.COLORS] or {}
+        colors = self.node[COLORS] or {}
 
         if self.input_table is None:
             columns = []
@@ -151,7 +139,7 @@ class BarsSettingsWidget(BaseSettingsWidget):
             column = self.colors_table.item(row_index, 0).text()
             color = self.colors_table.item(row_index, 1).text()
             colors[column] = color
-        self.node[ATTR.COLORS] = colors
+        self.node[COLORS] = colors
         self.emit_changed()
 
     def edit_color(self, row_index, col):
@@ -240,7 +228,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
             painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter, 'Error')
             print(traceback.format_exc())
             return
-        title = self.node[ATTR.TITLE] or self.node[ATTR.NAME]
+        title = self.node[TITLE] or self.node['name']
         painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter, title)
 
         # BG Lines
@@ -266,7 +254,7 @@ class CustomStackedBarChart(QtWidgets.QWidget):
             painter.drawText(pos_rect, alignment, f'{int(max_value * pos)}')
 
         # Legend
-        colors = self.node[ATTR.COLORS] or {}
+        colors = self.node[COLORS] or {}
         colors = {n: QtGui.QColor(c) for n, c in colors.items()}
         colors = get_bars_colors(self.dataframe.columns[1:], colors)
         y = rect.bottom() - legend_offset + margin / 2

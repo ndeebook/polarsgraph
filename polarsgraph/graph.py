@@ -41,6 +41,7 @@ class BaseNode:
     output_plugs: tuple[str] = None
     default_color: QtGui.QColor = None
     icon: bytes = None  # svg code
+    attrs: list = []  # declarative Attr specs — see polarsgraph.nodes.attrs
 
     def __init__(self, settings=None):
         self.graph = None
@@ -60,6 +61,9 @@ class BaseNode:
             self.settings['color'] = QtGui.QColor(self.settings['color'])
         else:
             self.settings['color'] = self.default_color
+
+        for attr in self.attrs:
+            attr.apply_default(self.settings)
 
     def __getitem__(self, key):
         return self.settings.get(key)

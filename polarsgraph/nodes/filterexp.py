@@ -1,10 +1,11 @@
 import polars as pl
 
+from polarsgraph.attrs import TextAttr
 from polarsgraph.nodes import BLUE as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import BaseNode
 from polarsgraph.nodes.derive import (
-    ATTR, DeriveSettingsWidget,
+    FORMULA, DeriveSettingsWidget,
     formula_to_polars_expression, remove_comments)
 
 
@@ -44,13 +45,11 @@ class FilterExpNode(BaseNode):
     input_plugs = 'table',
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        super().__init__(settings)
+    attrs = [TextAttr(FORMULA, label='Formula')]
 
     def _build_query(self, tables):
         df: pl.LazyFrame = tables[0]
-        formula = remove_comments(self[ATTR.FORMULA] or '')
+        formula = remove_comments(self[FORMULA] or '')
         if not formula.strip():
             self.tables['table'] = df
             return
@@ -60,9 +59,6 @@ class FilterExpNode(BaseNode):
 
 class FilterExpSettingsWidget(DeriveSettingsWidget):
     def __init__(self):
-        super().__init__(help_text=EXAMPLES_TEXT)
-        # Drop the "Column name" row - FilterExp doesn't create a column
-        self.form_layout.removeRow(1)
-
-    def _set_column_from_node(self, node):
-        pass
+        super().__init__(
+            attrs=FilterExpNode.attrs,
+            help_text=EXAMPLES_TEXT)

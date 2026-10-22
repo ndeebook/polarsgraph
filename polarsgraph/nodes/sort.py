@@ -3,13 +3,89 @@ from PySide6 import QtWidgets
 
 from polarsgraph.nodes import BLUE as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
+from polarsgraph.attrs import CompoundAttr
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 
-class ATTR:
-    NAME = 'name'
-    COLUMNS = 'columns'
-    ORDERS = 'orders'
+COLUMNS_KEY = 'columns'
+ORDERS_KEY = 'orders'
+SORT_SLOTS = 3
+
+
+class SortRowsAttr(CompoundAttr):
+    """
+    N (column, ascending) pairs: one combobox + one 'Ascending' checkbox per
+    row. Owns both the COLUMNS and ORDERS keys on the node.
+    """
+
+    def __init__(
+            self, columns_key=COLUMNS_KEY, orders_key=ORDERS_KEY,
+            n=SORT_SLOTS, label='Sort by'):
+        super().__init__(keys=(columns_key, orders_key), label=label)
+        self.columns_key = columns_key
+        self.orders_key = orders_key
+        self.n = n
+        self.combos: list[QtWidgets.QComboBox] = []
+        self.checkboxes: list[QtWidgets.QCheckBox] = []
+
+    def default_values(self):
+        return {self.orders_key: [True] * self.n}
+
+    def _make_widget(self, _):
+        container = QtWidgets.QWidget()
+        v = QtWidgets.QVBoxLayout(container)
+        v.setContentsMargins(0, 0, 0, 0)
+        for _ in range(self.n):
+            row = QtWidgets.QHBoxLayout()
+            combo = QtWidgets.QComboBox()
+            cb = QtWidgets.QCheckBox('Ascending')
+            cb.setChecked(True)
+            row.addWidget(combo, 1)
+            row.addWidget(cb)
+            v.addLayout(row)
+            self.combos.append(combo)
+            self.checkboxes.append(cb)
+        return container
+
+    def _connect(self, sw):
+        for combo in self.combos:
+            combo.currentTextChanged.connect(lambda *_: self._write(sw))
+        for cb in self.checkboxes:
+            cb.stateChanged.connect(lambda *_: self._write(sw))
+
+    def _write(self, sw):
+        sw.node[self.columns_key] = [
+            c.currentText() or None for c in self.combos]
+        sw.node[self.orders_key] = [cb.isChecked() for cb in self.checkboxes]
+        sw.emit_changed()
+
+    def load(self, _sw, node, input_tables):
+        df = input_tables[0] if input_tables else None
+        try:
+            columns = df.collect_schema().names()
+        except AttributeError:
+            columns = []
+        saved_cols = node[self.columns_key] or []
+        saved_orders = node[self.orders_key] or []
+        for i, (combo, cb) in enumerate(zip(self.combos, self.checkboxes)):
+            combo.blockSignals(True)
+            cb.blockSignals(True)
+            combo.clear()
+            combo.addItem('')
+            combo.addItems(columns)
+            try:
+                saved_col = saved_cols[i]
+            except IndexError:
+                saved_col = None
+            if saved_col and saved_col not in columns:
+                combo.addItem(saved_col)
+            combo.setCurrentText(saved_col or '')
+            try:
+                cb.setChecked(bool(saved_orders[i]))
+            except IndexError:
+                cb.setChecked(True)
+            combo.blockSignals(False)
+            cb.blockSignals(False)
 
 
 class SortNode(BaseNode):
@@ -18,28 +94,26 @@ class SortNode(BaseNode):
     input_plugs = 'table',
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        super().__init__(settings)
+    attrs = [SortRowsAttr()]
 
     def _build_query(self, tables):
         df: pl.LazyFrame = tables[0]
 
-        sort_columns = self[ATTR.COLUMNS] or []
+        sort_columns = self[COLUMNS_KEY] or []
         sort_columns = [col for col in sort_columns if col]
         if sort_columns:
-            sort_order = self[ATTR.ORDERS][:len(sort_columns)]
+            sort_order = self[ORDERS_KEY][:len(sort_columns)]
             df = df.sort(
                 by=sort_columns, descending=[not asc for asc in sort_order])
 
         self.tables['table'] = df
 
     def sort_by(self, col_to_sort):
-        columns = list(self[ATTR.COLUMNS] or [])
-        orders = list(self[ATTR.ORDERS] or [])
-        while len(columns) < 3:
+        columns = list(self[COLUMNS_KEY] or [])
+        orders = list(self[ORDERS_KEY] or [])
+        while len(columns) < SORT_SLOTS:
             columns.append(None)
-        while len(orders) < 3:
+        while len(orders) < SORT_SLOTS:
             orders.append(True)
 
         c1, c2, _ = columns
@@ -47,121 +121,33 @@ class SortNode(BaseNode):
 
         # Just reverse order if already primary sort column
         if c1 == col_to_sort:
-            self[ATTR.COLUMNS] = columns
-            self[ATTR.ORDERS] = [not o1, o2, o3]
+            self[COLUMNS_KEY] = columns
+            self[ORDERS_KEY] = [not o1, o2, o3]
             return
 
         # Column not in list: shift existing down, put new column first
         if col_to_sort not in columns:
-            self[ATTR.COLUMNS] = [col_to_sort, c1, c2]
-            self[ATTR.ORDERS] = [True, o1, o2]
+            self[COLUMNS_KEY] = [col_to_sort, c1, c2]
+            self[ORDERS_KEY] = [True, o1, o2]
             return
 
         # Column already in list: move it to first position
         index = columns.index(col_to_sort)
         columns.insert(0, columns.pop(index))
         orders.insert(0, orders.pop(index))
-        self[ATTR.COLUMNS] = columns
-        self[ATTR.ORDERS] = orders
+        self[COLUMNS_KEY] = columns
+        self[ORDERS_KEY] = orders
 
 
 class SortSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
-
-        # Widgets
-        self.sort_combo1 = QtWidgets.QComboBox()
-        self.sort_combo2 = QtWidgets.QComboBox()
-        self.sort_combo3 = QtWidgets.QComboBox()
-        self.order_cb1 = QtWidgets.QCheckBox('Ascending')
-        self.order_cb1.setChecked(True)
-        self.order_cb2 = QtWidgets.QCheckBox('Ascending')
-        self.order_cb2.setChecked(True)
-        self.order_cb3 = QtWidgets.QCheckBox('Ascending')
-        self.order_cb3.setChecked(True)
-
-        # Signals
-        self.sort_combo1.currentTextChanged.connect(
-            self.update_order_settings)
-        self.sort_combo2.currentTextChanged.connect(
-            self.update_order_settings)
-        self.sort_combo3.currentTextChanged.connect(
-            self.update_order_settings)
-        self.order_cb1.stateChanged.connect(self.update_order_settings)
-        self.order_cb2.stateChanged.connect(self.update_order_settings)
-        self.order_cb3.stateChanged.connect(self.update_order_settings)
-
-        # Layouts
-        sort_layout1 = QtWidgets.QHBoxLayout()
-        sort_layout1.addWidget(self.sort_combo1)
-        sort_layout1.addWidget(self.order_cb1)
-
-        sort_layout2 = QtWidgets.QHBoxLayout()
-        sort_layout2.addWidget(self.sort_combo2)
-        sort_layout2.addWidget(self.order_cb2)
-
-        sort_layout3 = QtWidgets.QHBoxLayout()
-        sort_layout3.addWidget(self.sort_combo3)
-        sort_layout3.addWidget(self.order_cb3)
-
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Sort Column 1', sort_layout1)
-        form_layout.addRow('Sort Column 2', sort_layout2)
-        form_layout.addRow('Sort Column 3', sort_layout3)
-
+        form_layout = self.build_attr_form(SortNode.attrs)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
-
-    def populate_sort_combos(self):
-        if self.input_table is None:
-            columns = []
-        else:
-            columns = self.input_table.collect_schema().names()
-        combos = self.sort_combo1, self.sort_combo2, self.sort_combo3
-        orders_checkboxes = self.order_cb1, self.order_cb2, self.order_cb3
-        for widget in (*combos, *orders_checkboxes):
-            widget.blockSignals(True)
-        for i, combo in enumerate(combos):
-            combo.clear()
-            combo.addItem('')  # Optional blank item (for skipping)
-            combo.addItems(columns)
-            try:
-                saved_column = self.node[ATTR.COLUMNS][i]
-                saved_order = self.node[ATTR.ORDERS][i]
-                checkbox = orders_checkboxes[i]
-            except (TypeError, IndexError):
-                pass
-            else:
-                if saved_column not in columns:
-                    combo.addItem(saved_column)
-                combo.setCurrentText(saved_column)
-                checkbox.setChecked(saved_order)
-        for widget in (*combos, *orders_checkboxes):
-            widget.blockSignals(False)
-
-    def update_order_settings(self):
-        self.node[ATTR.COLUMNS] = [
-            self.sort_combo1.currentText() or None,
-            self.sort_combo2.currentText() or None,
-            self.sort_combo3.currentText() or None,
-        ]
-
-        self.node[ATTR.ORDERS] = [
-            self.order_cb1.isChecked(),
-            self.order_cb2.isChecked(),
-            self.order_cb3.isChecked(),
-        ]
-
-        self.emit_changed()
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
-        self.input_table: pl.LazyFrame = input_tables[0]
-
-        self.name_edit.setText(node[ATTR.NAME])
-
-        self.populate_sort_combos()
-
+        self.load_attrs(node, input_tables)
         self.blockSignals(False)

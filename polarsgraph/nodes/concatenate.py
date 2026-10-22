@@ -3,12 +3,8 @@ from PySide6 import QtWidgets
 
 from polarsgraph.nodes import GRAY as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
+from polarsgraph.attrs import ChoiceAttr
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
-
-
-class ATTR:
-    NAME = 'name'
-    HOW = 'how'
 
 
 class ConcatenateNode(BaseNode):
@@ -17,10 +13,7 @@ class ConcatenateNode(BaseNode):
     input_plugs = 'table1', 'table2'
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        super().__init__(settings)
-        settings[ATTR.HOW] = settings.get(ATTR.HOW) or 'vertical'
+    attrs = [ChoiceAttr('how', ['vertical', 'horizontal'])]
 
     def _build_query(self, tables):
         df1: pl.LazyFrame = tables[0]
@@ -36,28 +29,12 @@ class ConcatenateNode(BaseNode):
 class ConcatenateSettingsWidget(BaseSettingsWidget):
     def __init__(self):
         super().__init__()
-
-        # Widgets
-        self.how_combo = QtWidgets.QComboBox()
-        self.how_combo.addItems(['vertical', 'horizontal'])
-        self.how_combo.currentTextChanged.connect(
-            lambda: self.combobox_to_settings(
-                self.how_combo, ATTR.HOW))
-
-        # Layout
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('how', self.how_combo)
-
+        form_layout = self.build_attr_form(ConcatenateNode.attrs)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form_layout)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
-
-        self.name_edit.setText(node[ATTR.NAME])
-
-        self.how_combo.setCurrentText(node[ATTR.HOW] or 'vertical')
-
+        self.load_attrs(node, input_tables)
         self.blockSignals(False)

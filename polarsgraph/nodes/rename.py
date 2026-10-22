@@ -1,15 +1,14 @@
 import polars as pl
 from PySide6 import QtWidgets, QtCore
 
+from polarsgraph.attrs import StrAttr
 from polarsgraph.nodes import BLUE as DEFAULT_COLOR
 from polarsgraph.graph import MANIPULATE_CATEGORY
 from polarsgraph.nodes.base import BaseNode, BaseSettingsWidget
 
 
-class ATTR:
-    NAME = 'name'
-    RENAMES = 'renames'
-    PREFIX = 'columns_prefix'
+RENAMES = 'renames'
+PREFIX = 'columns_prefix'
 
 
 class RenameNode(BaseNode):
@@ -18,21 +17,19 @@ class RenameNode(BaseNode):
     input_plugs = 'table',
     output_plugs = 'table',
     default_color = DEFAULT_COLOR
-
-    def __init__(self, settings=None):
-        super().__init__(settings)
+    attrs = [StrAttr(PREFIX, label='Columns prefix')]
 
     def _build_query(self, tables):
         df: pl.LazyFrame = tables[0]
 
-        rename_dict = self[ATTR.RENAMES]
+        rename_dict = self[RENAMES]
         existing_columns = df.collect_schema().names()
         if rename_dict:
             rename_dict = {
                 k: v for k, v in rename_dict.items() if k in existing_columns}
             df = df.rename(rename_dict)
 
-        prefix = self[ATTR.PREFIX]
+        prefix = self[PREFIX]
         if prefix:
             df = df.rename({c: f'{prefix}{c}' for c in existing_columns})
 
@@ -45,12 +42,6 @@ class RenameSettingsWidget(BaseSettingsWidget):
 
         self.input_table = None
 
-        # Widgets
-        self.prefix_edit = QtWidgets.QLineEdit()
-        self.prefix_edit.editingFinished.connect(
-            lambda: self.line_edit_to_settings(
-                self.prefix_edit, ATTR.PREFIX))
-
         self.column_rename_table = QtWidgets.QTableWidget()
         self.column_rename_table.horizontalHeader().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeMode.Stretch)
@@ -58,24 +49,16 @@ class RenameSettingsWidget(BaseSettingsWidget):
         self.column_rename_table.setHorizontalHeaderLabels(
             ['Current name', 'New name'])
 
-        # Layout
-        form_layout = QtWidgets.QFormLayout()
-        form_layout.addRow(ATTR.NAME.title(), self.name_edit)
-        form_layout.addRow('Columns prefix', self.prefix_edit)
-
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(form_layout)
+        layout.addLayout(self.build_attr_form(RenameNode.attrs))
         layout.addWidget(self.column_rename_table)
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
         self.node = node
         self.input_table: pl.LazyFrame = input_tables[0]
-
-        self.name_edit.setText(node[ATTR.NAME])
+        self.load_attrs(node, input_tables)
         self.populate_rename_table()
-        self.prefix_edit.setText(node[ATTR.PREFIX] or '')
-
         self.blockSignals(False)
 
     def populate_rename_table(self):
@@ -95,8 +78,8 @@ class RenameSettingsWidget(BaseSettingsWidget):
 
             # Add text input for new name
             rename_input = QtWidgets.QLineEdit()
-            if column in (self.node[ATTR.RENAMES] or {}):
-                rename_input.setText(self.node[ATTR.RENAMES][column])
+            if column in (self.node[RENAMES] or {}):
+                rename_input.setText(self.node[RENAMES][column])
             rename_input.editingFinished.connect(self._handle_rename_changes)
             self.column_rename_table.setCellWidget(i, 1, rename_input)
 
@@ -111,5 +94,5 @@ class RenameSettingsWidget(BaseSettingsWidget):
             if new_column_name:  # Only store if new name is provided
                 renames[original_column_name] = new_column_name
 
-        self.node[ATTR.RENAMES] = renames
+        self.node[RENAMES] = renames
         self.emit_changed()
