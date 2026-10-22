@@ -72,7 +72,7 @@ class BaseSettingsWidget(QtWidgets.QWidget):
         """Populate name_edit + every registered attr widget from `node`."""
         self.name_edit.setText(node['name'])
         for attr in self._attrs:
-            attr.load(self, node, input_tables)
+            attr.load(attr.widget, self, node, input_tables)
 
     def rename(self):
         self.rename_asked.emit(self.node['name'], self.name_edit.text())

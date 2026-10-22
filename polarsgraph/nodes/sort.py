@@ -47,19 +47,24 @@ class SortRowsAttr(CompoundAttr):
             self.checkboxes.append(cb)
         return container
 
-    def _connect(self, sw):
+    def _connect(self, _widget, settings_widget, _write):
+        # Compound: owns two keys, uses dedicated _emit instead of the
+        # single-value write callback.
         for combo in self.combos:
-            combo.currentTextChanged.connect(lambda *_: self._write(sw))
+            combo.currentTextChanged.connect(
+                lambda *_: self._emit(settings_widget))
         for cb in self.checkboxes:
-            cb.stateChanged.connect(lambda *_: self._write(sw))
+            cb.stateChanged.connect(
+                lambda *_: self._emit(settings_widget))
 
-    def _write(self, sw):
-        sw.node[self.columns_key] = [
+    def _emit(self, settings_widget):
+        settings_widget.node[self.columns_key] = [
             c.currentText() or None for c in self.combos]
-        sw.node[self.orders_key] = [cb.isChecked() for cb in self.checkboxes]
-        sw.emit_changed()
+        settings_widget.node[self.orders_key] = [
+            cb.isChecked() for cb in self.checkboxes]
+        settings_widget.emit_changed()
 
-    def load(self, _sw, node, input_tables):
+    def load(self, _widget, _settings_widget, node, input_tables):
         df = input_tables[0] if input_tables else None
         try:
             columns = df.collect_schema().names()
