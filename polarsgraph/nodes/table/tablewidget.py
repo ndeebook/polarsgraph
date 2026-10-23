@@ -22,6 +22,7 @@ FROZEN_COLUMNS = 'frozen_columns'
 FROZEN_ROWS = 'frozen_rows'
 ROWS_NUMBER_OFFSET = 'rows_number_offset'
 SHOW_ROW_NUMBERS = 'show_row_numbers'
+FIT = 'fit'
 ROUND_FLOATS_DIGITS = 'round_floats'
 AUTO_RESIZE_MAX_ROWS = 'auto_resize_max_rows'
 
@@ -107,6 +108,7 @@ class TableDisplay(BaseDisplay):
         self.tableau.set_title(self.node[TITLE])
         self.tableau.set_show_row_numbers(
             self.node[SHOW_ROW_NUMBERS] is not False)
+        self.tableau.set_fit(self.node[FIT])
 
     def set_board_mode(self, board_enabled: bool):
         self.bottom_widget.setVisible(not board_enabled)

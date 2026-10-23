@@ -33,6 +33,9 @@ class Tableau(QtWidgets.QWidget):
 
         self.title = ''
         self.show_row_numbers = True
+        self.fit = False
+        self._fit_transform: QtGui.QTransform | None = None
+        self._viewport = QtCore.QRect()
 
         self._vertical_scroll = 0
         self._horizontal_scroll = 0
@@ -61,9 +64,37 @@ class Tableau(QtWidgets.QWidget):
         painter = QtGui.QPainter(self)
         painter.setFont(self.font_)
         try:
-            self._paint(painter)
+            rect = self.rect()
+            self._fit_transform = self.get_fit_transform()
+            if self._fit_transform:
+                # Paint at natural size, scaled to fill the widget
+                painter.fillRect(rect, self.BACKGROUND_COLOR)
+                painter.setTransform(self._fit_transform)
+                rect = QtCore.QRect(0, 0, *self.get_table_size())
+            self._viewport = rect
+            self._paint(painter, rect)
         finally:
             painter.end()
+
+    def get_fit_transform(self) -> QtGui.QTransform | None:
+        if not self.fit or not self.columns:
+            return None
+        table_width, table_height = self.get_table_size()
+        if not table_width or not table_height:
+            return None
+        widget_width, widget_height = self.size().toTuple()
+        scale = min(widget_width / table_width, widget_height / table_height)
+        transform = QtGui.QTransform()
+        transform.translate(
+            (widget_width - table_width * scale) / 2,
+            (widget_height - table_height * scale) / 2)
+        transform.scale(scale, scale)
+        return transform
+
+    def map_to_table(self, pos: QtCore.QPointF) -> QtCore.QPointF:
+        if not self._fit_transform:
+            return pos
+        return self._fit_transform.inverted()[0].map(pos)
 
     def compute_headers_sizes(self):
         if not self.columns:
@@ -158,14 +189,13 @@ class Tableau(QtWidgets.QWidget):
                 return bg_color, text_color
         return self.BACKGROUND_COLOR, self.TEXT_COLOR
 
-    def _paint(self, painter: QtGui.QPainter):
+    def _paint(self, painter: QtGui.QPainter, rect: QtCore.QRect):
         # Collect main sizes
         self.compute_headers_sizes()
         self._column_sizes = [
             self.column_sizes.get(colname, DEFAULT_COL_WIDTH)
             for colname in self.columns]
 
-        rect = self.rect()
         widget_width, widget_height = rect.size().toTuple()
 
         # Background
@@ -336,7 +366,7 @@ class Tableau(QtWidgets.QWidget):
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
         # Drag:
         if self.selected_column_separator:
-            pos = event.position()
+            pos = self.map_to_table(event.position())
             delta = self.drag_start.x() - pos.x()
             current_width = self.column_sizes.get(
                 self.selected_column_separator, DEFAULT_COL_WIDTH)
@@ -348,7 +378,7 @@ class Tableau(QtWidgets.QWidget):
             self.update()
             return
         # Mouse Hover:
-        self.set_cursor(event.position())
+        self.set_cursor(self.map_to_table(event.position()))
 
     def get_column_header_at(self, pos):
         if not hasattr(self, 'horizontal_header_height'):
@@ -361,7 +391,7 @@ class Tableau(QtWidgets.QWidget):
             return None
         if not self._column_sizes:
             return None
-        viewport_width = self.width()
+        viewport_width = self._viewport.width()
         x_pos = pos.x()
         for col_index, colname in enumerate(self.columns):
             x = self._get_column_x(col_index, viewport_width)
@@ -372,7 +402,7 @@ class Tableau(QtWidgets.QWidget):
         return None
 
     def mousePressEvent(self, event: QtGui.QMouseEvent):
-        pos = event.position()
+        pos = self.map_to_table(event.position())
         self.selected_column_separator = (
             self.get_separator_column_under_cursor(pos))
         self.click_pos = pos
@@ -445,6 +475,10 @@ class Tableau(QtWidgets.QWidget):
         self.show_row_numbers = bool(show)
         self.update()
 
+    def set_fit(self, fit):
+        self.fit = bool(fit)
+        self.update()
+
     def get_palette_colors(self):
         table = QtWidgets.QTableView()
         palette = table.palette()
@@ -501,6 +535,12 @@ class TableauWithScroll(QtWidgets.QWidget):
         self.adjust_scrollbars()
 
     def adjust_scrollbars(self):
+        if self.tableau.fit:
+            for scrollbar in (self.vertical_scroll, self.horizontal_scroll):
+                scrollbar.setVisible(False)
+                scrollbar.setMaximum(0)
+            return
+
         content_width, content_height = self.tableau.get_table_size()
         widget_width, widget_height = self.size().toTuple()
 
@@ -538,6 +578,10 @@ class TableauWithScroll(QtWidgets.QWidget):
         self.tableau.set_show_row_numbers(show)
         QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
 
+    def set_fit(self, fit):
+        self.tableau.set_fit(fit)
+        QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
+
     def resize_columns_to_contents(self):
         self.tableau.resize_columns_to_contents()
         QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
@@ -551,6 +595,8 @@ class TableauWithScroll(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(0, self.adjust_scrollbars)
 
     def wheelEvent(self, event: QtGui.QWheelEvent):
+        if self.tableau.fit:
+            return super().wheelEvent(event)
         offset = self.tableau.row_height / 2
         if event.angleDelta().y() > 0:
             offset *= -1

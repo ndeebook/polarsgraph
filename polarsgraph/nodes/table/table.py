@@ -17,8 +17,9 @@ from polarsgraph.nodes.base import (
     DISPLAY_INDEX_ATTR, BaseNode, BaseSettingsWidget)
 
 from polarsgraph.nodes.table.tablewidget import (
-    AUTO_RESIZE_MAX_ROWS, FROZEN_COLUMNS, FROZEN_ROWS, ROUND_FLOATS_DIGITS,
-    ROWS_NUMBER_OFFSET, SHOW_ROW_NUMBERS, TITLE, TableDisplay)
+    AUTO_RESIZE_MAX_ROWS, FIT, FROZEN_COLUMNS, FROZEN_ROWS,
+    ROUND_FLOATS_DIGITS, ROWS_NUMBER_OFFSET, SHOW_ROW_NUMBERS, TITLE,
+    TableDisplay)
 
 
 DISPLAY_INDEX_OPTIONS = ['auto'] + [str(i) for i in range(1, 10)]
@@ -35,6 +36,7 @@ class TableNode(BaseNode):
         ChoiceAttr(DISPLAY_INDEX_ATTR, DISPLAY_INDEX_OPTIONS,
                    label='Display index'),
         BoolAttr(SHOW_ROW_NUMBERS, default=True, label='Show row numbers'),
+        BoolAttr(FIT, default=False, label='Fit to view'),
         IntAttr(FROZEN_COLUMNS, default=0, label='Frozen columns', maximum=99),
         IntAttr(FROZEN_ROWS, default=0, label='Frozen rows', maximum=99),
         IntAttr(ROWS_NUMBER_OFFSET, default=0,
