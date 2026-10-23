@@ -14,6 +14,9 @@ from polarsgraph.nodes.base import (
 FILL_RECT = 'fill'
 USE_FONT_SIZE = 'font size'
 DEFAULT_FONT_SIZE = 12
+FONT_FAMILY = 'Verdana'
+FILL_MARGIN = 10
+REFERENCE_PIXEL_SIZE = 100
 
 HARDCODED_TEXT = 'hardcoded_text'
 SOURCE_COLUMN = 'source_column'
@@ -111,65 +114,49 @@ class LabelDisplay(BaseDisplay):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
-        rect = self.rect()
-        font_family = 'Verdana'
-        font_size = int(rect.height() * .5)
-        font = QtGui.QFont(font_family, font_size)
+        rect = QtCore.QRectF(self.rect())
         alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         if self.node[SIZE_TYPE] == USE_FONT_SIZE:
             font_size = self.node[FONT_SIZE] or DEFAULT_FONT_SIZE
+            painter.setFont(QtGui.QFont(FONT_FAMILY, font_size))
+            painter.drawText(rect, alignment, self.label)
         else:
-            font_size = get_maximum_font_size(
-                self.label, rect, alignment, font_size, font_family)
-        font = QtGui.QFont(font_family, font_size)
-        painter.setFont(font)
-
-        painter.drawText(rect, alignment, self.label)
+            rect.adjust(FILL_MARGIN, FILL_MARGIN, -FILL_MARGIN, -FILL_MARGIN)
+            draw_fitted_text(painter, rect, alignment, self.label)
 
 
-def get_maximum_font_size(
-        text: str,
-        rect: QtCore.QRect,
+def draw_fitted_text(
+        painter: QtGui.QPainter,
+        rect: QtCore.QRectF,
         alignment: Qt.AlignmentFlag,
-        font_size=DEFAULT_FONT_SIZE,
-        family: str = 'Verdana',
-        level=0):
-    # FIXME: improve this
+        text: str,
+        family: str = FONT_FAMILY):
+    """
+    Draw text as large as possible in rect.
+    Text is laid out once at a reference size then scaled by the painter,
+    so the result is linear with rect size (no font size rounding/hinting
+    jumps).
+    """
+    if not text or rect.width() <= 0 or rect.height() <= 0:
+        return
 
-    width, height = rect.width(), rect.height()
-    if not width or not height:
-        return font_size
-    if level > 6:
-        return font_size
+    font = QtGui.QFont(family)
+    font.setPixelSize(REFERENCE_PIXEL_SIZE)
+    font.setHintingPreference(QtGui.QFont.HintingPreference.PreferNoHinting)
+    text_rect = QtGui.QFontMetricsF(font).boundingRect(
+        QtCore.QRectF(), alignment, text)
+    if not text_rect.width() or not text_rect.height():
+        return
 
-    # print(font_size)
-    margin = 20
-    width = width - margin if width > margin else width
-    height = height - margin if height > margin else height
-    font = QtGui.QFont(family, font_size)
-    next_level = level + 1
+    scale = min(
+        rect.width() / text_rect.width(),
+        rect.height() / text_rect.height())
 
-    # Get text size
-    metrics = QtGui.QFontMetrics(font)
-    text_rect = metrics.boundingRect(rect, alignment, text)
-    text_width, text_height = text_rect.width(), text_rect.height()
-
-    # Check if text is bigger than rect
-    text_overflows = text_width >= width or text_height >= height
-    if text_overflows:
-        # Compute from a smaller font size to try no overflow
-        return get_maximum_font_size(
-            text, rect, alignment, font_size / 2, family, next_level)
-
-    # Compute font size from ratio of text beeing too small:
-    w_ratio = text_width / width
-    h_ratio = text_height / height
-    new_size = round(font_size / max([w_ratio, h_ratio]), 2)
-    if level == 0 or new_size / 2 > font_size:
-        # Get a more accurate size
-        return get_maximum_font_size(
-            text, rect, alignment, new_size, family, next_level)
-
-    # print(f'[{new_size}] {text_width} - {width} | {text_height} - {height}')
-
-    return int(new_size * .95)
+    painter.save()
+    painter.translate(rect.topLeft())
+    painter.scale(scale, scale)
+    painter.setFont(font)
+    painter.drawText(
+        QtCore.QRectF(0, 0, rect.width() / scale, rect.height() / scale),
+        alignment, text)
+    painter.restore()
