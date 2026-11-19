@@ -219,6 +219,10 @@ class CustomStackedBarChart(QtWidgets.QWidget):
         # Background
         painter.fillRect(rect, COLOR['bg'])
 
+        if len(self.dataframe.columns) < 2 or self.dataframe.is_empty():
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, 'No data')
+            return
+
         # Title
         try:
             totals = self.dataframe.select(
