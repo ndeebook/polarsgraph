@@ -85,9 +85,7 @@ class Tableau(QtWidgets.QWidget):
         widget_width, widget_height = self.size().toTuple()
         scale = min(widget_width / table_width, widget_height / table_height)
         transform = QtGui.QTransform()
-        transform.translate(
-            (widget_width - table_width * scale) / 2,
-            (widget_height - table_height * scale) / 2)
+        transform.translate((widget_width - table_width * scale) / 2, 0)
         transform.scale(scale, scale)
         return transform
 
