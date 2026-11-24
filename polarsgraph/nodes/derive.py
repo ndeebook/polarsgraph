@@ -37,8 +37,30 @@ STR_ARGLESS_COLUMNS_METHODS = (
     'to_decimal',
     'len_chars',
 )
+STR_ARGLESS_ALIASES = dict(
+    strip='strip_chars',
+    strip_left='strip_chars_start',
+    strip_right='strip_chars_end',
+    reverse='reverse',
+)
+# @function({column}, argument) -> argument can be a "string" or a {column}
+STR_ONE_ARG_METHODS = dict(
+    startswith=lambda s, arg: s.starts_with(arg),
+    endswith=lambda s, arg: s.ends_with(arg),
+    contains=lambda s, arg: s.contains(arg, literal=True),
+    icontains=lambda s, arg: s.to_lowercase().str.contains(
+        arg.str.to_lowercase(), literal=True),
+    matches=lambda s, arg: s.contains(arg),  # regex
+    count_text=lambda s, arg: s.count_matches(arg, literal=True),
+    find=lambda s, arg: s.find(arg, literal=True),
+    extract=lambda s, arg: s.extract(arg, 1),  # regex, first group
+    remove_prefix=lambda s, arg: s.strip_prefix(arg),
+    remove_suffix=lambda s, arg: s.strip_suffix(arg),
+    remove=lambda s, arg: s.replace_all(arg, '', literal=True),
+)
 DT_ARGLESS_COLUMNS_METHODS = [
-    method for method in dir(pl.col('_').dt) if not method.startswith('_')]
+    method for method in dir(pl.col('_').dt)
+    if not method.startswith('_') and method != 'to_string']
 EXAMPLES_TEXT = """
 {column_name1} + ({column_name2} + 1 / 2)
 {column_name1} + "_" + {column_name2}
@@ -53,6 +75,23 @@ EXAMPLES_TEXT = """
 @replace_nans({column_name}, 1.0)
 @replace_nulls({column_name}, 1.0)
 
+@startswith({column_name}, "prefix")
+@endswith({column_name}, "suffix")
+@contains({column_name}, "text")
+@icontains({column_name}, "text")  // case insensitive
+@matches({column_name}, "^regex$")
+@count_text({column_name}, "text")
+@find({column_name}, "text")  // index or null
+@extract({column_name}, "regex_(group)")
+@remove({column_name}, "text")
+@remove_prefix({column_name}, "prefix")
+@remove_suffix({column_name}, "suffix")
+@replace_text({column_name}, "old", "new")
+@replace_regex({column_name}, "(\\d+)", "#$1")
+@strip({column_name}) / @strip_left / @strip_right / @reverse
+@zfill({column_name}, 4)
+@pad_left({column_name}, 10, " ") / @pad_right
+
 @remove_nans({column_name})
 @remove_infs({column_name})
 
@@ -64,8 +103,8 @@ EXAMPLES_TEXT = """
 @ordinal_day({date_column})
 @month({date_column})
 @year({date_column})
-...
-""" + ', '.join(STR_ARGLESS_COLUMNS_METHODS + ARGLESS_COLUMNS_METHODS)
+
+@""" + '\n@'.join(STR_ARGLESS_COLUMNS_METHODS + ARGLESS_COLUMNS_METHODS)
 
 BOOL_DICT = dict(true=True, false=False)
 
@@ -189,6 +228,24 @@ class ColumnCompleter(QtWidgets.QListWidget):
         return super().eventFilter(obj, event)
 
 
+class HelpDialog(QtWidgets.QDialog):
+    """Non-modal, scrollable examples window (text can be copied)"""
+    def __init__(self, text, font, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Formula help')
+        self.resize(600, 600)
+        text_edit = QtWidgets.QPlainTextEdit(text.strip('\n'))
+        text_edit.setReadOnly(True)
+        text_edit.setFont(font)
+        text_edit.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
+        close_button = QtWidgets.QPushButton('Close')
+        close_button.clicked.connect(self.close)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(text_edit)
+        layout.addWidget(
+            close_button, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+
+
 class DeriveSettingsWidget(BaseSettingsWidget):
     def __init__(self, attrs=None, help_text=EXAMPLES_TEXT):
         super().__init__()
@@ -225,15 +282,30 @@ class DeriveSettingsWidget(BaseSettingsWidget):
         self.highlighter = CustomHighlighter(self.formula_edit.document())
         self.completer = ColumnCompleter(self.formula_edit)
 
-        help_label = QtWidgets.QLabel(help_text, font=fixed_font)
-        help_label.setWordWrap(True)
+        self.help_text = help_text
+        self.help_font = fixed_font
+        self.help_dialog = None
+        help_button = QtWidgets.QPushButton('Examples')
+        help_button.clicked.connect(self.show_help)
+
+        formula_header = QtWidgets.QHBoxLayout()
+        formula_header.addWidget(QtWidgets.QLabel('Formula'))
+        formula_header.addStretch()
+        formula_header.addWidget(help_button)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(form)
-        layout.addWidget(QtWidgets.QLabel('Formula'))
+        layout.addLayout(formula_header)
         layout.addWidget(self.formula_edit)
-        layout.addWidget(QtWidgets.QLabel('Examples:'))
-        layout.addWidget(help_label)
+
+    def show_help(self):
+        if self.help_dialog is None:
+            self.help_dialog = HelpDialog(
+                self.help_text, self.help_font, parent=self)
+        # Show without blocking:
+        self.help_dialog.show()
+        self.help_dialog.raise_()
+        self.help_dialog.activateWindow()
 
     def set_node(self, node, input_tables):
         self.blockSignals(True)
@@ -422,6 +494,30 @@ def func_formula_to_polars(function_name, tokens):
             return column.str.slice(start)
         else:
             return column.str.slice(start, size)
+    if function_name in STR_ONE_ARG_METHODS:
+        column = token_to_value(tokens[0])
+        argument = token_to_value(tokens[2])
+        return STR_ONE_ARG_METHODS[function_name](column.str, argument)
+    if function_name == 'replace_text':
+        column = token_to_value(tokens[0])
+        old, new = token_to_value(tokens[2]), token_to_value(tokens[4])
+        return column.str.replace_all(old, new, literal=True)
+    if function_name == 'replace_regex':
+        column = token_to_value(tokens[0])
+        old, new = token_to_value(tokens[2]), token_to_value(tokens[4])
+        return column.str.replace_all(old, new)
+    if function_name in ('zfill', 'pad_left', 'pad_right'):
+        column = token_to_value(tokens[0])
+        width = int(tokens[2])
+        if function_name == 'zfill':
+            return column.str.zfill(width)
+        fill = tokens[4][1:-1] if len(tokens) > 4 else ' '
+        if function_name == 'pad_left':
+            return column.str.pad_start(width, fill)
+        return column.str.pad_end(width, fill)
+    if function_name in STR_ARGLESS_ALIASES:
+        column = token_to_value(tokens[0])
+        return getattr(column.str, STR_ARGLESS_ALIASES[function_name])()
     if function_name in STR_ARGLESS_COLUMNS_METHODS:
         column = token_to_value(tokens[0])
         return getattr(column.str, function_name)()
