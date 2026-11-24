@@ -495,6 +495,16 @@ class PolarsGraph(QtWidgets.QWidget):
         finally:
             self.node_view.current_graph_stack = saved_graph_stack
 
+        # Drop connections to nodes that don't exist (unknown types, or
+        # graphs saved with dangling connections)
+        for node in self.graph.values():
+            for i, connection in enumerate(node['inputs'] or []):
+                if connection and connection[0] not in self.graph:
+                    print(
+                        f'Removing dangling connection '
+                        f'{connection[0]} -> {node["name"]}')
+                    node['inputs'][i] = None
+
         # Rename pasted nodes
         if add:
             for node in new_nodes:
@@ -669,6 +679,11 @@ class PolarsGraph(QtWidgets.QWidget):
 
         for subgraph_node in subgraphs_nodes:
             self.graph.pop(subgraph_node)
+        # Clear connections pointing to removed subgraph children
+        for other_node in self.graph.values():
+            for i, connection in enumerate(other_node['inputs'] or []):
+                if connection and connection[0] in subgraphs_nodes:
+                    other_node['inputs'][i] = None
 
         for node_name_to_delete in node_names_to_delete:
             # Preserve connections 1 input & 1 output
